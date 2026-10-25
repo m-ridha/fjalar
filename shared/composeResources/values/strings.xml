@@ -49,8 +49,8 @@
     <string name="ringing_slide_to_stop">Slide to Stop Alarm</string>
 
     <!-- System notifications & background telemetry -->
-    <string name="notif_monitoring_title">Monitoring commute to %1$s</string>
-    <string name="notif_monitoring_body">%1$s remaining • Active until %2$s</string>
+    <string name="notif_monitoring_title">Monitoring commute destination</string>
+    <string name="notif_monitoring_body">Active: %1$s • %2$s remaining</string>
 
     <!-- Permissions modal -->
     <string name="perm_location_title">Allow Background Location for Wake-Up Alarms</string>

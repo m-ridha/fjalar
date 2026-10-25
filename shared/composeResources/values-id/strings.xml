@@ -49,8 +49,8 @@
     <string name="ringing_slide_to_stop">Geser untuk Matikan Alarm</string>
 
     <!-- System notifications & background telemetry -->
-    <string name="notif_monitoring_title">Memantau perjalanan ke %1$s</string>
-    <string name="notif_monitoring_body">%1$s lagi • Aktif hingga %2$s</string>
+    <string name="notif_monitoring_title">Memantau tujuan perjalanan</string>
+    <string name="notif_monitoring_body">Aktif: %1$s • %2$s lagi</string>
 
     <!-- Permissions modal -->
     <string name="perm_location_title">Izinkan Lokasi Latar Belakang untuk Alarm Tujuan</string>
