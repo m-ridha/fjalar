@@ -1,0 +1,202 @@
+package com.muhammadridha.fjalar.ui.components
+
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.muhammadridha.fjalar.domain.model.LocationAlarm
+import com.muhammadridha.fjalar.resources.Res
+import com.muhammadridha.fjalar.resources.ringing_headline
+import com.muhammadridha.fjalar.resources.ringing_in_zone_badge
+import com.muhammadridha.fjalar.resources.ringing_snooze_action
+import com.muhammadridha.fjalar.ui.theme.GlassLevel
+import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
+import com.muhammadridha.fjalar.ui.theme.glassSurface
+import org.jetbrains.compose.resources.stringResource
+
+@Composable
+fun RingingAlertOverlay(
+    alarm: LocationAlarm,
+    onDismiss: (id: String) -> Unit,
+    onSnooze: (id: String) -> Unit,
+    modifier: Modifier = Modifier,
+    distanceMeters: Int? = null,
+) {
+    val colors = LiquidGlassTheme.colors
+    val transition = rememberInfiniteTransition()
+
+    val pulse1 by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+    )
+    val pulse2 by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2400, delayMillis = 800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+    )
+    val pulse3 by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2400, delayMillis = 1600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+    )
+
+    val distanceText = formatDistance(distanceMeters ?: alarm.radius.meters)
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .glassSurface(level = GlassLevel.MODAL, shape = RoundedCornerShape(0.dp))
+            .padding(horizontal = 24.dp, vertical = 32.dp),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Main Alert Content & Concentric Radar Pulse
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                // Radar Pulse Area
+                Box(
+                    modifier = Modifier.size(220.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    listOf(pulse1, pulse2, pulse3).forEach { progress ->
+                        val scale = 0.2f + (progress * 0.8f)
+                        val alpha = (1f - progress).coerceIn(0f, 0.6f)
+                        Box(
+                            modifier = Modifier
+                                .size(220.dp)
+                                .scale(scale)
+                                .alpha(alpha)
+                                .clip(CircleShape)
+                                .background(colors.armed.copy(alpha = 0.35f)),
+                        )
+                    }
+
+                    // Center Pin Glow
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(colors.armed.copy(alpha = 0.25f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(colors.armed),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "📍",
+                                fontSize = 24.sp,
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // In-Zone Distance Pill Badge
+                Text(
+                    text = stringResource(Res.string.ringing_in_zone_badge, distanceText),
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontFeatureSettings = "tnum",
+                    ),
+                    color = colors.armed,
+                    modifier = Modifier
+                        .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Wake-Up Headline
+                Text(
+                    text = stringResource(Res.string.ringing_headline, alarm.label),
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                    ),
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Snooze Button
+                Box(
+                    modifier = Modifier
+                        .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                        .clickable(role = Role.Button) { onSnooze(alarm.id) }
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(Res.string.ringing_snooze_action),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontFeatureSettings = "tnum",
+                        ),
+                        color = colors.primary,
+                    )
+                }
+            }
+
+            // Bottom "Slide to Stop Alarm" track (sleepy-eyes dismissal safety)
+            SlideToStopTrack(
+                onStopAlarm = { onDismiss(alarm.id) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+            )
+        }
+    }
+}
