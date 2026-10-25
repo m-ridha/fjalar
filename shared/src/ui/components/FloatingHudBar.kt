@@ -27,6 +27,7 @@ import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.resources.Res
 import com.muhammadridha.fjalar.resources.hud_locale_label
+import com.muhammadridha.fjalar.resources.hud_recenter_location
 import com.muhammadridha.fjalar.resources.hud_search_placeholder
 import com.muhammadridha.fjalar.resources.hud_theme_switch_dark
 import com.muhammadridha.fjalar.resources.hud_theme_switch_light
@@ -134,6 +135,7 @@ fun FloatingHudBar(
         }
 
         // Recenter GPS Button (◎)
+        val recenterDescription = stringResource(Res.string.hud_recenter_location)
         Box(
             modifier = Modifier
                 .size(44.dp)
@@ -143,7 +145,7 @@ fun FloatingHudBar(
                     onClick = onRecenter,
                 )
                 .semantics {
-                    contentDescription = "Recenter GPS"
+                    contentDescription = recenterDescription
                     role = Role.Button
                 },
             contentAlignment = Alignment.Center,

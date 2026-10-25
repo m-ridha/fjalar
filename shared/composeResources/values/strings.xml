@@ -9,6 +9,7 @@
     <string name="hud_theme_switch_light">Switch to light mode</string>
     <string name="hud_theme_switch_dark">Switch to dark mode</string>
     <string name="hud_locale_label">Language: English (EN)</string>
+    <string name="hud_recenter_location">Recenter GPS</string>
 
     <!-- Status pill readouts -->
     <string name="status_armed_scheduled">Armed: %1$s • %2$s away • %3$s–%4$s</string>
@@ -27,6 +28,9 @@
     <string name="editor_title">Configure Alarm</string>
     <string name="editor_cancel">Cancel</string>
     <string name="editor_save">Save</string>
+    <string name="editor_label_placeholder">e.g. Manggarai Station</string>
+    <string name="editor_start_time">Start: %1$s</string>
+    <string name="editor_end_time">End: %1$s</string>
     <string name="editor_trigger_radius">Trigger Radius</string>
     <string name="editor_mode_one_time">One-Time Now</string>
     <string name="editor_mode_scheduled">Scheduled Window</string>

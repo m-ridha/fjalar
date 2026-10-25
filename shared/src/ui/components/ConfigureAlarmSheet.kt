@@ -53,10 +53,13 @@ import com.muhammadridha.fjalar.resources.editor_active_window
 import com.muhammadridha.fjalar.resources.editor_alert_and_haptics
 import com.muhammadridha.fjalar.resources.editor_cancel
 import com.muhammadridha.fjalar.resources.editor_earphone_override
+import com.muhammadridha.fjalar.resources.editor_end_time
+import com.muhammadridha.fjalar.resources.editor_label_placeholder
 import com.muhammadridha.fjalar.resources.editor_loud_sound
 import com.muhammadridha.fjalar.resources.editor_mode_one_time
 import com.muhammadridha.fjalar.resources.editor_mode_scheduled
 import com.muhammadridha.fjalar.resources.editor_save
+import com.muhammadridha.fjalar.resources.editor_start_time
 import com.muhammadridha.fjalar.resources.editor_strong_vibrate
 import com.muhammadridha.fjalar.resources.editor_title
 import com.muhammadridha.fjalar.resources.editor_trigger_radius
@@ -102,7 +105,7 @@ fun ConfigureAlarmSheet(
     }
     var earphoneOverride by remember { mutableStateOf(false) }
 
-    val isSaveEnabled = label.isNotBlank()
+    val isSaveEnabled = label.isNotBlank() && (scheduleType != ScheduleType.SCHEDULED || startMinute != endMinute)
 
     Column(
         modifier = modifier
@@ -160,7 +163,11 @@ fun ConfigureAlarmSheet(
                                 soundEnabled = soundEnabled,
                                 vibrateEnabled = vibrateEnabled,
                             ),
-                            state = initialAlarm?.state ?: AlarmState.SCHEDULED_IDLE,
+                            state = initialAlarm?.state ?: if (scheduleType == ScheduleType.ONE_TIME) {
+                                AlarmState.ARMED_MONITORING
+                            } else {
+                                AlarmState.SCHEDULED_IDLE
+                            },
                             addressLabel = initialAlarm?.addressLabel,
                             suppressedUntil = initialAlarm?.suppressedUntil,
                         )
@@ -183,7 +190,12 @@ fun ConfigureAlarmSheet(
         OutlinedTextField(
             value = label,
             onValueChange = { label = it },
-            placeholder = { Text("e.g. Manggarai Station", color = colors.textSecondary.copy(alpha = 0.6f)) },
+            placeholder = {
+                Text(
+                    text = stringResource(Res.string.editor_label_placeholder),
+                    color = colors.textSecondary.copy(alpha = 0.6f),
+                )
+            },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -331,7 +343,7 @@ fun ConfigureAlarmSheet(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = "Start: ${formatMinuteOfDay(startMinute)}",
+                        text = stringResource(Res.string.editor_start_time, formatMinuteOfDay(startMinute)),
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontFeatureSettings = "tnum",
@@ -372,7 +384,7 @@ fun ConfigureAlarmSheet(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = "End: ${formatMinuteOfDay(endMinute)}",
+                        text = stringResource(Res.string.editor_end_time, formatMinuteOfDay(endMinute)),
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontFeatureSettings = "tnum",

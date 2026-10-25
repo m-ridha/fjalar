@@ -9,6 +9,7 @@
     <string name="hud_theme_switch_light">Beralih ke mode terang</string>
     <string name="hud_theme_switch_dark">Beralih ke mode gelap</string>
     <string name="hud_locale_label">Bahasa: Indonesia (ID)</string>
+    <string name="hud_recenter_location">Pusatkan Ulang GPS</string>
 
     <!-- Status pill readouts -->
     <string name="status_armed_scheduled">Aktif: %1$s • %2$s lagi • %3$s–%4$s</string>
@@ -27,6 +28,9 @@
     <string name="editor_title">Atur Alarm</string>
     <string name="editor_cancel">Batal</string>
     <string name="editor_save">Simpan</string>
+    <string name="editor_label_placeholder">cth. Stasiun Manggarai</string>
+    <string name="editor_start_time">Mulai: %1$s</string>
+    <string name="editor_end_time">Selesai: %1$s</string>
     <string name="editor_trigger_radius">Radius Alarm</string>
     <string name="editor_mode_one_time">Sekali Jalan</string>
     <string name="editor_mode_scheduled">Jendela Terjadwal</string>
