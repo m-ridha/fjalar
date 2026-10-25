@@ -60,7 +60,7 @@ jobs:
       - name: Select Xcode 16
         shell: bash
         run: |
-          XCODE_16=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
+          XCODE_16=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1 || true)
           if [ -n "$XCODE_16" ]; then
             echo "Selecting $XCODE_16"
             sudo xcode-select -s "$XCODE_16"
