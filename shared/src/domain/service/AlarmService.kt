@@ -99,7 +99,16 @@ class AlarmService(
         if (old == new) return
         repository.upsertAlarm(new)
         if (old?.state != RINGING && new.state == RINGING) ringer.startRinging(new)
-        if (old?.state == RINGING && new.state != RINGING) ringer.stopRinging(new.id)
+        if (old?.state == RINGING && new.state != RINGING) {
+            try {
+                ringer.stopRinging(new.id)
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                // Roll back repository state so subsequent calls can retry stopping the ringer
+                repository.upsertAlarm(old)
+                throw error
+            }
+        }
     }
 
     private suspend fun applySideEffects(now: Instant) {

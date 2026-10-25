@@ -43,6 +43,7 @@ class FakeAlarmRinger : AlarmRingerPort {
     val ringingIds = mutableSetOf<String>()
     var startCount = 0
         private set
+    var shouldFailOnStop = false
 
     override suspend fun startRinging(alarm: LocationAlarm) {
         startCount++
@@ -50,6 +51,9 @@ class FakeAlarmRinger : AlarmRingerPort {
     }
 
     override suspend fun stopRinging(alarmId: String) {
+        if (shouldFailOnStop) {
+            throw IllegalStateException("Simulated ringer stop failure")
+        }
         ringingIds -= alarmId
     }
 }

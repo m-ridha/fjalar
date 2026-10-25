@@ -152,6 +152,29 @@ class AlarmStateTransitionTest {
     }
 
     @Test
+    fun ringerStopFailureRestoresRingingStateForRetry() = runTest {
+        clock.now = jakarta(2026, 10, 26, 8)
+        service.saveAlarm(manggaraiAlarm()).getOrThrow()
+        service.toggleAlarm("manggarai", enabled = true).getOrThrow()
+        service.handleLocationUpdate(MANGGARAI, 10f)
+        assertEquals(AlarmState.RINGING, state())
+
+        // Simulate ringer failure during stop
+        ringer.shouldFailOnStop = true
+        val dismissResult = service.dismissAlarm("manggarai")
+        assertTrue(dismissResult.isFailure)
+        // State must remain/be rolled back to RINGING so dismissal can be retried
+        assertEquals(AlarmState.RINGING, state())
+
+        // Recover ringer and retry dismissal
+        ringer.shouldFailOnStop = false
+        val retryResult = service.dismissAlarm("manggarai")
+        assertTrue(retryResult.isSuccess)
+        assertEquals(AlarmState.COMPLETED_FOR_WINDOW, state())
+        assertTrue(ringer.ringingIds.isEmpty())
+    }
+
+    @Test
     fun observeAlarmsStreamsRepositoryContent() = runTest {
         service.saveAlarm(manggaraiAlarm()).getOrThrow()
         assertEquals(listOf("manggarai"), service.observeAlarms().first().map { it.id })

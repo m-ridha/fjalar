@@ -23,6 +23,8 @@ data class LocationAlarm(
     val schedule: AlarmSchedule,
     val soundConfig: AlarmSoundConfig = AlarmSoundConfig(),
     val state: AlarmState = AlarmState.DISABLED,
+    /** Optional human-readable reverse-geocoded address label (PRD 9.1). */
+    val addressLabel: String? = null,
     /** While [AlarmState.COMPLETED_FOR_WINDOW], stay silent until this instant (end of the dismissed/skipped window). */
     val suppressedUntil: Instant? = null,
 ) {

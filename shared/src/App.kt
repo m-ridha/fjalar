@@ -18,7 +18,10 @@ import org.jetbrains.compose.reload.DevelopmentEntryPoint
 import org.jetbrains.compose.resources.painterResource
 
 import com.muhammadridha.fjalar.resources.Res
+import com.muhammadridha.fjalar.resources.click_me
 import com.muhammadridha.fjalar.resources.compose_multiplatform
+import com.muhammadridha.fjalar.resources.compose_prefix
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 @Preview
@@ -34,7 +37,7 @@ fun App() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
+                Text(stringResource(Res.string.click_me))
             }
             AnimatedVisibility(showContent) {
                 val greeting = remember { Greeting().greet() }
@@ -43,7 +46,7 @@ fun App() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+                    Text(stringResource(Res.string.compose_prefix, greeting))
                 }
             }
         }
