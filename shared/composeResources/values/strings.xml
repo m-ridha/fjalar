@@ -3,4 +3,50 @@
     <string name="click_me">Click me!</string>
     <string name="compose_prefix">Compose: %1$s</string>
     <string name="greeting">Hello, %1$s!</string>
+
+    <!-- Top HUD and controls -->
+    <string name="hud_search_placeholder">Search station or destination…</string>
+    <string name="hud_theme_switch_light">Switch to light mode</string>
+    <string name="hud_theme_switch_dark">Switch to dark mode</string>
+    <string name="hud_locale_label">Language: English (EN)</string>
+
+    <!-- Status pill readouts -->
+    <string name="status_armed_scheduled">Armed: %1$s • %2$s away • %3$s–%4$s</string>
+    <string name="status_armed_one_time">Armed: %1$s • %2$s away</string>
+
+    <!-- Bottom sheet and alarm cards -->
+    <string name="sheet_saved_title">Saved &amp; Scheduled Alarms</string>
+    <string name="sheet_active_count">%1$d Active</string>
+    <string name="sheet_new_alarm">+ New</string>
+    <string name="card_skip_today">Skip Today</string>
+    <string name="card_skipped_today">Skipped for today</string>
+    <string name="card_one_time_trip">One-time trip • %1$s radius</string>
+    <string name="card_loud_and_vibrate">Loud + Vibrate</string>
+
+    <!-- Alarm Editor modal -->
+    <string name="editor_title">Configure Alarm</string>
+    <string name="editor_cancel">Cancel</string>
+    <string name="editor_save">Save</string>
+    <string name="editor_trigger_radius">Trigger Radius</string>
+    <string name="editor_mode_one_time">One-Time Now</string>
+    <string name="editor_mode_scheduled">Scheduled Window</string>
+    <string name="editor_active_window">Active Window (%1$s – %2$s)</string>
+    <string name="editor_alert_and_haptics">Alert &amp; Haptics</string>
+    <string name="editor_loud_sound">Loud Sound</string>
+    <string name="editor_strong_vibrate">Strong Vibrate</string>
+    <string name="editor_earphone_override">Rings in Earphones + Speaker</string>
+
+    <!-- Ringing wake-up screen -->
+    <string name="ringing_in_zone_badge">IN ZONE • %1$s from target pin</string>
+    <string name="ringing_headline">Wake Up! Approaching %1$s</string>
+    <string name="ringing_snooze_action">Snooze (+2 min / 250m)</string>
+    <string name="ringing_slide_to_stop">Slide to Stop Alarm</string>
+
+    <!-- System notifications & background telemetry -->
+    <string name="notif_monitoring_title">Monitoring commute to %1$s</string>
+    <string name="notif_monitoring_body">%1$s remaining • Active until %2$s</string>
+
+    <!-- Permissions modal -->
+    <string name="perm_location_title">Allow Background Location for Wake-Up Alarms</string>
+    <string name="perm_location_body">Fjalar checks your GPS distance in the background only while an alarm is armed so it can wake you up even when your screen is locked. Your location never leaves your phone.</string>
 </resources>
