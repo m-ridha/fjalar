@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Concrete outbound persistence adapter for [AlarmRepositoryPort] backed by [KeyValueStorage].
@@ -15,6 +17,7 @@ class PersistentAlarmRepository(
     private val storage: KeyValueStorage,
 ) : AlarmRepositoryPort {
 
+    private val mutex = Mutex()
     private val alarms = MutableStateFlow<Map<String, LocationAlarm>>(loadAlarms())
 
     override fun observeAlarms(): Flow<List<LocationAlarm>> =
@@ -26,13 +29,13 @@ class PersistentAlarmRepository(
     override suspend fun getAlarm(id: String): LocationAlarm? =
         alarms.value[id]
 
-    override suspend fun upsertAlarm(alarm: LocationAlarm) {
+    override suspend fun upsertAlarm(alarm: LocationAlarm): Unit = mutex.withLock {
         val updated = alarms.value + (alarm.id to alarm)
         persist(updated)
         alarms.value = updated
     }
 
-    override suspend fun deleteAlarm(id: String) {
+    override suspend fun deleteAlarm(id: String): Unit = mutex.withLock {
         val updated = alarms.value - id
         persist(updated)
         alarms.value = updated

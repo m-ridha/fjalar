@@ -13,6 +13,9 @@ import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ScheduleType
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -206,5 +209,41 @@ class PersistentStorageTest {
         assertEquals(ThemeMode.LIGHT, prefs2.observeThemeMode().first())
         val prefs3 = PersistentPreferencesAdapter(storage)
         assertEquals(ThemeMode.LIGHT, prefs3.observeThemeMode().first())
+    }
+
+    @Test
+    fun persistentAlarmRepository_concurrentUpserts_preventsLostUpdates() = runTest {
+        val storage = InMemoryKeyValueStorage()
+        val repo = PersistentAlarmRepository(storage)
+
+        val totalAlarms = 50
+        val alarmsToInsert = (1..totalAlarms).map { index ->
+            LocationAlarm(
+                id = "concurrent-alarm-$index",
+                label = "Location $index",
+                coordinates = GeoCoordinates(-6.0 + (index * 0.001), 106.0 + (index * 0.001)),
+                radius = TriggerRadius(200 + index),
+                schedule = AlarmSchedule.ONE_TIME,
+            )
+        }
+
+        coroutineScope {
+            alarmsToInsert.map { alarm ->
+                async {
+                    repo.upsertAlarm(alarm)
+                }
+            }.awaitAll()
+        }
+
+        val inMemoryAlarms = repo.getAlarms()
+        assertEquals(totalAlarms, inMemoryAlarms.size)
+        assertEquals(totalAlarms, repo.observeAlarms().first().size)
+
+        val reloadedRepo = PersistentAlarmRepository(storage)
+        val persistedAlarms = reloadedRepo.getAlarms()
+        assertEquals(totalAlarms, persistedAlarms.size)
+        alarmsToInsert.forEach { expected ->
+            assertEquals(expected, reloadedRepo.getAlarm(expected.id))
+        }
     }
 }
