@@ -1,0 +1,52 @@
+# Build & caches
+build/
+/*/build/
+/*/*/build/
+.gradle/
+.kotlin/
+captures/
+bin/
+gen/
+out/
+*.class
+*.dex
+
+# Local configuration & secrets
+local.properties
+/*/local.properties
+
+# Android Studio / IntelliJ IDEA
+*.iml
+*.ipr
+*.iws
+.idea/caches/
+.idea/shelf/
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/deploymentTargetSelector.xml
+.idea/deviceManager.xml
+.idea/assetWizardSettings.xml
+
+# macOS
+.DS_Store
+
+# Xcode
+**/module.xcodeproj/*
+!**/module.xcodeproj/project.pbxproj
+!**/module.xcodeproj/xcshareddata/
+!**/module.xcodeproj/project.xcworkspace/
+**/xcshareddata/WorkspaceSettings.xcsettings
+*.xcuserstate
+xcuserdata/
+
+# App packaging artifacts
+*.apk
+*.ap_
+*.aab
+*.ipa
+*.dSYM/
+*.dSYM.zip
+
+# Temporary & backup files
+*~
+*.swp
