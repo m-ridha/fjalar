@@ -13,6 +13,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
@@ -71,6 +72,7 @@ class FjalarViewModelTest {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun TestScope.createTestViewModel(
         observePort: ObserveAlarmsPort = FakeObserveAlarmsPort(),
         savePort: SaveAlarmPort = FakeSaveAlarmPort(),
