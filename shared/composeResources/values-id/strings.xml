@@ -3,4 +3,56 @@
     <string name="click_me">Klik saya!</string>
     <string name="compose_prefix">Compose: %1$s</string>
     <string name="greeting">Halo, %1$s!</string>
+
+    <!-- Top HUD and controls -->
+    <string name="hud_search_placeholder">Cari stasiun atau tujuan…</string>
+    <string name="hud_theme_switch_light">Beralih ke mode terang</string>
+    <string name="hud_theme_switch_dark">Beralih ke mode gelap</string>
+    <string name="hud_locale_label">Bahasa: Indonesia (ID)</string>
+    <string name="hud_recenter_location">Pusatkan Ulang GPS</string>
+
+    <!-- Status pill readouts -->
+    <string name="status_armed_scheduled">Aktif: %1$s • %2$s lagi • %3$s–%4$s</string>
+    <string name="status_armed_one_time">Aktif: %1$s • %2$s lagi</string>
+
+    <!-- Bottom sheet and alarm cards -->
+    <string name="sheet_saved_title">Alarm Tersimpan &amp; Terjadwal</string>
+    <string name="sheet_active_count">%1$d Aktif</string>
+    <string name="sheet_new_alarm">+ Baru</string>
+    <string name="card_skip_today">Lewati Hari Ini</string>
+    <string name="card_skipped_today">Dilewati hari ini</string>
+    <string name="card_one_time_trip">Sekali jalan • radius %1$s</string>
+    <string name="card_loud_and_vibrate">Suara Keras + Getar</string>
+
+    <!-- Alarm Editor modal -->
+    <string name="editor_title">Atur Alarm</string>
+    <string name="editor_cancel">Batal</string>
+    <string name="editor_save">Simpan</string>
+    <string name="editor_label_placeholder">cth. Stasiun Manggarai</string>
+    <string name="editor_start_time">Mulai: %1$s</string>
+    <string name="editor_end_time">Selesai: %1$s</string>
+    <string name="editor_time_step_minus_15">-15m</string>
+    <string name="editor_time_step_plus_15">+15m</string>
+    <string name="editor_trigger_radius">Radius Alarm</string>
+    <string name="editor_mode_one_time">Sekali Jalan</string>
+    <string name="editor_mode_scheduled">Jendela Terjadwal</string>
+    <string name="editor_active_window">Waktu Aktif (%1$s – %2$s)</string>
+    <string name="editor_alert_and_haptics">Suara &amp; Getaran</string>
+    <string name="editor_loud_sound">Suara Keras</string>
+    <string name="editor_strong_vibrate">Getar Kuat</string>
+    <string name="editor_earphone_override">Bunyi di Earphone + Speaker</string>
+
+    <!-- Ringing wake-up screen -->
+    <string name="ringing_in_zone_badge">DALAM ZONA • %1$s dari titik tujuan</string>
+    <string name="ringing_headline">Bangun! Mendekati %1$s</string>
+    <string name="ringing_snooze_action">Tunda (+2 mnt / 250m)</string>
+    <string name="ringing_slide_to_stop">Geser untuk Matikan Alarm</string>
+
+    <!-- System notifications & background telemetry -->
+    <string name="notif_monitoring_title">Memantau perjalanan ke %1$s</string>
+    <string name="notif_monitoring_body">%1$s lagi • Aktif hingga %2$s</string>
+
+    <!-- Permissions modal -->
+    <string name="perm_location_title">Izinkan Lokasi Latar Belakang untuk Alarm Tujuan</string>
+    <string name="perm_location_body">Fjalar memeriksa jarak GPS di latar belakang hanya saat alarm aktif agar dapat membangunkan Anda meski layar terkunci. Lokasi Anda tidak pernah dikirim keluar dari ponsel ini.</string>
 </resources>

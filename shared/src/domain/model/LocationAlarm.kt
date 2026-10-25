@@ -32,6 +32,9 @@ data class LocationAlarm(
         require(id.isNotBlank()) { "id must not be blank" }
         require(label.isNotBlank()) { "label must not be blank" }
     }
+
+    val isEnabled: Boolean
+        get() = state != AlarmState.DISABLED
 }
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }

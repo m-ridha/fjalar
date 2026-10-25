@@ -5,14 +5,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.tooling.preview.Preview
+import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
+import com.muhammadridha.fjalar.adapters.storage.SharedPreferencesKeyValueStorage
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            App()
+            val storage = remember { SharedPreferencesKeyValueStorage(applicationContext) }
+            App(keyValueStorage = storage)
         }
     }
 }
@@ -20,5 +24,5 @@ class MainActivity : ComponentActivity() {
 @Preview
 @Composable
 fun AppAndroidPreview() {
-    App()
+    App(keyValueStorage = remember { InMemoryKeyValueStorage() })
 }

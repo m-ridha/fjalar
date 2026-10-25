@@ -109,7 +109,17 @@ Read and strictly preserve these invariant behaviors:
 ## Working Discipline and Pull Requests
 
 1. **Autonomy & Edits:** Continue authorized reversible work autonomously. Inspect `git status` and preserve user edits.
-2. **Commit Subject Format:** `<type>: [<scope>] <subject>` (concise present tense).
+2. **Commit Subject Format:** `<type>(<scope>): <subject>` (concise present tense, e.g. `feat(domain): add trigger radius presets`, `fix(ui): resolve contrast`). Reference: [Semantic Commit Messages](https://gist.github.com/joshbuchea/6f47e86d2510bce28f8e7f42ae84c716#file-semantic-commit-messages-md).
    - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`.
    - Branch convention: `<type>/<short-kebab-case-subject>`.
 3. **Pull Request Descriptions:** Must follow [`.github/pull_request_template.md`](.github/pull_request_template.md) including the Hexagonal Architecture & Invariants checklist, concrete changes made, and fresh `./kotlin test` execution evidence.
+4. **Code Review Workflow (Threaded Inline Comments):**
+   - **Requesting Changes via Inline Comment Threads:**
+     Reviewers (human or agent) must post targeted **inline comments** on the exact diff lines or files requiring attention, rather than dumping all feedback into a single monolithic PR comment. Clearly categorize findings (e.g. 🚨 *Safety Invariant Violation*, ⚠️ *Quality/Edge-case*, 💡 *PRD Alignment*).
+   - **Author Response & Commit Reference:**
+     The author or implementing agent must address every inline thread. After making fixes, commit and push to the PR branch, then **reply directly to the comment thread** explaining what was changed and referencing the commit SHA (e.g., `Addressed in commit abc1234: ...`). Authors must not resolve comment threads themselves.
+   - **Reviewer Verification & Resolution:**
+     The reviewer inspects the updated code, runs fresh verification commands (`./kotlin test` / `./kotlin check`), and either:
+     - **Resolves the thread:** If the fix is verified, the reviewer replies confirming the verification (e.g., `Verified in commit abc1234: ...`) and marks the thread resolved.
+     - **Requests further refinement:** If issues remain, the reviewer replies to the thread (or creates a new inline comment on updated lines) explaining what is still missing.
+   - **Zero Unresolved Threads to Merge:** A PR must not be merged until 100% of review comment threads are verified and resolved, and all automated checks pass cleanly.
