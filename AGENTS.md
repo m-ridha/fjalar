@@ -109,7 +109,7 @@ Read and strictly preserve these invariant behaviors:
 ## Working Discipline and Pull Requests
 
 1. **Autonomy & Edits:** Continue authorized reversible work autonomously. Inspect `git status` and preserve user edits.
-2. **Commit Subject Format:** `<type>: [<scope>] <subject>` (concise present tense).
+2. **Commit Subject Format:** `<type>(<scope>): <subject>` (concise present tense, e.g. `feat(domain): add trigger radius presets`, `fix(ui): resolve contrast`). Reference: [Semantic Commit Messages](https://gist.github.com/joshbuchea/6f47e86d2510bce28f8e7f42ae84c716#file-semantic-commit-messages-md).
    - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`.
    - Branch convention: `<type>/<short-kebab-case-subject>`.
 3. **Pull Request Descriptions:** Must follow [`.github/pull_request_template.md`](.github/pull_request_template.md) including the Hexagonal Architecture & Invariants checklist, concrete changes made, and fresh `./kotlin test` execution evidence.
