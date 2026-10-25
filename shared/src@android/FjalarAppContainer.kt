@@ -8,7 +8,7 @@ import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.PersistentAlarmRepository
 import com.muhammadridha.fjalar.adapters.storage.PersistentPreferencesAdapter
 import com.muhammadridha.fjalar.adapters.storage.SharedPreferencesKeyValueStorage
-import com.muhammadridha.fjalar.domain.model.LocationAlarm
+import com.muhammadridha.fjalar.di.FjalarPlatformContainer
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
@@ -21,14 +21,14 @@ import kotlinx.datetime.TimeZone
 
 open class FjalarAppContainer(
     val context: Context,
-    val keyValueStorage: KeyValueStorage = SharedPreferencesKeyValueStorage(context),
-    val alarmRepository: AlarmRepositoryPort = PersistentAlarmRepository(keyValueStorage),
-    val preferences: PreferencesPort = PersistentPreferencesAdapter(keyValueStorage),
-    val alarmScheduler: AlarmSchedulerPort = AndroidAlarmManagerSchedulerAdapter(context),
+    override val keyValueStorage: KeyValueStorage = SharedPreferencesKeyValueStorage(context),
+    override val alarmRepository: AlarmRepositoryPort = PersistentAlarmRepository(keyValueStorage),
+    override val preferences: PreferencesPort = PersistentPreferencesAdapter(keyValueStorage),
+    override val alarmScheduler: AlarmSchedulerPort = AndroidAlarmManagerSchedulerAdapter(context),
     locationTracker: LocationTrackerPort? = null,
-    val alarmRinger: AlarmRingerPort = AndroidSystemAlarmRingerAdapter(context),
-) {
-    val locationTracker: LocationTrackerPort = locationTracker ?: AndroidFusedLocationAdapter(
+    override val alarmRinger: AlarmRingerPort = AndroidSystemAlarmRingerAdapter(context),
+) : FjalarPlatformContainer {
+    override val locationTracker: LocationTrackerPort = locationTracker ?: AndroidFusedLocationAdapter(
         context = context,
         updatePortProvider = { alarmService },
     )
@@ -38,13 +38,13 @@ open class FjalarAppContainer(
     @Volatile
     private var _alarmService: AlarmService = createAlarmService(_scheduleEvaluator)
 
-    open val syncSchedulesPort: SyncSchedulesPort
+    override val syncSchedulesPort: SyncSchedulesPort
         get() = _alarmService
 
-    open val alarmService: AlarmService
+    override val alarmService: AlarmService
         get() = _alarmService
 
-    fun onTimezoneChanged(newTimeZone: TimeZone = TimeZone.currentSystemDefault()) {
+    override fun onTimezoneChanged(newTimeZone: TimeZone) {
         _scheduleEvaluator = ScheduleEvaluator(newTimeZone)
         _alarmService = createAlarmService(_scheduleEvaluator)
     }
