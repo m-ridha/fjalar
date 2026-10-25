@@ -1,0 +1,93 @@
+name: PR Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify Multiplatform Builds & Tests
+    # Avoid running expensive macOS runners on draft pull requests until marked ready for review
+    if: github.event.pull_request.draft == false || github.event_name != 'pull_request'
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate PR Title Format
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          echo "PR Title: $PR_TITLE"
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore)(\([a-zA-Z0-9_-]+\))?:\ .+ ]]; then
+            echo "::warning title=Conventional Commit Format::PR title does not strictly follow '<type>(<scope>): <subject>' as documented in AGENTS.md"
+          else
+            echo "PR title adheres to convention."
+          fi
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Select Xcode
+        shell: bash
+        run: |
+          if [ -d "/Applications/Xcode_15.4.app" ]; then
+            sudo xcode-select -s /Applications/Xcode_15.4.app
+          elif [ -d "/Applications/Xcode.app" ]; then
+            sudo xcode-select -s /Applications/Xcode.app
+          fi
+          xcodebuild -version
+
+      - name: Cache Kotlin Toolchain, Konan & Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.konan
+            ~/Library/Caches/JetBrains/Kotlin/cli
+            ~/.m2/repository
+          key: ${{ runner.os }}-kotlin-${{ hashFiles('**/module.yaml', 'libs.versions.toml', 'kotlin') }}
+          restore-keys: |
+            ${{ runner.os }}-kotlin-
+
+      - name: Grant execute permission for Kotlin CLI runner
+        run: chmod +x ./kotlin
+
+      - name: Run Unit Tests (./kotlin test)
+        run: ./kotlin test
+
+      - name: Run Multiplatform Checks (./kotlin check)
+        run: ./kotlin check
+
+      - name: Upload Test & Build Reports on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ github.sha }}
+          path: |
+            build/reports/
+            build/logs/
+          retention-days: 7
