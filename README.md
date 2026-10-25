@@ -174,5 +174,5 @@ open iosApp/module.xcodeproj
 ## Contributing
 
 1. Review [AGENTS.md](AGENTS.md) for coding conventions, Hexagonal rules, and UI token requirements.
-2. Follow semantic commit messages: `<type>: [<scope>] <subject>` (e.g. `feat: [domain] add trigger radius presets`).
+2. Follow [semantic commit messages](https://gist.github.com/joshbuchea/6f47e86d2510bce28f8e7f42ae84c716#file-semantic-commit-messages-md): `<type>(<scope>): <subject>` (e.g. `feat(domain): add trigger radius presets`).
 3. Fill out the [Pull Request Template](.github/pull_request_template.md) including the **Hexagonal Architecture & Invariants Check** and fresh `./kotlin test` proof.
