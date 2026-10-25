@@ -1,6 +1,7 @@
 package com.muhammadridha.fjalar
 
 import android.content.Context
+import com.muhammadridha.fjalar.adapters.location.AndroidFusedLocationAdapter
 import com.muhammadridha.fjalar.adapters.ringer.AndroidSystemAlarmRingerAdapter
 import com.muhammadridha.fjalar.adapters.scheduler.AndroidAlarmManagerSchedulerAdapter
 import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
@@ -24,12 +25,13 @@ open class FjalarAppContainer(
     val alarmRepository: AlarmRepositoryPort = PersistentAlarmRepository(keyValueStorage),
     val preferences: PreferencesPort = PersistentPreferencesAdapter(keyValueStorage),
     val alarmScheduler: AlarmSchedulerPort = AndroidAlarmManagerSchedulerAdapter(context),
-    val locationTracker: LocationTrackerPort = object : LocationTrackerPort {
-        override suspend fun startTracking(updateIntervalMillis: Long) {}
-        override suspend fun stopTracking() {}
-    },
+    locationTracker: LocationTrackerPort? = null,
     val alarmRinger: AlarmRingerPort = AndroidSystemAlarmRingerAdapter(context),
 ) {
+    val locationTracker: LocationTrackerPort = locationTracker ?: AndroidFusedLocationAdapter(
+        context = context,
+        updatePortProvider = { alarmService },
+    )
     @Volatile
     private var _scheduleEvaluator: ScheduleEvaluator = ScheduleEvaluator(TimeZone.currentSystemDefault())
 

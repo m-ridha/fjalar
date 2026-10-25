@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Fjalar</string>
+    <string name="notif_monitoring_title">Memantau tujuan perjalanan</string>
+    <string name="notif_monitoring_body">Pemantauan tujuan aktif</string>
+</resources>

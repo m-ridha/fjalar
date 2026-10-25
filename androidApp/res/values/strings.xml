@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Fjalar</string>
+    <string name="notif_monitoring_title">Monitoring commute destination</string>
+    <string name="notif_monitoring_body">Active destination monitoring</string>
 </resources>
