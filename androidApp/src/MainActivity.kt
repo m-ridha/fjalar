@@ -15,7 +15,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            val storage = remember { SharedPreferencesKeyValueStorage(applicationContext) }
+            val app = application as? FjalarApplication
+            val storage = remember {
+                app?.container?.keyValueStorage ?: SharedPreferencesKeyValueStorage(applicationContext)
+            }
             App(keyValueStorage = storage)
         }
     }
