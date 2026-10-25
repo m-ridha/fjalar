@@ -56,6 +56,8 @@ class FjalarLocationService : Service() {
     @Volatile
     private var currentIntervalMillis: Long = DEFAULT_INTERVAL_MILLIS
 
+    private val trackingLock = Any()
+
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             handleFix(location)
@@ -71,8 +73,10 @@ class FjalarLocationService : Service() {
         override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
 
         override fun onProviderEnabled(provider: String) {
-            if (isTracking && (provider == LocationManager.GPS_PROVIDER || provider == LocationManager.NETWORK_PROVIDER)) {
-                registerProviderIfEnabled(provider, currentIntervalMillis)
+            synchronized(trackingLock) {
+                if (isTracking && (provider == LocationManager.GPS_PROVIDER || provider == LocationManager.NETWORK_PROVIDER)) {
+                    registerProvider(provider, currentIntervalMillis)
+                }
             }
         }
 
@@ -167,26 +171,31 @@ class FjalarLocationService : Service() {
     }
 
     private fun startLocationUpdates(intervalMillis: Long) {
-        if (isTracking) return
-
         if (!hasLocationPermission()) {
             return
         }
 
-        currentIntervalMillis = intervalMillis
-        isTracking = true
+        synchronized(trackingLock) {
+            if (isTracking) return
+            currentIntervalMillis = intervalMillis
+            isTracking = true
 
-        registerProviderIfEnabled(LocationManager.GPS_PROVIDER, intervalMillis)
-        registerProviderIfEnabled(LocationManager.NETWORK_PROVIDER, intervalMillis)
+            registerProvider(LocationManager.GPS_PROVIDER, intervalMillis)
+            registerProvider(LocationManager.NETWORK_PROVIDER, intervalMillis)
+        }
     }
 
-    private fun registerProviderIfEnabled(provider: String, intervalMillis: Long) {
+    private fun registerProvider(provider: String, intervalMillis: Long) {
         val manager = locationManager ?: return
         if (!hasLocationPermission()) return
 
-        val looper = Looper.getMainLooper()
-        try {
-            if (manager.isProviderEnabled(provider)) {
+        synchronized(trackingLock) {
+            if (!isTracking) return
+            val looper = Looper.getMainLooper()
+            try {
+                // Register listener regardless of whether provider is currently enabled.
+                // Android LocationManager safely accepts registrations for disabled providers
+                // and automatically begins delivering fixes and onProviderEnabled callbacks once enabled.
                 manager.requestLocationUpdates(
                     provider,
                     intervalMillis,
@@ -194,9 +203,9 @@ class FjalarLocationService : Service() {
                     locationListener,
                     looper,
                 )
-            }
-        } catch (_: SecurityException) {
-        } catch (_: Exception) {}
+            } catch (_: SecurityException) {
+            } catch (_: Exception) {}
+        }
     }
 
     private fun stopTrackingAndSelf(startId: Int? = null) {
@@ -220,11 +229,13 @@ class FjalarLocationService : Service() {
     }
 
     private fun stopLocationUpdates() {
-        if (!isTracking) return
-        isTracking = false
-        try {
-            locationManager?.removeUpdates(locationListener)
-        } catch (_: Exception) {}
+        synchronized(trackingLock) {
+            if (!isTracking) return
+            isTracking = false
+            try {
+                locationManager?.removeUpdates(locationListener)
+            } catch (_: Exception) {}
+        }
     }
 
     private fun handleFix(location: Location) {

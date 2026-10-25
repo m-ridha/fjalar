@@ -24,8 +24,10 @@ import platform.UserNotifications.UNUserNotificationCenter
  * On iOS, local notifications scheduled via `UNUserNotificationCenter` are strictly user-facing alerts;
  * they do not afford background code execution to transition an alarm from `SCHEDULED_IDLE`
  * to `ARMED_MONITORING` while the app is suspended without user interaction.
- * Seamless background schedule activation on iOS requires `BGAppRefreshTask` / Background Tasks
- * framework when the app is suspended.
+ * Background refresh via `BGAppRefreshTask` is strictly best-effort (requiring `fetch` `UIBackgroundModes`
+ * and permitted task identifiers): `earliestBeginDate` serves only as a lower bound, and execution
+ * timing depends on iOS power heuristics. If refresh is delayed or skipped, the alarm remains
+ * in `SCHEDULED_IDLE` until the user opens the app to synchronize schedules.
  */
 class IosBackgroundSchedulerAdapter(
     private val notificationCenter: UNUserNotificationCenter? = null,
