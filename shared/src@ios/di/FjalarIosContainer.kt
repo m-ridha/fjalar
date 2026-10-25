@@ -51,6 +51,12 @@ open class FjalarIosContainer(
 
     init {
         try {
+            (alarmScheduler as? IosBackgroundSchedulerAdapter)?.requestAuthorization()
+        } catch (_: Throwable) {
+            // Defensive in headless test environments
+        }
+
+        try {
             NSNotificationCenter.defaultCenter.addObserverForName(
                 name = NSSystemTimeZoneDidChangeNotification,
                 `object` = null,

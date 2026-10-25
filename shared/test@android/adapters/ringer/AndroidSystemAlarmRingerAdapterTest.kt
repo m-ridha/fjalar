@@ -221,4 +221,25 @@ class AndroidSystemAlarmRingerAdapterTest {
         assertEquals("alarm-2", fakeGateway.notificationsPosted.first().alarmId)
         assertEquals(notif2Id, fakeGateway.notificationsPosted.first().notificationId)
     }
+
+    @Test
+    fun stopRinging_ignoresStaleAlarmId_whenDifferentAlarmIsRinging() = runTest {
+        val fakeGateway = FakeRingerPlatformGateway()
+        val adapter = AndroidSystemAlarmRingerAdapter(gateway = fakeGateway)
+        val alarm = createAlarm(id = "alarm-active")
+
+        adapter.startRinging(alarm)
+        assertEquals("alarm-active", adapter.activeRingingAlarmId)
+        assertTrue(fakeGateway.audioStarted)
+        assertTrue(fakeGateway.vibrationStarted)
+
+        // Stale stop call for a different alarm should be ignored (Safety Invariant 3)
+        adapter.stopRinging("stale-alarm-id")
+
+        assertEquals("alarm-active", adapter.activeRingingAlarmId)
+        assertTrue(fakeGateway.audioStarted)
+        assertTrue(fakeGateway.vibrationStarted)
+        assertEquals(0, fakeGateway.audioStoppedCount)
+        assertEquals(0, fakeGateway.vibrationStoppedCount)
+    }
 }

@@ -50,6 +50,12 @@ class FjalarLocationService : Service() {
     @Volatile
     private var isTracking = false
 
+    @Volatile
+    private var latestStartId: Int = 0
+
+    @Volatile
+    private var currentIntervalMillis: Long = DEFAULT_INTERVAL_MILLIS
+
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             handleFix(location)
@@ -64,7 +70,11 @@ class FjalarLocationService : Service() {
         @Deprecated("Deprecated in Java")
         override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
 
-        override fun onProviderEnabled(provider: String) {}
+        override fun onProviderEnabled(provider: String) {
+            if (isTracking && (provider == LocationManager.GPS_PROVIDER || provider == LocationManager.NETWORK_PROVIDER)) {
+                registerProviderIfEnabled(provider, currentIntervalMillis)
+            }
+        }
 
         override fun onProviderDisabled(provider: String) {}
     }
@@ -72,18 +82,21 @@ class FjalarLocationService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        latestStartId = startId
         if (intent == null) {
             // Service restarted by system (e.g. START_STICKY) with null intent.
-            // Reconcile with active alarms first; stop immediately if none are armed.
+            // Reconcile with active alarms first; stop only if none are armed and no newer start command arrived.
             serviceScope.launch {
                 val container = resolveContainer()
                 val alarms = container?.alarmService?.syncSchedules() ?: emptyList()
                 if (alarms.none { it.state == com.muhammadridha.fjalar.domain.model.AlarmState.ARMED_MONITORING }) {
-                    stopTrackingAndSelf()
+                    if (latestStartId == startId) {
+                        stopTrackingAndSelf(startId)
+                    }
                 }
             }
             if (!hasLocationPermission()) {
-                stopTrackingAndSelf()
+                stopTrackingAndSelf(startId)
                 return START_NOT_STICKY
             }
             val started = startForegroundTracking(DEFAULT_INTERVAL_MILLIS)
@@ -94,7 +107,7 @@ class FjalarLocationService : Service() {
 
         when (action) {
             AndroidFusedLocationAdapter.ACTION_STOP_TRACKING -> {
-                stopTrackingAndSelf()
+                stopTrackingAndSelf(startId)
                 return START_NOT_STICKY
             }
             AndroidFusedLocationAdapter.ACTION_START_TRACKING -> {
@@ -156,43 +169,26 @@ class FjalarLocationService : Service() {
     private fun startLocationUpdates(intervalMillis: Long) {
         if (isTracking) return
 
-        val manager = locationManager ?: return
-
-        val fineGranted = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-        ) == PackageManager.PERMISSION_GRANTED
-
-        val coarseGranted = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (!fineGranted && !coarseGranted) {
+        if (!hasLocationPermission()) {
             return
         }
 
+        currentIntervalMillis = intervalMillis
         isTracking = true
 
+        registerProviderIfEnabled(LocationManager.GPS_PROVIDER, intervalMillis)
+        registerProviderIfEnabled(LocationManager.NETWORK_PROVIDER, intervalMillis)
+    }
+
+    private fun registerProviderIfEnabled(provider: String, intervalMillis: Long) {
+        val manager = locationManager ?: return
+        if (!hasLocationPermission()) return
+
         val looper = Looper.getMainLooper()
-
         try {
-            if (manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            if (manager.isProviderEnabled(provider)) {
                 manager.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER,
-                    intervalMillis,
-                    0f,
-                    locationListener,
-                    looper,
-                )
-            }
-        } catch (_: SecurityException) {
-        } catch (_: Exception) {}
-
-        try {
-            if (manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                manager.requestLocationUpdates(
-                    LocationManager.NETWORK_PROVIDER,
+                    provider,
                     intervalMillis,
                     0f,
                     locationListener,
@@ -203,7 +199,11 @@ class FjalarLocationService : Service() {
         } catch (_: Exception) {}
     }
 
-    private fun stopTrackingAndSelf() {
+    private fun stopTrackingAndSelf(startId: Int? = null) {
+        if (startId != null && latestStartId != startId) {
+            // A newer start request arrived; do not tear down service.
+            return
+        }
         isServiceRunning = false
         stopLocationUpdates()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -212,7 +212,11 @@ class FjalarLocationService : Service() {
             @Suppress("DEPRECATION")
             stopForeground(true)
         }
-        stopSelf()
+        if (startId != null) {
+            stopSelfResult(startId)
+        } else {
+            stopSelf()
+        }
     }
 
     private fun stopLocationUpdates() {

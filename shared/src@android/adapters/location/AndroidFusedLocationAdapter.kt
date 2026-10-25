@@ -37,7 +37,7 @@ class AndroidFusedLocationAdapter(
     private var isTrackingActive: Boolean = false
 
     val isTracking: Boolean
-        get() = isTrackingActive
+        get() = isTrackingActive && gateway.isTracking()
 
     init {
         gateway.setLocationListener { coordinates, accuracy ->
@@ -144,18 +144,31 @@ open class DefaultAndroidLocationPlatformGateway(
     }
 
     override fun isTracking(): Boolean {
-        val serviceRunning = try {
+        val serviceRunning = resolveServiceRunningState()
+        return if (serviceRunning != null) {
+            // When serviceClass with isServiceRunning is available, it is the true lifecycle source.
+            // Clear stale tracking flag if the service has stopped.
+            if (!serviceRunning && tracking) {
+                tracking = false
+            }
+            serviceRunning
+        } else {
+            tracking
+        }
+    }
+
+    private fun resolveServiceRunningState(): Boolean? {
+        return try {
             val clazz = serviceClass ?: AndroidFusedLocationAdapter.resolveDefaultService()
             if (clazz != null) {
                 val field = clazz.getField("isServiceRunning")
                 field.getBoolean(null)
             } else {
-                false
+                null
             }
         } catch (_: Throwable) {
-            false
+            null
         }
-        return tracking || serviceRunning
     }
 
     override fun setLocationListener(listener: ((coordinates: GeoCoordinates, horizontalAccuracyMeters: Float) -> Unit)?) {

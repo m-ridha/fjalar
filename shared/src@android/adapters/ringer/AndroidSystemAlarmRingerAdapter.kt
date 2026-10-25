@@ -70,15 +70,15 @@ class AndroidSystemAlarmRingerAdapter(
 
     override suspend fun stopRinging(alarmId: String) {
         val activeId = currentlyRingingAlarmId
-        val targetId = activeId ?: alarmId
+        if (activeId != null && activeId != alarmId) {
+            return
+        }
 
         gateway.stopAudio()
         gateway.stopVibration()
 
+        val targetId = activeId ?: alarmId
         gateway.cancelAlarmNotification(notificationIdFor(targetId))
-        if (activeId != null && activeId != alarmId) {
-            gateway.cancelAlarmNotification(notificationIdFor(alarmId))
-        }
 
         currentlyRingingAlarmId = null
     }

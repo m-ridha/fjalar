@@ -186,4 +186,28 @@ class AndroidFusedLocationAdapterTest {
         assertEquals(1, fakeGateway.stopCount, "Stop must reach gateway when gateway is active")
         assertFalse(fakeGateway.tracking)
     }
+
+    @Test
+    fun startTracking_retriesStartForegroundService_whenUnderlyingServiceStopped() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val fakeGateway = FakeLocationPlatformGateway()
+        val adapter = AndroidFusedLocationAdapter(
+            coroutineDispatcher = testDispatcher,
+            gateway = fakeGateway,
+        )
+
+        // First start succeeds
+        adapter.startTracking(10_000L)
+        assertTrue(adapter.isTracking)
+        assertEquals(1, fakeGateway.startCount)
+
+        // Simulate service abortion or stopSelf from missing permissions / OS
+        fakeGateway.tracking = false
+        assertFalse(adapter.isTracking, "Adapter must not report tracking when gateway reports stopped")
+
+        // Subsequent startTracking must retry and not be blocked by stale adapter state (Safety Invariant 2)
+        adapter.startTracking(10_000L)
+        assertTrue(adapter.isTracking)
+        assertEquals(2, fakeGateway.startCount)
+    }
 }
