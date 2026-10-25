@@ -17,6 +17,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -33,9 +34,14 @@ class FjalarViewModelTest {
         override fun observeAlarms(): Flow<List<LocationAlarm>> = flow
     }
 
-    private class FakeSaveAlarmPort : SaveAlarmPort {
+    private class FakeSaveAlarmPort(
+        var shouldFail: Boolean = false,
+    ) : SaveAlarmPort {
         val savedAlarms = mutableListOf<LocationAlarm>()
         override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> {
+            if (shouldFail) {
+                return Result.failure(IllegalStateException("Simulated save failure"))
+            }
             savedAlarms.add(alarm)
             return Result.success(Unit)
         }
@@ -261,6 +267,41 @@ class FjalarViewModelTest {
         try {
             viewModel.onSearchQueryChanged("Sudirman")
             assertEquals("Sudirman", viewModel.uiState.value.searchQuery)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun saveAlarmFailureKeepsConfigureSheetOpen() = runTest {
+        val savePort = FakeSaveAlarmPort(shouldFail = true)
+        val (viewModel, _, vmScope) = createTestViewModel(savePort = savePort)
+        try {
+            viewModel.onOpenNewAlarm()
+            assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
+
+            val alarm = manggaraiAlarm()
+            viewModel.onSaveAlarm(alarm)
+
+            // Sheet should remain open on failure so user doesn't lose inputs
+            assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun toggleThemeFromSystemSwitchesToDark() = runTest {
+        val storage = InMemoryKeyValueStorage().apply {
+            putString(PersistentPreferencesAdapter.KEY_THEME_MODE, ThemeMode.SYSTEM.name)
+        }
+        val (viewModel, preferences, vmScope) = createTestViewModel(storage = storage)
+        try {
+            assertEquals(ThemeMode.SYSTEM, viewModel.uiState.value.themeMode)
+
+            viewModel.onToggleTheme()
+            assertEquals(ThemeMode.DARK, viewModel.uiState.value.themeMode)
+            assertEquals(ThemeMode.DARK, preferences.observeThemeMode().first())
         } finally {
             vmScope.cancel()
         }

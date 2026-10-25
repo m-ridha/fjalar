@@ -8,6 +8,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -125,7 +127,11 @@ fun FjalarApp(
                         onCancel = viewModel::onDismissConfigureSheet,
                         locale = uiState.appLocale,
                         modifier = Modifier
-                            .clickable(enabled = false) {}
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {},
+                            )
                             .navigationBarsPadding(),
                     )
                 }
@@ -137,6 +143,7 @@ fun FjalarApp(
                 RingingAlertOverlay(
                     alarm = ringingAlarm,
                     onDismiss = viewModel::onDismissRingingAlarm,
+                    // shortcut: dedicated snooze port deferred to milestone 2; snoozing safely dismisses active alert
                     onSnooze = viewModel::onDismissRingingAlarm,
                     modifier = Modifier.fillMaxSize(),
                 )

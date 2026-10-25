@@ -1,8 +1,8 @@
 package com.muhammadridha.fjalar
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.PersistentAlarmRepository
@@ -22,7 +22,6 @@ import com.muhammadridha.fjalar.domain.service.ScheduleEvaluator
 import com.muhammadridha.fjalar.ui.FjalarApp
 import com.muhammadridha.fjalar.ui.FjalarViewModel
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlin.time.Instant
@@ -33,6 +32,7 @@ import kotlin.time.Instant
  */
 fun createDefaultViewModel(
     keyValueStorage: KeyValueStorage = InMemoryKeyValueStorage(),
+    coroutineScope: CoroutineScope? = null,
 ): FjalarViewModel {
     val repository = PersistentAlarmRepository(keyValueStorage)
     val preferences = PersistentPreferencesAdapter(keyValueStorage)
@@ -58,8 +58,18 @@ fun createDefaultViewModel(
         scheduleEvaluator = scheduleEvaluator,
     )
 
+    val vm = FjalarViewModel(
+        observeAlarmsPort = alarmService,
+        saveAlarmPort = alarmService,
+        toggleAlarmPort = alarmService,
+        dismissAlarmPort = alarmService,
+        skipTodayPort = alarmService,
+        preferencesPort = preferences,
+        coroutineScope = coroutineScope,
+    )
+
     // Seed sample alarms matching Stitch specs if repository is empty
-    CoroutineScope(Dispatchers.Default).launch {
+    vm.scope.launch {
         if (repository.getAlarms().isEmpty()) {
             val sampleAlarms = listOf(
                 LocationAlarm(
@@ -95,14 +105,7 @@ fun createDefaultViewModel(
         }
     }
 
-    return FjalarViewModel(
-        observeAlarmsPort = alarmService,
-        saveAlarmPort = alarmService,
-        toggleAlarmPort = alarmService,
-        dismissAlarmPort = alarmService,
-        skipTodayPort = alarmService,
-        preferencesPort = preferences,
-    )
+    return vm
 }
 
 /**
@@ -110,7 +113,7 @@ fun createDefaultViewModel(
  */
 @Composable
 fun App(
-    viewModel: FjalarViewModel = remember { createDefaultViewModel() },
+    viewModel: FjalarViewModel = viewModel { createDefaultViewModel() },
     modifier: Modifier = Modifier,
 ) {
     FjalarApp(

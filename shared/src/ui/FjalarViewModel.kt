@@ -48,7 +48,7 @@ class FjalarViewModel(
     coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
 
-    private val scope: CoroutineScope = coroutineScope ?: viewModelScope
+    internal val scope: CoroutineScope = coroutineScope ?: viewModelScope
 
     private val _uiState = MutableStateFlow(FjalarUiState())
     val uiState: StateFlow<FjalarUiState> = _uiState.asStateFlow()
