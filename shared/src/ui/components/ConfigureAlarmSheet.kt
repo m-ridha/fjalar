@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -492,26 +493,36 @@ private fun TimeStepper(
         )
         Spacer(modifier = Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                text = stringResource(Res.string.editor_time_step_minus_15),
-                style = MaterialTheme.typography.labelSmall,
-                color = colors.primary,
+            Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .background(colors.primary.copy(alpha = 0.12f))
-                    .clickable { onChange((minuteOfDay - 15 + 1440) % 1440) }
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-            )
-            Text(
-                text = stringResource(Res.string.editor_time_step_plus_15),
-                style = MaterialTheme.typography.labelSmall,
-                color = colors.primary,
+                    .clickable(role = Role.Button) { onChange((minuteOfDay - 15 + 1440) % 1440) }
+                    .defaultMinSize(minWidth = 48.dp, minHeight = 44.dp)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(Res.string.editor_time_step_minus_15),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.primary,
+                )
+            }
+            Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .background(colors.primary.copy(alpha = 0.12f))
-                    .clickable { onChange((minuteOfDay + 15) % 1440) }
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-            )
+                    .clickable(role = Role.Button) { onChange((minuteOfDay + 15) % 1440) }
+                    .defaultMinSize(minWidth = 48.dp, minHeight = 44.dp)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(Res.string.editor_time_step_plus_15),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.primary,
+                )
+            }
         }
     }
 }
