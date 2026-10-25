@@ -86,10 +86,10 @@ Read and strictly preserve these invariant behaviors:
 4. **Zero Distraction / Ad Invariant:**
    - Never display an advertisement before, during, or obstructing the dismissal of an active wake-up alarm.
 5. **Once-Per-Window Completion Guard:**
-   - When a scheduled alarm triggers and is dismissed during its morning window, it records `last_triggered_window_key` (`YYYY-MM-DD`). It must not re-trigger while the user remains at the office during that same window.
+   - When a scheduled alarm is dismissed during an active window, it transitions to `COMPLETED_FOR_WINDOW` and records `suppressedUntil` set to that window's end instant. It must not re-trigger while inside that window or before that instant (including across midnight).
 6. **Graceful GPS Degradation & Accuracy Filter:**
-   - Reject single inaccurate GPS fixes where `horizontalAccuracy > radius * 0.8`.
-   - In tunnels and subways without satellite lock, accept fused network/cell coarse updates and notify rather than failing silently.
+   - Reject inaccurate GPS fixes where `horizontalAccuracy > radius * 0.8` from transitioning an alarm to `RINGING`, preventing false wakeups.
+   - In tunnels and subways without satellite lock, accept fused network/cell coarse updates for degraded telemetry and user notification rather than failing silently; only fixes meeting the accuracy threshold may trigger the alarm.
 
 ---
 
