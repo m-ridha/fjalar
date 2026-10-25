@@ -1,6 +1,7 @@
 package com.muhammadridha.fjalar
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
@@ -32,6 +33,7 @@ import kotlin.time.Instant
  */
 fun createDefaultViewModel(
     keyValueStorage: KeyValueStorage = InMemoryKeyValueStorage(),
+    seedSampleAlarms: Boolean = false,
     coroutineScope: CoroutineScope? = null,
 ): FjalarViewModel {
     val repository = PersistentAlarmRepository(keyValueStorage)
@@ -68,40 +70,42 @@ fun createDefaultViewModel(
         coroutineScope = coroutineScope,
     )
 
-    // Seed sample alarms matching Stitch specs if repository is empty
-    vm.scope.launch {
-        if (repository.getAlarms().isEmpty()) {
-            val sampleAlarms = listOf(
-                LocationAlarm(
-                    id = "sample-manggarai",
-                    label = "Stasiun Manggarai",
-                    coordinates = GeoCoordinates(-6.2088, 106.8456),
-                    radius = TriggerRadius(500),
-                    schedule = AlarmSchedule(
-                        type = ScheduleType.SCHEDULED,
-                        startMinuteOfDay = 7 * 60,
-                        endMinuteOfDay = 9 * 60 + 30,
-                        daysOfWeekMask = AlarmSchedule.WEEKDAYS,
+    // Seed sample alarms only if explicitly requested (e.g. previews/demos), never in production persistent storage
+    if (seedSampleAlarms) {
+        vm.scope.launch {
+            if (repository.getAlarms().isEmpty()) {
+                val sampleAlarms = listOf(
+                    LocationAlarm(
+                        id = "sample-manggarai",
+                        label = "Stasiun Manggarai",
+                        coordinates = GeoCoordinates(-6.2088, 106.8456),
+                        radius = TriggerRadius(500),
+                        schedule = AlarmSchedule(
+                            type = ScheduleType.SCHEDULED,
+                            startMinuteOfDay = 7 * 60,
+                            endMinuteOfDay = 9 * 60 + 30,
+                            daysOfWeekMask = AlarmSchedule.WEEKDAYS,
+                        ),
+                        soundConfig = AlarmSoundConfig(soundEnabled = true, vibrateEnabled = true),
+                        state = AlarmState.SCHEDULED_IDLE,
                     ),
-                    soundConfig = AlarmSoundConfig(soundEnabled = true, vibrateEnabled = true),
-                    state = AlarmState.ARMED_MONITORING,
-                ),
-                LocationAlarm(
-                    id = "sample-sudirman",
-                    label = "Stasiun Sudirman",
-                    coordinates = GeoCoordinates(-6.2024, 106.8232),
-                    radius = TriggerRadius(400),
-                    schedule = AlarmSchedule(
-                        type = ScheduleType.SCHEDULED,
-                        startMinuteOfDay = 7 * 60,
-                        endMinuteOfDay = 9 * 60 + 30,
-                        daysOfWeekMask = AlarmSchedule.WEEKDAYS,
+                    LocationAlarm(
+                        id = "sample-sudirman",
+                        label = "Stasiun Sudirman",
+                        coordinates = GeoCoordinates(-6.2024, 106.8232),
+                        radius = TriggerRadius(400),
+                        schedule = AlarmSchedule(
+                            type = ScheduleType.SCHEDULED,
+                            startMinuteOfDay = 7 * 60,
+                            endMinuteOfDay = 9 * 60 + 30,
+                            daysOfWeekMask = AlarmSchedule.WEEKDAYS,
+                        ),
+                        soundConfig = AlarmSoundConfig(soundEnabled = true, vibrateEnabled = true),
+                        state = AlarmState.SCHEDULED_IDLE,
                     ),
-                    soundConfig = AlarmSoundConfig(soundEnabled = true, vibrateEnabled = true),
-                    state = AlarmState.SCHEDULED_IDLE,
-                ),
-            )
-            sampleAlarms.forEach { repository.upsertAlarm(it) }
+                )
+                sampleAlarms.forEach { repository.upsertAlarm(it) }
+            }
         }
     }
 
@@ -113,7 +117,8 @@ fun createDefaultViewModel(
  */
 @Composable
 fun App(
-    viewModel: FjalarViewModel = viewModel { createDefaultViewModel() },
+    keyValueStorage: KeyValueStorage = remember { InMemoryKeyValueStorage() },
+    viewModel: FjalarViewModel = viewModel { createDefaultViewModel(keyValueStorage) },
     modifier: Modifier = Modifier,
 ) {
     FjalarApp(

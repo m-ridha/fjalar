@@ -61,6 +61,8 @@ import com.muhammadridha.fjalar.resources.editor_mode_scheduled
 import com.muhammadridha.fjalar.resources.editor_save
 import com.muhammadridha.fjalar.resources.editor_start_time
 import com.muhammadridha.fjalar.resources.editor_strong_vibrate
+import com.muhammadridha.fjalar.resources.editor_time_step_minus_15
+import com.muhammadridha.fjalar.resources.editor_time_step_plus_15
 import com.muhammadridha.fjalar.resources.editor_title
 import com.muhammadridha.fjalar.resources.editor_trigger_radius
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
@@ -94,7 +96,9 @@ fun ConfigureAlarmSheet(
         mutableIntStateOf(initialAlarm?.schedule?.endMinuteOfDay ?: (9 * 60 + 30))
     }
     var daysMask by remember {
-        mutableIntStateOf(initialAlarm?.schedule?.daysOfWeekMask ?: AlarmSchedule.WEEKDAYS)
+        mutableIntStateOf(
+            initialAlarm?.schedule?.daysOfWeekMask?.takeIf { it != 0 } ?: AlarmSchedule.WEEKDAYS
+        )
     }
 
     var soundEnabled by remember {
@@ -105,7 +109,9 @@ fun ConfigureAlarmSheet(
     }
     var earphoneOverride by remember { mutableStateOf(false) }
 
-    val isSaveEnabled = label.isNotBlank() && (scheduleType != ScheduleType.SCHEDULED || startMinute != endMinute)
+    val isScheduleValid = scheduleType != ScheduleType.SCHEDULED ||
+        (startMinute != endMinute && daysMask != 0)
+    val isSaveEnabled = label.isNotBlank() && isScheduleValid
 
     Column(
         modifier = modifier
@@ -159,7 +165,10 @@ fun ConfigureAlarmSheet(
                             coordinates = coordinates,
                             radius = TriggerRadius(radiusMeters),
                             schedule = finalSchedule,
-                            soundConfig = AlarmSoundConfig(
+                            soundConfig = initialAlarm?.soundConfig?.copy(
+                                soundEnabled = soundEnabled,
+                                vibrateEnabled = vibrateEnabled,
+                            ) ?: AlarmSoundConfig(
                                 soundEnabled = soundEnabled,
                                 vibrateEnabled = vibrateEnabled,
                             ),
@@ -240,7 +249,7 @@ fun ConfigureAlarmSheet(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             fontFeatureSettings = "tnum",
                         ),
-                        color = if (isSelected) Color.White else colors.textPrimary,
+                        color = if (isSelected) colors.onPrimary else colors.textPrimary,
                     )
                 }
             }
@@ -285,7 +294,7 @@ fun ConfigureAlarmSheet(
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = if (isOneTime) FontWeight.Bold else FontWeight.Normal,
                     ),
-                    color = if (isOneTime) Color.White else colors.textPrimary,
+                    color = if (isOneTime) colors.onPrimary else colors.textPrimary,
                 )
             }
 
@@ -305,7 +314,7 @@ fun ConfigureAlarmSheet(
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = if (isScheduled) FontWeight.Bold else FontWeight.Normal,
                     ),
-                    color = if (isScheduled) Color.White else colors.textPrimary,
+                    color = if (isScheduled) colors.onPrimary else colors.textPrimary,
                 )
             }
         }
@@ -334,87 +343,18 @@ fun ConfigureAlarmSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // Start Time Stepper
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .glassSurface(level = GlassLevel.PILL, shape = RoundedCornerShape(16.dp))
-                        .padding(10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = stringResource(Res.string.editor_start_time, formatMinuteOfDay(startMinute)),
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontFeatureSettings = "tnum",
-                        ),
-                        color = colors.textPrimary,
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "-15m",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colors.primary,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(colors.primary.copy(alpha = 0.12f))
-                                .clickable { startMinute = (startMinute - 15 + 1440) % 1440 }
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                        )
-                        Text(
-                            text = "+15m",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colors.primary,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(colors.primary.copy(alpha = 0.12f))
-                                .clickable { startMinute = (startMinute + 15) % 1440 }
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                        )
-                    }
-                }
-
-                // End Time Stepper
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .glassSurface(level = GlassLevel.PILL, shape = RoundedCornerShape(16.dp))
-                        .padding(10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = stringResource(Res.string.editor_end_time, formatMinuteOfDay(endMinute)),
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontFeatureSettings = "tnum",
-                        ),
-                        color = colors.textPrimary,
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "-15m",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colors.primary,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(colors.primary.copy(alpha = 0.12f))
-                                .clickable { endMinute = (endMinute - 15 + 1440) % 1440 }
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                        )
-                        Text(
-                            text = "+15m",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colors.primary,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(colors.primary.copy(alpha = 0.12f))
-                                .clickable { endMinute = (endMinute + 15) % 1440 }
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                        )
-                    }
-                }
+                TimeStepper(
+                    label = stringResource(Res.string.editor_start_time, formatMinuteOfDay(startMinute)),
+                    minuteOfDay = startMinute,
+                    onChange = { startMinute = it },
+                    modifier = Modifier.weight(1f),
+                )
+                TimeStepper(
+                    label = stringResource(Res.string.editor_end_time, formatMinuteOfDay(endMinute)),
+                    minuteOfDay = endMinute,
+                    onChange = { endMinute = it },
+                    modifier = Modifier.weight(1f),
+                )
             }
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -447,7 +387,7 @@ fun ConfigureAlarmSheet(
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = if (isDayActive) FontWeight.Bold else FontWeight.Medium,
                             ),
-                            color = if (isDayActive) Color.White else colors.textPrimary,
+                            color = if (isDayActive) colors.onPrimary else colors.textPrimary,
                             textAlign = TextAlign.Center,
                         )
                     }
@@ -523,6 +463,54 @@ fun ConfigureAlarmSheet(
                 checked = earphoneOverride,
                 onCheckedChange = { earphoneOverride = it },
                 colors = SwitchDefaults.colors(checkedThumbColor = colors.primary),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TimeStepper(
+    label: String,
+    minuteOfDay: Int,
+    onChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LiquidGlassTheme.colors
+    Column(
+        modifier = modifier
+            .glassSurface(level = GlassLevel.PILL, shape = RoundedCornerShape(16.dp))
+            .padding(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontFeatureSettings = "tnum",
+            ),
+            color = colors.textPrimary,
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = stringResource(Res.string.editor_time_step_minus_15),
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.primary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(colors.primary.copy(alpha = 0.12f))
+                    .clickable { onChange((minuteOfDay - 15 + 1440) % 1440) }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+            Text(
+                text = stringResource(Res.string.editor_time_step_plus_15),
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.primary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(colors.primary.copy(alpha = 0.12f))
+                    .clickable { onChange((minuteOfDay + 15) % 1440) }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
             )
         }
     }

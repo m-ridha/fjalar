@@ -143,8 +143,8 @@ fun FjalarApp(
                 RingingAlertOverlay(
                     alarm = ringingAlarm,
                     onDismiss = viewModel::onDismissRingingAlarm,
-                    // shortcut: dedicated snooze port deferred to milestone 2; snoozing safely dismisses active alert
-                    onSnooze = viewModel::onDismissRingingAlarm,
+                    // shortcut: dedicated snooze port deferred to milestone 2; keep snooze inert to prevent single-tap dismissal (Invariant 3)
+                    onSnooze = {},
                     modifier = Modifier.fillMaxSize(),
                 )
             }

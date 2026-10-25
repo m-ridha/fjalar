@@ -56,9 +56,7 @@ fun FloatingHudBar(
     val searchPlaceholder = stringResource(Res.string.hud_search_placeholder)
 
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

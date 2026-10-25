@@ -49,7 +49,10 @@ import kotlin.math.roundToInt
 
 const val SLIDE_TO_STOP_THRESHOLD = 0.80f
 
-fun isSlideToStopSatisfied(dragFraction: Float): Boolean = dragFraction >= SLIDE_TO_STOP_THRESHOLD
+fun isSlideToStopSatisfied(
+    dragFraction: Float,
+    threshold: Float = SLIDE_TO_STOP_THRESHOLD,
+): Boolean = dragFraction >= threshold
 
 class SlideToStopState(
     val threshold: Float = SLIDE_TO_STOP_THRESHOLD,
@@ -58,7 +61,7 @@ class SlideToStopState(
         internal set
 
     val isSatisfied: Boolean
-        get() = isSlideToStopSatisfied(dragFraction)
+        get() = isSlideToStopSatisfied(dragFraction, threshold)
 
     fun updateDrag(rawPx: Float, maxPx: Float) {
         if (maxPx <= 0f) {

@@ -39,6 +39,8 @@ class CatalogParityTest {
         "editor_label_placeholder",
         "editor_start_time",
         "editor_end_time",
+        "editor_time_step_minus_15",
+        "editor_time_step_plus_15",
         "editor_trigger_radius",
         "editor_mode_one_time",
         "editor_mode_scheduled",

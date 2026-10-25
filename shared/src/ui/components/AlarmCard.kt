@@ -37,6 +37,8 @@ import com.muhammadridha.fjalar.resources.card_loud_and_vibrate
 import com.muhammadridha.fjalar.resources.card_one_time_trip
 import com.muhammadridha.fjalar.resources.card_skip_today
 import com.muhammadridha.fjalar.resources.card_skipped_today
+import com.muhammadridha.fjalar.resources.editor_loud_sound
+import com.muhammadridha.fjalar.resources.editor_strong_vibrate
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
@@ -144,14 +146,26 @@ fun AlarmCard(
             )
 
             // Sound & Haptics badge
-            Text(
-                text = stringResource(Res.string.card_loud_and_vibrate),
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                color = colors.textPrimary,
-                modifier = Modifier
-                    .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-            )
+            val soundBadgeText = when {
+                alarm.soundConfig.soundEnabled && alarm.soundConfig.vibrateEnabled ->
+                    stringResource(Res.string.card_loud_and_vibrate)
+                alarm.soundConfig.soundEnabled ->
+                    stringResource(Res.string.editor_loud_sound)
+                alarm.soundConfig.vibrateEnabled ->
+                    stringResource(Res.string.editor_strong_vibrate)
+                else -> null
+            }
+
+            if (soundBadgeText != null) {
+                Text(
+                    text = soundBadgeText,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    color = colors.textPrimary,
+                    modifier = Modifier
+                        .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+            }
 
             // Skip Today control (for scheduled alarms)
             if (alarm.schedule.type == ScheduleType.SCHEDULED) {

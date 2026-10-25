@@ -31,6 +31,8 @@
     <string name="editor_label_placeholder">e.g. Manggarai Station</string>
     <string name="editor_start_time">Start: %1$s</string>
     <string name="editor_end_time">End: %1$s</string>
+    <string name="editor_time_step_minus_15">-15m</string>
+    <string name="editor_time_step_plus_15">+15m</string>
     <string name="editor_trigger_radius">Trigger Radius</string>
     <string name="editor_mode_one_time">One-Time Now</string>
     <string name="editor_mode_scheduled">Scheduled Window</string>

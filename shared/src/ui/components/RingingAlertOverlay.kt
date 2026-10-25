@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -55,7 +56,7 @@ fun RingingAlertOverlay(
     val colors = LiquidGlassTheme.colors
     val transition = rememberInfiniteTransition()
 
-    val pulse1 by transition.animateFloat(
+    val rawProgress by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -63,22 +64,9 @@ fun RingingAlertOverlay(
             repeatMode = RepeatMode.Restart,
         ),
     )
-    val pulse2 by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2400, delayMillis = 800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-    )
-    val pulse3 by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2400, delayMillis = 1600, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-    )
+    val pulse1 = rawProgress
+    val pulse2 = (rawProgress + 0.333f) % 1f
+    val pulse3 = (rawProgress + 0.667f) % 1f
 
     val distanceText = formatDistance(distanceMeters ?: alarm.radius.meters)
 
@@ -86,6 +74,13 @@ fun RingingAlertOverlay(
         modifier = modifier
             .fillMaxSize()
             .glassSurface(level = GlassLevel.MODAL, shape = RoundedCornerShape(0.dp))
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent().changes.forEach { it.consume() }
+                    }
+                }
+            }
             .padding(horizontal = 24.dp, vertical = 32.dp),
     ) {
         Column(

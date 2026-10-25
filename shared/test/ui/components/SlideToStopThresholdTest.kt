@@ -66,4 +66,17 @@ class SlideToStopThresholdTest {
         assertTrue(resultAbove)
         assertTrue(callbackTriggered)
     }
+
+    @Test
+    fun customThresholdEvaluatesAgainstInstanceThreshold() {
+        val customState = SlideToStopState(threshold = 0.95f)
+
+        customState.updateDrag(rawPx = 90f, maxPx = 100f)
+        assertEquals(0.90f, customState.dragFraction)
+        assertFalse(customState.isSatisfied)
+
+        customState.updateDrag(rawPx = 95f, maxPx = 100f)
+        assertEquals(0.95f, customState.dragFraction)
+        assertTrue(customState.isSatisfied)
+    }
 }

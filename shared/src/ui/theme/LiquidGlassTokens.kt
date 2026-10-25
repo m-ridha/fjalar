@@ -11,6 +11,7 @@ enum class GlassLevel {
 data class LiquidGlassColors(
     val canvas: Color,
     val primary: Color,
+    val onPrimary: Color,
     val armed: Color,
     val danger: Color,
     val textPrimary: Color,
@@ -32,6 +33,7 @@ data class LiquidGlassColors(
 val LightLiquidGlassColors = LiquidGlassColors(
     canvas = Color(0xFFFAF9FE),
     primary = Color(0xFF007AFF),
+    onPrimary = Color.White,
     armed = Color(0xFF34C759),
     danger = Color(0xFFFF3B30),
     textPrimary = Color(0xFF1A1B1F),
@@ -47,6 +49,7 @@ val LightLiquidGlassColors = LiquidGlassColors(
 val DarkLiquidGlassColors = LiquidGlassColors(
     canvas = Color(0xFF0C0E14),
     primary = Color(0xFF00D2FF),
+    onPrimary = Color(0xFF0C0E14),
     armed = Color(0xFF00E676),
     danger = Color(0xFFFF453A),
     textPrimary = Color(0xFFFFFFFF),

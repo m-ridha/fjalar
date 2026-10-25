@@ -31,6 +31,8 @@
     <string name="editor_label_placeholder">cth. Stasiun Manggarai</string>
     <string name="editor_start_time">Mulai: %1$s</string>
     <string name="editor_end_time">Selesai: %1$s</string>
+    <string name="editor_time_step_minus_15">-15m</string>
+    <string name="editor_time_step_plus_15">+15m</string>
     <string name="editor_trigger_radius">Radius Alarm</string>
     <string name="editor_mode_one_time">Sekali Jalan</string>
     <string name="editor_mode_scheduled">Jendela Terjadwal</string>
