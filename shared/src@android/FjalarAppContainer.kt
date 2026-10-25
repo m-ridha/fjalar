@@ -1,6 +1,7 @@
 package com.muhammadridha.fjalar
 
 import android.content.Context
+import com.muhammadridha.fjalar.adapters.ringer.AndroidSystemAlarmRingerAdapter
 import com.muhammadridha.fjalar.adapters.scheduler.AndroidAlarmManagerSchedulerAdapter
 import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.PersistentAlarmRepository
@@ -27,10 +28,7 @@ open class FjalarAppContainer(
         override suspend fun startTracking(updateIntervalMillis: Long) {}
         override suspend fun stopTracking() {}
     },
-    val alarmRinger: AlarmRingerPort = object : AlarmRingerPort {
-        override suspend fun startRinging(alarm: LocationAlarm) {}
-        override suspend fun stopRinging(alarmId: String) {}
-    },
+    val alarmRinger: AlarmRingerPort = AndroidSystemAlarmRingerAdapter(context),
 ) {
     @Volatile
     private var _scheduleEvaluator: ScheduleEvaluator = ScheduleEvaluator(TimeZone.currentSystemDefault())
