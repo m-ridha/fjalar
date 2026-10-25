@@ -258,12 +258,22 @@ class FjalarLocationService : Service() {
             val manager = notificationManager ?: return
             try {
                 if (manager.getNotificationChannel(CHANNEL_ID) == null) {
+                    val channelName = try {
+                        getString(R.string.notification_channel_monitoring_name)
+                    } catch (_: Throwable) {
+                        CHANNEL_NAME
+                    }
+                    val channelDesc = try {
+                        getString(R.string.notification_channel_monitoring_desc)
+                    } catch (_: Throwable) {
+                        "Ongoing location monitoring for armed commute alarms"
+                    }
                     val channel = NotificationChannel(
                         CHANNEL_ID,
-                        CHANNEL_NAME,
+                        channelName,
                         NotificationManager.IMPORTANCE_LOW,
                     ).apply {
-                        description = "Ongoing location monitoring for armed commute alarms"
+                        description = channelDesc
                         setShowBadge(false)
                         enableVibration(false)
                         setSound(null, null)

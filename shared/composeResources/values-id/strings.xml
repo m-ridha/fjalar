@@ -51,6 +51,7 @@
     <!-- System notifications & background telemetry -->
     <string name="notif_monitoring_title">Memantau tujuan perjalanan</string>
     <string name="notif_monitoring_body">Aktif: %1$s • %2$s lagi</string>
+    <string name="notif_alarm_approaching">Mendekati %1$s</string>
 
     <!-- Permissions modal -->
     <string name="perm_location_title">Izinkan Lokasi Latar Belakang untuk Alarm Tujuan</string>

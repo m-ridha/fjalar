@@ -270,8 +270,19 @@ open class DefaultAndroidRingerPlatformGateway(
                 Notification.Builder(context)
             }
 
+            val contentText = try {
+                val resId = context.resources.getIdentifier("notif_alarm_approaching", "string", context.packageName)
+                if (resId != 0) {
+                    context.getString(resId, alarmLabel)
+                } else {
+                    "Approaching $alarmLabel"
+                }
+            } catch (_: Throwable) {
+                "Approaching $alarmLabel"
+            }
+
             builder.setContentTitle(alarmLabel)
-                .setContentText("Approaching $alarmLabel")
+                .setContentText(contentText)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                 .setCategory(Notification.CATEGORY_ALARM)
                 .setVisibility(Notification.VISIBILITY_PUBLIC)
@@ -303,12 +314,26 @@ open class DefaultAndroidRingerPlatformGateway(
             val manager = notificationManager ?: return
             try {
                 if (manager.getNotificationChannel(AndroidSystemAlarmRingerAdapter.CHANNEL_ID) == null) {
+                    val channelName = try {
+                        val nameId = context.resources.getIdentifier("notification_channel_alarm_name", "string", context.packageName)
+                        if (nameId != 0) context.getString(nameId) else AndroidSystemAlarmRingerAdapter.CHANNEL_NAME
+                    } catch (_: Throwable) {
+                        AndroidSystemAlarmRingerAdapter.CHANNEL_NAME
+                    }
+
+                    val channelDesc = try {
+                        val descId = context.resources.getIdentifier("notification_channel_alarm_desc", "string", context.packageName)
+                        if (descId != 0) context.getString(descId) else "High-priority wake-up alerts when approaching destination"
+                    } catch (_: Throwable) {
+                        "High-priority wake-up alerts when approaching destination"
+                    }
+
                     val channel = NotificationChannel(
                         AndroidSystemAlarmRingerAdapter.CHANNEL_ID,
-                        AndroidSystemAlarmRingerAdapter.CHANNEL_NAME,
+                        channelName,
                         NotificationManager.IMPORTANCE_HIGH,
                     ).apply {
-                        description = "High-priority wake-up alerts when approaching destination"
+                        description = channelDesc
                         lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                         setBypassDnd(true)
                         enableVibration(false)

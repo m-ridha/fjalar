@@ -55,6 +55,7 @@ class CatalogParityTest {
         "ringing_slide_to_stop",
         "notif_monitoring_title",
         "notif_monitoring_body",
+        "notif_alarm_approaching",
         "perm_location_title",
         "perm_location_body"
     )

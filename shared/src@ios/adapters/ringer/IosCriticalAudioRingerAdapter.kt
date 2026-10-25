@@ -3,6 +3,13 @@ package com.muhammadridha.fjalar.adapters.ringer
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import platform.AVFAudio.AVAudioPlayer
 import platform.AVFAudio.AVAudioSession
 import platform.AVFAudio.AVAudioSessionCategoryPlayback
@@ -14,12 +21,13 @@ import platform.Foundation.NSURL
 
 /**
  * iOS implementation of [AlarmRingerPort] using [AVAudioSession] and [AVAudioPlayer]
- * with critical playback category and system haptics.
+ * with critical playback category and looping system haptics.
  */
 @OptIn(ExperimentalForeignApi::class)
 class IosCriticalAudioRingerAdapter(
     private val audioSession: AVAudioSession = AVAudioSession.sharedInstance(),
     private val bundle: NSBundle = NSBundle.mainBundle,
+    private val ringerScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
 ) : AlarmRingerPort {
 
     @kotlin.concurrent.Volatile
@@ -27,6 +35,11 @@ class IosCriticalAudioRingerAdapter(
 
     @kotlin.concurrent.Volatile
     private var ringingAlarmId: String? = null
+
+    private var vibrationJob: Job? = null
+
+    internal val isVibrating: Boolean
+        get() = vibrationJob?.isActive == true
 
     override suspend fun startRinging(alarm: LocationAlarm) {
         stopRinging(alarm.id)
@@ -57,13 +70,21 @@ class IosCriticalAudioRingerAdapter(
         }
 
         if (alarm.soundConfig.vibrateEnabled) {
-            try {
-                AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
-            } catch (_: Throwable) {}
+            vibrationJob = ringerScope.launch {
+                while (isActive) {
+                    try {
+                        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+                    } catch (_: Throwable) {}
+                    delay(1500L)
+                }
+            }
         }
     }
 
     override suspend fun stopRinging(alarmId: String) {
+        vibrationJob?.cancel()
+        vibrationJob = null
+
         currentPlayer?.let { player ->
             try {
                 player.stop()
