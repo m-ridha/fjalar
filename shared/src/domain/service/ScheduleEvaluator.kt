@@ -14,7 +14,13 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
 
-class ScheduleEvaluator(private val timeZone: TimeZone) {
+class ScheduleEvaluator(
+    private val timeZoneProvider: () -> TimeZone,
+) {
+    constructor(timeZone: TimeZone) : this({ timeZone })
+
+    val timeZone: TimeZone
+        get() = timeZoneProvider()
 
     /** The window containing [instant], or null. Always null for one-time alarms. */
     fun activeWindowAt(schedule: AlarmSchedule, instant: Instant): TimeWindow? {

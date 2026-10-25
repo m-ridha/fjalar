@@ -17,6 +17,9 @@ import com.muhammadridha.fjalar.domain.service.AlarmService
 import com.muhammadridha.fjalar.domain.service.ScheduleEvaluator
 import kotlinx.datetime.TimeZone
 
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSSystemTimeZoneDidChangeNotification
+
 open class FjalarIosContainer(
     override val keyValueStorage: KeyValueStorage = UserDefaultsKeyValueStorage(),
     override val alarmRepository: AlarmRepositoryPort = PersistentAlarmRepository(keyValueStorage),
@@ -31,29 +34,36 @@ open class FjalarIosContainer(
     )
 
     @kotlin.concurrent.Volatile
-    private var _scheduleEvaluator: ScheduleEvaluator = ScheduleEvaluator(TimeZone.currentSystemDefault())
+    private var currentTimeZone: TimeZone = TimeZone.currentSystemDefault()
 
-    @kotlin.concurrent.Volatile
-    private var _alarmService: AlarmService = createAlarmService(_scheduleEvaluator)
+    val scheduleEvaluator: ScheduleEvaluator = ScheduleEvaluator(timeZoneProvider = { currentTimeZone })
+
+    override val alarmService: AlarmService = AlarmService(
+        repository = alarmRepository,
+        tracker = this.locationTracker,
+        scheduler = alarmScheduler,
+        ringer = alarmRinger,
+        scheduleEvaluator = scheduleEvaluator,
+    )
 
     override val syncSchedulesPort: SyncSchedulesPort
-        get() = _alarmService
+        get() = alarmService
 
-    override val alarmService: AlarmService
-        get() = _alarmService
-
-    override fun onTimezoneChanged(newTimeZone: TimeZone) {
-        _scheduleEvaluator = ScheduleEvaluator(newTimeZone)
-        _alarmService = createAlarmService(_scheduleEvaluator)
+    init {
+        try {
+            NSNotificationCenter.defaultCenter.addObserverForName(
+                name = NSSystemTimeZoneDidChangeNotification,
+                `object` = null,
+                queue = null,
+            ) { _ ->
+                onTimezoneChanged(TimeZone.currentSystemDefault())
+            }
+        } catch (_: Throwable) {
+            // Defensive in headless test environments
+        }
     }
 
-    private fun createAlarmService(scheduleEvaluator: ScheduleEvaluator): AlarmService {
-        return AlarmService(
-            repository = alarmRepository,
-            tracker = locationTracker,
-            scheduler = alarmScheduler,
-            ringer = alarmRinger,
-            scheduleEvaluator = scheduleEvaluator,
-        )
+    override fun onTimezoneChanged(newTimeZone: TimeZone) {
+        currentTimeZone = newTimeZone
     }
 }

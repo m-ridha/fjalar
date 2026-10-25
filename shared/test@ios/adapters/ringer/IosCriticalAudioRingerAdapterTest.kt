@@ -56,4 +56,23 @@ class IosCriticalAudioRingerAdapterTest {
         adapter.startRinging(sampleAlarm(vibrateEnabled = false))
         assertFalse(adapter.isVibrating)
     }
+
+    @Test
+    fun stopRinging_withStaleAlarmId_doesNotStopActiveAlarm() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val adapter = IosCriticalAudioRingerAdapter(
+            ringerScope = TestScope(testDispatcher),
+        )
+
+        adapter.startRinging(sampleAlarm(vibrateEnabled = true))
+        assertTrue(adapter.isVibrating)
+
+        // Attempting to stop an inactive/stale alarm ID should NOT stop active vibration
+        adapter.stopRinging("different-stale-alarm-id")
+        assertTrue(adapter.isVibrating)
+
+        // Stopping the matching active alarm ID stops vibration
+        adapter.stopRinging("ios-alarm-1")
+        assertFalse(adapter.isVibrating)
+    }
 }

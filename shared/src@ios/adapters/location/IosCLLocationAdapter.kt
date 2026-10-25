@@ -5,6 +5,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.HandleLocationUpdatePort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,7 +55,13 @@ class IosCLLocationAdapter(
                         GeoCoordinates(latitude, longitude)
                     }
                     adapterScope.launch {
-                        dispatchLocationUpdate(coordinates, accuracy)
+                        try {
+                            dispatchLocationUpdate(coordinates, accuracy)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Throwable) {
+                            // Defensive: drop this fix without terminating processing for future fixes
+                        }
                     }
                 }
             }
@@ -73,6 +80,11 @@ class IosCLLocationAdapter(
             locationManager.delegate = delegate
             locationManager.desiredAccuracy = kCLLocationAccuracyBest
             locationManager.pausesLocationUpdatesAutomatically = false
+            try {
+                locationManager.requestAlwaysAuthorization()
+            } catch (_: Throwable) {
+                // Defensive degradation if authorization prompt not permitted
+            }
             try {
                 val backgroundModes = NSBundle.mainBundle.objectForInfoDictionaryKey("UIBackgroundModes") as? List<*>
                 if (backgroundModes?.contains("location") == true) {

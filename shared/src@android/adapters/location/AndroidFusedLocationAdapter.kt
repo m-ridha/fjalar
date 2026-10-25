@@ -117,7 +117,6 @@ open class DefaultAndroidLocationPlatformGateway(
     private var locationListener: ((GeoCoordinates, Float) -> Unit)? = null
 
     override fun startForegroundService(updateIntervalMillis: Long) {
-        tracking = true
         val intent = createServiceIntent(AndroidFusedLocationAdapter.ACTION_START_TRACKING).apply {
             putExtra(AndroidFusedLocationAdapter.EXTRA_UPDATE_INTERVAL, updateIntervalMillis)
         }
@@ -127,8 +126,10 @@ open class DefaultAndroidLocationPlatformGateway(
             } else {
                 context.startService(intent)
             }
+            tracking = true
         } catch (_: Exception) {
             // Defensive: handles background start restrictions if applicable
+            tracking = false
         }
     }
 
@@ -142,7 +143,20 @@ open class DefaultAndroidLocationPlatformGateway(
         }
     }
 
-    override fun isTracking(): Boolean = tracking
+    override fun isTracking(): Boolean {
+        val serviceRunning = try {
+            val clazz = serviceClass ?: AndroidFusedLocationAdapter.resolveDefaultService()
+            if (clazz != null) {
+                val field = clazz.getField("isServiceRunning")
+                field.getBoolean(null)
+            } else {
+                false
+            }
+        } catch (_: Throwable) {
+            false
+        }
+        return tracking || serviceRunning
+    }
 
     override fun setLocationListener(listener: ((coordinates: GeoCoordinates, horizontalAccuracyMeters: Float) -> Unit)?) {
         locationListener = listener

@@ -33,29 +33,22 @@ open class FjalarAppContainer(
         updatePortProvider = { alarmService },
     )
     @Volatile
-    private var _scheduleEvaluator: ScheduleEvaluator = ScheduleEvaluator(TimeZone.currentSystemDefault())
+    private var currentTimeZone: TimeZone = TimeZone.currentSystemDefault()
 
-    @Volatile
-    private var _alarmService: AlarmService = createAlarmService(_scheduleEvaluator)
+    val scheduleEvaluator: ScheduleEvaluator = ScheduleEvaluator(timeZoneProvider = { currentTimeZone })
+
+    override val alarmService: AlarmService = AlarmService(
+        repository = alarmRepository,
+        tracker = this.locationTracker,
+        scheduler = alarmScheduler,
+        ringer = alarmRinger,
+        scheduleEvaluator = scheduleEvaluator,
+    )
 
     override val syncSchedulesPort: SyncSchedulesPort
-        get() = _alarmService
-
-    override val alarmService: AlarmService
-        get() = _alarmService
+        get() = alarmService
 
     override fun onTimezoneChanged(newTimeZone: TimeZone) {
-        _scheduleEvaluator = ScheduleEvaluator(newTimeZone)
-        _alarmService = createAlarmService(_scheduleEvaluator)
-    }
-
-    private fun createAlarmService(scheduleEvaluator: ScheduleEvaluator): AlarmService {
-        return AlarmService(
-            repository = alarmRepository,
-            tracker = locationTracker,
-            scheduler = alarmScheduler,
-            ringer = alarmRinger,
-            scheduleEvaluator = scheduleEvaluator,
-        )
+        currentTimeZone = newTimeZone
     }
 }

@@ -12,6 +12,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import platform.AVFAudio.AVAudioPlayer
 import platform.AVFAudio.AVAudioSession
+import platform.AVFAudio.AVAudioSessionCategoryOptionDuckOthers
 import platform.AVFAudio.AVAudioSessionCategoryPlayback
 import platform.AVFAudio.setActive
 import platform.AudioToolbox.AudioServicesPlaySystemSound
@@ -42,12 +43,16 @@ class IosCriticalAudioRingerAdapter(
         get() = vibrationJob?.isActive == true
 
     override suspend fun startRinging(alarm: LocationAlarm) {
-        stopRinging(alarm.id)
+        stopPlayback()
         ringingAlarmId = alarm.id
 
         if (alarm.soundConfig.soundEnabled) {
             try {
-                audioSession.setCategory(AVAudioSessionCategoryPlayback, error = null)
+                audioSession.setCategory(
+                    category = AVAudioSessionCategoryPlayback,
+                    withOptions = AVAudioSessionCategoryOptionDuckOthers,
+                    error = null,
+                )
                 audioSession.setActive(true, error = null)
 
                 val soundUrl: NSURL? = bundle.URLForResource("alarm", withExtension = "mp3")
@@ -82,6 +87,14 @@ class IosCriticalAudioRingerAdapter(
     }
 
     override suspend fun stopRinging(alarmId: String) {
+        val current = ringingAlarmId
+        if (current != null && current != alarmId) {
+            return
+        }
+        stopPlayback()
+    }
+
+    private fun stopPlayback() {
         vibrationJob?.cancel()
         vibrationJob = null
 

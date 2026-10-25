@@ -5,6 +5,9 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 import platform.Foundation.NSLocale
 import platform.Foundation.preferredLanguages
+import platform.UserNotifications.UNAuthorizationOptionAlert
+import platform.UserNotifications.UNAuthorizationOptionBadge
+import platform.UserNotifications.UNAuthorizationOptionSound
 import platform.UserNotifications.UNMutableNotificationContent
 import platform.UserNotifications.UNNotificationRequest
 import platform.UserNotifications.UNTimeIntervalNotificationTrigger
@@ -28,13 +31,23 @@ class IosBackgroundSchedulerAdapter(
         }
     }
 
+    fun requestAuthorization() {
+        val center = resolveNotificationCenter() ?: return
+        try {
+            center.requestAuthorizationWithOptions(
+                options = UNAuthorizationOptionAlert or UNAuthorizationOptionSound or UNAuthorizationOptionBadge,
+            ) { _, _ -> }
+        } catch (_: Throwable) {}
+    }
+
     override suspend fun scheduleWakeup(alarmId: String, at: Instant) {
         val center = resolveNotificationCenter() ?: return
+        requestAuthorization()
         val now = clock.now()
         val delaySeconds = (at - now).inWholeSeconds.coerceAtLeast(1)
 
         val content = UNMutableNotificationContent().apply {
-            setTitle("Fjalar")
+            setTitle(resolveNotificationTitle())
             setBody(resolveNotificationBody())
             setUserInfo(mapOf("alarmId" to alarmId, "type" to NOTIFICATION_TYPE_COMMUTE_WINDOW))
         }
@@ -50,8 +63,10 @@ class IosBackgroundSchedulerAdapter(
             trigger = trigger,
         )
 
-        center.addNotificationRequest(request) { _ ->
-            // Defensively handle callback
+        center.addNotificationRequest(request) { error ->
+            if (error != null) {
+                // Defensive degradation if local notification scheduling fails
+            }
         }
     }
 
@@ -59,6 +74,19 @@ class IosBackgroundSchedulerAdapter(
         val center = resolveNotificationCenter() ?: return
         val identifier = notificationIdentifier(alarmId)
         center.removePendingNotificationRequestsWithIdentifiers(listOf(identifier))
+    }
+
+    internal fun resolveNotificationTitle(preferredLanguage: String? = null): String {
+        val lang = preferredLanguage?.lowercase() ?: try {
+            (NSLocale.preferredLanguages.firstOrNull() as? String)?.lowercase() ?: ""
+        } catch (_: Throwable) {
+            ""
+        }
+        return if (lang.startsWith("id") || lang.startsWith("in")) {
+            "Bangunkan saya disana"
+        } else {
+            "Wake me up there"
+        }
     }
 
     internal fun resolveNotificationBody(preferredLanguage: String? = null): String {

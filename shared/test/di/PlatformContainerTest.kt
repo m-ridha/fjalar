@@ -42,30 +42,22 @@ class PlatformContainerTest {
         override val alarmRinger: AlarmRingerPort = FakeAlarmRinger(),
     ) : FjalarPlatformContainer {
 
-        private var _scheduleEvaluator = ScheduleEvaluator(TimeZone.currentSystemDefault())
-        private var _alarmService = AlarmService(
+        var currentTimeZone: TimeZone = TimeZone.currentSystemDefault()
+        val scheduleEvaluator = ScheduleEvaluator(timeZoneProvider = { currentTimeZone })
+
+        override val alarmService = AlarmService(
             repository = alarmRepository,
             tracker = locationTracker,
             scheduler = alarmScheduler,
             ringer = alarmRinger,
-            scheduleEvaluator = _scheduleEvaluator,
+            scheduleEvaluator = scheduleEvaluator,
         )
 
         override val syncSchedulesPort: SyncSchedulesPort
-            get() = _alarmService
-
-        override val alarmService: AlarmService
-            get() = _alarmService
+            get() = alarmService
 
         override fun onTimezoneChanged(newTimeZone: TimeZone) {
-            _scheduleEvaluator = ScheduleEvaluator(newTimeZone)
-            _alarmService = AlarmService(
-                repository = alarmRepository,
-                tracker = locationTracker,
-                scheduler = alarmScheduler,
-                ringer = alarmRinger,
-                scheduleEvaluator = _scheduleEvaluator,
-            )
+            currentTimeZone = newTimeZone
         }
     }
 
@@ -138,7 +130,7 @@ class PlatformContainerTest {
     }
 
     @Test
-    fun fakePlatformContainer_timezoneChange_reconstructsAlarmService() {
+    fun fakePlatformContainer_timezoneChange_updatesScheduleEvaluator() {
         val container = FakePlatformContainer()
         val initialService = container.alarmService
 
@@ -146,7 +138,7 @@ class PlatformContainerTest {
         val newService = container.alarmService
 
         assertNotNull(newService)
-        // AlarmService is rebuilt with updated ScheduleEvaluator
-        assertTrue(initialService !== newService)
+        assertTrue(initialService === newService)
+        assertEquals(TimeZone.of("Asia/Tokyo"), container.scheduleEvaluator.timeZone)
     }
 }

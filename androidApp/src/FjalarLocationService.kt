@@ -72,7 +72,25 @@ class FjalarLocationService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val action = intent?.action ?: AndroidFusedLocationAdapter.ACTION_START_TRACKING
+        if (intent == null) {
+            // Service restarted by system (e.g. START_STICKY) with null intent.
+            // Reconcile with active alarms first; stop immediately if none are armed.
+            serviceScope.launch {
+                val container = resolveContainer()
+                val alarms = container?.alarmService?.syncSchedules() ?: emptyList()
+                if (alarms.none { it.state == com.muhammadridha.fjalar.domain.model.AlarmState.ARMED_MONITORING }) {
+                    stopTrackingAndSelf()
+                }
+            }
+            if (!hasLocationPermission()) {
+                stopTrackingAndSelf()
+                return START_NOT_STICKY
+            }
+            val started = startForegroundTracking(DEFAULT_INTERVAL_MILLIS)
+            return if (started) START_STICKY else START_NOT_STICKY
+        }
+
+        val action = intent.action ?: AndroidFusedLocationAdapter.ACTION_START_TRACKING
 
         when (action) {
             AndroidFusedLocationAdapter.ACTION_STOP_TRACKING -> {
@@ -80,13 +98,13 @@ class FjalarLocationService : Service() {
                 return START_NOT_STICKY
             }
             AndroidFusedLocationAdapter.ACTION_START_TRACKING -> {
-                val interval = intent?.getLongExtra(
+                val interval = intent.getLongExtra(
                     AndroidFusedLocationAdapter.EXTRA_UPDATE_INTERVAL,
                     DEFAULT_INTERVAL_MILLIS,
-                ) ?: DEFAULT_INTERVAL_MILLIS
+                )
 
-                startForegroundTracking(interval)
-                return START_STICKY
+                val started = startForegroundTracking(interval)
+                return if (started) START_STICKY else START_NOT_STICKY
             }
             else -> {
                 return START_NOT_STICKY
@@ -94,21 +112,45 @@ class FjalarLocationService : Service() {
         }
     }
 
-    private fun startForegroundTracking(intervalMillis: Long) {
+    private fun hasLocationPermission(): Boolean {
+        val fineGranted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarseGranted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+        return fineGranted || coarseGranted
+    }
+
+    private fun startForegroundTracking(intervalMillis: Long): Boolean {
+        if (!hasLocationPermission()) {
+            stopTrackingAndSelf()
+            return false
+        }
+
         createNotificationChannelIfNeeded()
         val notification = buildOngoingNotification()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (_: Exception) {
+            stopTrackingAndSelf()
+            return false
         }
 
+        isServiceRunning = true
         startLocationUpdates(intervalMillis)
+        return true
     }
 
     private fun startLocationUpdates(intervalMillis: Long) {
@@ -162,6 +204,7 @@ class FjalarLocationService : Service() {
     }
 
     private fun stopTrackingAndSelf() {
+        isServiceRunning = false
         stopLocationUpdates()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -285,6 +328,7 @@ class FjalarLocationService : Service() {
     }
 
     override fun onDestroy() {
+        isServiceRunning = false
         stopLocationUpdates()
         serviceScope.cancel()
         super.onDestroy()
@@ -295,6 +339,10 @@ class FjalarLocationService : Service() {
         const val CHANNEL_NAME = "Fjalar Location Monitoring"
         const val NOTIFICATION_ID = 1002
         const val DEFAULT_INTERVAL_MILLIS = 10_000L
+
+        @JvmField
+        @Volatile
+        var isServiceRunning: Boolean = false
 
         var containerOverride: FjalarAppContainer? = null
         var locationUpdateHook: ((GeoCoordinates, Float) -> Unit)? = null

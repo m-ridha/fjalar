@@ -168,4 +168,22 @@ class AndroidFusedLocationAdapterTest {
         assertEquals(testCoordinates, fakePort.receivedCalls.first().coordinates)
         assertEquals(8.0f, fakePort.receivedCalls.first().accuracy)
     }
+
+    @Test
+    fun stopTracking_stopsServiceWhenGatewayReportsTrackingEvenIfAdapterWasNotActive() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val fakeGateway = FakeLocationPlatformGateway()
+        fakeGateway.tracking = true // e.g. service was restarted by OS after process death
+
+        val adapter = AndroidFusedLocationAdapter(
+            coroutineDispatcher = testDispatcher,
+            gateway = fakeGateway,
+        )
+
+        assertFalse(adapter.isTracking)
+        adapter.stopTracking()
+
+        assertEquals(1, fakeGateway.stopCount, "Stop must reach gateway when gateway is active")
+        assertFalse(fakeGateway.tracking)
+    }
 }

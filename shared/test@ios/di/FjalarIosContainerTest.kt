@@ -7,6 +7,7 @@ import com.muhammadridha.fjalar.fakes.FakeLocationTracker
 import com.muhammadridha.fjalar.fakes.InMemoryAlarmRepository
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -57,6 +58,8 @@ class FjalarIosContainerTest {
         val updatedService = container.alarmService
 
         assertNotNull(updatedService)
-        assertTrue(initialService !== updatedService)
+        // AlarmService remains a stable singleton instance to prevent mutex and consumer divergence
+        assertTrue(initialService === updatedService)
+        assertEquals(TimeZone.of("Europe/London"), container.scheduleEvaluator.timeZone)
     }
 }

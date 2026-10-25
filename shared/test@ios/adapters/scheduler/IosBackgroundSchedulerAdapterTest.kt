@@ -21,4 +21,13 @@ class IosBackgroundSchedulerAdapterTest {
         assertEquals("Commute alarm window is active", adapter.resolveNotificationBody("fr-FR"))
         assertEquals("Commute alarm window is active", adapter.resolveNotificationBody(""))
     }
+
+    @Test
+    fun resolveNotificationTitle_bilingualLocalization() {
+        val adapter = IosBackgroundSchedulerAdapter()
+        assertEquals("Bangunkan saya disana", adapter.resolveNotificationTitle("id-ID"))
+        assertEquals("Bangunkan saya disana", adapter.resolveNotificationTitle("in"))
+        assertEquals("Wake me up there", adapter.resolveNotificationTitle("en-US"))
+        assertEquals("Wake me up there", adapter.resolveNotificationTitle(""))
+    }
 }

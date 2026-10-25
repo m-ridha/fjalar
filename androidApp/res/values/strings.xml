@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Fjalar</string>
+    <string name="app_name">Wake me up there</string>
     <string name="notif_monitoring_title">Monitoring commute destination</string>
     <string name="notif_monitoring_body">Active destination monitoring</string>
     <string name="notif_alarm_approaching">Approaching %1$s</string>
