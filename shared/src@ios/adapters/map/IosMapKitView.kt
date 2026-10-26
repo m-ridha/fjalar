@@ -128,15 +128,20 @@ fun IosMapKitView(
     val currentOnMapClick by rememberUpdatedState(onMapClick)
     val currentOnPinDrag by rememberUpdatedState(onPinDrag)
 
-    DisposableEffect(mapView) {
-        adapter.attachMap(mapView)
-        val delegate = FjalarMapKitDelegate(
+    val delegate = remember {
+        FjalarMapKitDelegate(
             isDarkTheme = isDarkTheme,
             onPinDrag = { currentOnPinDrag(it) },
         )
+    }
+    val tapHandler = remember(mapView) {
+        MapTapHandler(mapView) { currentOnMapClick }
+    }
+
+    DisposableEffect(mapView, delegate, tapHandler) {
+        adapter.attachMap(mapView)
         mapView.delegate = delegate
 
-        val tapHandler = MapTapHandler(mapView) { currentOnMapClick }
         val tapRecognizer = UITapGestureRecognizer(
             target = tapHandler,
             action = sel_registerName("handleTap:"),
@@ -154,9 +159,7 @@ fun IosMapKitView(
 
     LaunchedEffect(isDarkTheme) {
         adapter.updateTheme(isDarkTheme)
-        (mapView.delegate as? FjalarMapKitDelegate)?.let {
-            it.isDarkTheme = isDarkTheme
-        }
+        delegate.isDarkTheme = isDarkTheme
         mapView.overrideUserInterfaceStyle = if (isDarkTheme) {
             UIUserInterfaceStyle.UIUserInterfaceStyleDark
         } else {
@@ -165,7 +168,7 @@ fun IosMapKitView(
     }
 
     LaunchedEffect(currentOnPinDrag) {
-        (mapView.delegate as? FjalarMapKitDelegate)?.onPinDrag = { currentOnPinDrag(it) }
+        delegate.onPinDrag = { currentOnPinDrag(it) }
     }
 
     LaunchedEffect(center, zoom) {

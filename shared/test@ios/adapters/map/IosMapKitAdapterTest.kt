@@ -6,6 +6,7 @@ import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
+import platform.MapKit.MKMapView
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -174,5 +175,31 @@ class IosMapKitAdapterTest {
             assertTrue(preset.meters > 0, "Preset ${preset.meters}m must be positive")
             assertTrue(preset.meters in 100..10_000, "Preset ${preset.meters}m must be within valid range")
         }
+    }
+
+    @Test
+    fun adapterWithActiveMapView_updatesOverlaysAndAnnotationsWithoutThrowing() {
+        val adapter = IosMapKitAdapter(isDarkTheme = false)
+        val mapView = MKMapView()
+
+        adapter.attachMap(mapView)
+        assertEquals(mapView, adapter.activeMap)
+
+        val center = GeoCoordinates(-6.1754, 106.8272)
+        adapter.setViewport(center, 15.0)
+        assertEquals(center, adapter.currentViewport?.first)
+        assertEquals(15.0, adapter.currentViewport?.second)
+
+        val pin = GeoCoordinates(-6.2088, 106.8456)
+        adapter.placePin(pin)
+        assertEquals(pin, adapter.currentPin)
+
+        val radius = TriggerRadius(500)
+        adapter.showGeofence(pin, radius)
+        assertEquals(pin, adapter.currentGeofence?.first)
+        assertEquals(radius, adapter.currentGeofence?.second)
+
+        adapter.detachMap()
+        assertNull(adapter.activeMap)
     }
 }
