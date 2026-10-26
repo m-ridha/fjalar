@@ -15,14 +15,19 @@ import com.muhammadridha.fjalar.domain.model.ThemeMode
 val LocalLiquidGlassColors = staticCompositionLocalOf { LightLiquidGlassColors }
 val LocalThemeMode = staticCompositionLocalOf { ThemeMode.SYSTEM }
 val LocalAppLocale = staticCompositionLocalOf { AppLocale.EN }
+val LocalReducedTransparency = staticCompositionLocalOf { false }
 
 fun resolveLiquidGlassColors(
     themeMode: ThemeMode,
     systemInDark: Boolean,
-): LiquidGlassColors = when (themeMode) {
-    ThemeMode.LIGHT -> LightLiquidGlassColors
-    ThemeMode.DARK -> DarkLiquidGlassColors
-    ThemeMode.SYSTEM -> if (systemInDark) DarkLiquidGlassColors else LightLiquidGlassColors
+    reducedTransparency: Boolean = false,
+): LiquidGlassColors {
+    val base = when (themeMode) {
+        ThemeMode.LIGHT -> LightLiquidGlassColors
+        ThemeMode.DARK -> DarkLiquidGlassColors
+        ThemeMode.SYSTEM -> if (systemInDark) DarkLiquidGlassColors else LightLiquidGlassColors
+    }
+    return if (reducedTransparency) base.withReducedTransparency() else base
 }
 
 object LiquidGlassTheme {
@@ -40,16 +45,26 @@ object LiquidGlassTheme {
         @Composable
         @ReadOnlyComposable
         get() = LocalAppLocale.current
+
+    val reducedTransparency: Boolean
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalReducedTransparency.current
 }
 
 @Composable
 fun LiquidGlassTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     locale: AppLocale = AppLocale.EN,
+    reducedTransparency: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val systemInDark = isSystemInDarkTheme()
-    val colors = resolveLiquidGlassColors(themeMode = themeMode, systemInDark = systemInDark)
+    val colors = resolveLiquidGlassColors(
+        themeMode = themeMode,
+        systemInDark = systemInDark,
+        reducedTransparency = reducedTransparency,
+    )
     val isDark = colors.isDark
 
     val materialColors = if (isDark) {
@@ -76,6 +91,7 @@ fun LiquidGlassTheme(
         LocalLiquidGlassColors provides colors,
         LocalThemeMode provides themeMode,
         LocalAppLocale provides locale,
+        LocalReducedTransparency provides reducedTransparency,
     ) {
         MaterialTheme(
             colorScheme = materialColors,
