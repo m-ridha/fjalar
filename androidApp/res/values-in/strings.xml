@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Bangunkan saya di sana</string>
+    <string name="notif_monitoring_title">Memantau tujuan perjalanan</string>
+    <string name="notif_monitoring_body">Pemantauan tujuan aktif</string>
+    <string name="notif_alarm_approaching">Mendekati %1$s</string>
+    <string name="notification_channel_alarm_name">Alarm Bangun Fjalar</string>
+    <string name="notification_channel_alarm_desc">Peringatan bangun prioritas tinggi saat mendekati tujuan</string>
+    <string name="notification_channel_monitoring_name">Pemantauan Lokasi Fjalar</string>
+    <string name="notification_channel_monitoring_desc">Pemantauan lokasi berkelanjutan untuk alarm perjalanan yang aktif</string>
+</resources>

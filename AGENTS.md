@@ -90,6 +90,10 @@ Read and strictly preserve these invariant behaviors:
 6. **Graceful GPS Degradation & Accuracy Filter:**
    - Reject inaccurate GPS fixes where `horizontalAccuracy > radius * 0.8` from transitioning an alarm to `RINGING`, preventing false wakeups.
    - In tunnels and subways without satellite lock, accept fused network/cell coarse updates for degraded telemetry and user notification rather than failing silently; only fixes meeting the accuracy threshold may trigger the alarm.
+7. **iOS Background Execution Boundary:**
+   - On Android, `AlarmManager.setExactAndAllowWhileIdle()` triggers a broadcast receiver with a `WakeLock` to invoke `syncSchedules()`.
+   - On iOS, local notifications scheduled via `UNUserNotificationCenter` are strictly user-facing alerts; they do not afford background code execution to transition an alarm from `SCHEDULED_IDLE` to `ARMED_MONITORING` while the app is suspended without user interaction.
+   - Background refresh on iOS via `BGAppRefreshTask` is strictly best-effort (requiring the `fetch` `UIBackgroundModes` capability and permitted task identifiers): `earliestBeginDate` serves only as a lower bound, and execution timing depends on iOS power and system heuristics. If background execution is delayed or skipped, the alarm remains in `SCHEDULED_IDLE` until the user opens or foregrounds the application to trigger schedule synchronization.
 
 ---
 

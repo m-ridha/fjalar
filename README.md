@@ -1,7 +1,7 @@
 # Fjalar (Wake me up at!)
 
 <p align="center">
-  <img src="assets/icons/icon_master_light_1024.png" alt="Fjalar Logo" width="256" height="256">
+  <img src="assets/icons/icon_master_light_1024.png" alt="Fjalar Logo" width="256" height="256" style="border-radius: 22.37%;">
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@
 
 ---
 
-Fjalar (named after the legendary Norse rooster that awakens the gods) solves a universal commuter problem: **traditional clock alarms fail on variable public transit commutes**. Whether riding the train, commuter rail, intercity bus, or a car ride-share, commuters set a destination pin and trigger radius on an interactive map, arm the alarm, and rest knowing that Fjalar will reliably wake them before their stop.
+Fjalar (named after the mythical Norse rooster that is said to herald the onset of Ragnarök) solves a universal commuter problem: **traditional clock alarms fail on variable public transit commutes**. Whether riding the train, commuter rail, intercity bus, or a car ride-share, commuters set a destination pin and trigger radius on an interactive map, arm the alarm, and rest knowing that Fjalar will reliably wake them before their stop.
 
 Contributor and agent development guidelines, architecture contracts, UI design tokens, and safety invariants live in [AGENTS.md](AGENTS.md). Production-ready 2D flat vector icon assets reside in [`assets/icons/`](assets/icons/).
 
@@ -91,7 +91,8 @@ flowchart TD
 ```
 
 ### Module Structure
-```
+
+```sh
 fjalar/
 ├── .github/                     # PR template & CI workflows
 ├── androidApp/                  # Android application shell (Amper module)
@@ -138,6 +139,7 @@ All contributors and automated agents must preserve these core invariants:
 - **JetBrains Amper** (`./kotlin` CLI wrapper bundled in repository)
 
 Verify your environment:
+
 ```sh
 java -version
 ./kotlin check
