@@ -56,4 +56,15 @@
     <!-- Permissions modal -->
     <string name="perm_location_title">Izinkan Lokasi Latar Belakang untuk Alarm Tujuan</string>
     <string name="perm_location_body">Fjalar memeriksa jarak GPS di latar belakang hanya saat alarm aktif agar dapat membangunkan Anda meski layar terkunci. Lokasi Anda tidak pernah dikirim keluar dari ponsel ini.</string>
+
+    <!-- Search modal & station catalog -->
+    <string name="search_placeholder">Cari stasiun, halte, atau tempat...</string>
+    <string name="search_category_all">Semua</string>
+    <string name="search_category_train">Kereta</string>
+    <string name="search_category_metro">Metro / MRT</string>
+    <string name="search_category_transit">Transit</string>
+    <string name="search_empty_title">Stasiun tidak ditemukan</string>
+    <string name="search_empty_body">Coba cari berdasarkan nama stasiun, jalur, atau singkatan.</string>
+    <string name="search_recent_title">Stasiun Transit</string>
+    <string name="search_clear">Hapus pencarian</string>
 </resources>

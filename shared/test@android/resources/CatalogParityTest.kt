@@ -57,7 +57,16 @@ class CatalogParityTest {
         "notif_monitoring_body",
         "notif_alarm_approaching",
         "perm_location_title",
-        "perm_location_body"
+        "perm_location_body",
+        "search_placeholder",
+        "search_category_all",
+        "search_category_train",
+        "search_category_metro",
+        "search_category_transit",
+        "search_empty_title",
+        "search_empty_body",
+        "search_recent_title",
+        "search_clear"
     )
 
     private val placeholderRegex = Regex("""%(\d+\$)?[-\#+ 0,(]*\d*(\.\d+)?[a-zA-Z%]|\{[^}]+\}""")

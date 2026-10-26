@@ -79,38 +79,41 @@ fun ConfigureAlarmSheet(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     initialAlarm: LocationAlarm? = null,
+    initialLabel: String? = null,
     selectedCoordinates: GeoCoordinates? = null,
     onRadiusChanged: (TriggerRadius) -> Unit = {},
     locale: AppLocale = LiquidGlassTheme.locale,
 ) {
     val colors = LiquidGlassTheme.colors
 
-    var label by remember { mutableStateOf(initialAlarm?.label ?: "") }
-    var radiusMeters by remember {
+    var label by remember(initialAlarm, initialLabel) {
+        mutableStateOf(initialLabel ?: initialAlarm?.label ?: "")
+    }
+    var radiusMeters by remember(initialAlarm, initialLabel) {
         mutableIntStateOf(initialAlarm?.radius?.meters ?: 500)
     }
-    var scheduleType by remember {
+    var scheduleType by remember(initialAlarm, initialLabel) {
         mutableStateOf(initialAlarm?.schedule?.type ?: ScheduleType.SCHEDULED)
     }
-    var startMinute by remember {
+    var startMinute by remember(initialAlarm, initialLabel) {
         mutableIntStateOf(initialAlarm?.schedule?.startMinuteOfDay ?: (7 * 60))
     }
-    var endMinute by remember {
+    var endMinute by remember(initialAlarm, initialLabel) {
         mutableIntStateOf(initialAlarm?.schedule?.endMinuteOfDay ?: (9 * 60 + 30))
     }
-    var daysMask by remember {
+    var daysMask by remember(initialAlarm, initialLabel) {
         mutableIntStateOf(
             initialAlarm?.schedule?.daysOfWeekMask?.takeIf { it != 0 } ?: AlarmSchedule.WEEKDAYS
         )
     }
 
-    var soundEnabled by remember {
+    var soundEnabled by remember(initialAlarm, initialLabel) {
         mutableStateOf(initialAlarm?.soundConfig?.soundEnabled ?: true)
     }
-    var vibrateEnabled by remember {
+    var vibrateEnabled by remember(initialAlarm, initialLabel) {
         mutableStateOf(initialAlarm?.soundConfig?.vibrateEnabled ?: true)
     }
-    var earphoneOverride by remember { mutableStateOf(false) }
+    var earphoneOverride by remember(initialAlarm, initialLabel) { mutableStateOf(false) }
 
     val isScheduleValid = scheduleType != ScheduleType.SCHEDULED ||
         (startMinute != endMinute && daysMask != 0)

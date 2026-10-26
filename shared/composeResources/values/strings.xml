@@ -56,4 +56,15 @@
     <!-- Permissions modal -->
     <string name="perm_location_title">Allow Background Location for Wake-Up Alarms</string>
     <string name="perm_location_body">Fjalar checks your GPS distance in the background only while an alarm is armed so it can wake you up even when your screen is locked. Your location never leaves your phone.</string>
+
+    <!-- Search modal & station catalog -->
+    <string name="search_placeholder">Search stations, stops, or places...</string>
+    <string name="search_category_all">All</string>
+    <string name="search_category_train">Train</string>
+    <string name="search_category_metro">Metro / MRT</string>
+    <string name="search_category_transit">Transit</string>
+    <string name="search_empty_title">No stations found</string>
+    <string name="search_empty_body">Try searching by station name, line, or abbreviation.</string>
+    <string name="search_recent_title">Transit Stations</string>
+    <string name="search_clear">Clear search</string>
 </resources>

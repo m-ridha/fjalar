@@ -173,8 +173,9 @@ fun AndroidMapLibreView(
                 true
             }
 
-            map.setStyle(targetStyleUrl) {
+            map.setStyle(targetStyleUrl) { style ->
                 currentStyleUrl = targetStyleUrl
+                adapter.onStyleLoaded(style)
             }
         }
     }
@@ -184,8 +185,9 @@ fun AndroidMapLibreView(
         val map = mapLibreMap ?: return@LaunchedEffect
         adapter.updateTheme(isDarkTheme)
         if (currentStyleUrl != targetStyleUrl) {
-            map.setStyle(targetStyleUrl) {
+            map.setStyle(targetStyleUrl) { style ->
                 currentStyleUrl = targetStyleUrl
+                adapter.onStyleLoaded(style)
             }
         }
     }

@@ -8,9 +8,12 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-object HaversineCalculator {
+object HaversineCalculator : DistanceCalculator {
     /** IUGG mean Earth radius. */
     const val EARTH_MEAN_RADIUS_METERS = 6_371_008.8
+
+    override fun calculateDistanceMeters(from: GeoCoordinates, to: GeoCoordinates): Double =
+        distanceMeters(from, to)
 
     fun distanceMeters(from: GeoCoordinates, to: GeoCoordinates): Double {
         val lat1 = from.latitude.toRadians()
