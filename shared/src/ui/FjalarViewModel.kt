@@ -274,7 +274,7 @@ class FjalarViewModel(
                     }
                     mapRendererPort?.clearOverlays()
                 }
-                _uiState.update { it.copy(activeDraft = null) }
+                _uiState.update { it.copy(activeDraft = null, hasOperationFailure = false) }
                 onSuccess()
             }
         }
@@ -429,7 +429,7 @@ class FjalarViewModel(
 
     fun onClearDraft() {
         draftRevision++
-        _uiState.update { it.copy(activeDraft = null) }
+        _uiState.update { it.copy(activeDraft = null, hasOperationFailure = false) }
     }
 
     /**
@@ -444,7 +444,20 @@ class FjalarViewModel(
         _uiState.update { it.copy(hasLocationPermission = granted) }
     }
 
+    // Platform foreground UI request; does not start the alarm tracking port.
+    var requestCurrentLocation: (() -> Unit)? = null
+
     fun onRecenterMap() {
+        requestCurrentLocation?.invoke()
+        recenterOnKnownLocation()
+    }
+
+    fun onCurrentLocationReceived(coordinates: GeoCoordinates) {
+        onUserLocationChanged(coordinates)
+        recenterOnKnownLocation()
+    }
+
+    private fun recenterOnKnownLocation() {
         val current = _uiState.value
         val knownTarget = current.userLocation
             ?: current.selectedCoordinates

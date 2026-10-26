@@ -58,7 +58,6 @@ fun MapPickerScreen(
         mutableStateOf(initialCoordinates)
     }
 
-    var viewportRequestId by remember { mutableStateOf(0L) }
 
     Box(
         modifier = modifier
@@ -75,14 +74,13 @@ fun MapPickerScreen(
             isDarkTheme = isDarkTheme,
             onMapClick = {
                 currentCoordinates = it
-                viewportRequestId++
             },
             onPinDrag = {
                 currentCoordinates = it
-                viewportRequestId++
             },
             onCameraCenterChanged = { currentCoordinates = it },
-            viewportRequestId = viewportRequestId,
+            // Selection follows gestures without issuing a camera reset to initialZoom.
+            viewportRequestId = 0L,
             modifier = Modifier.fillMaxSize(),
         )
 

@@ -23,8 +23,8 @@ data class MapPickerRoute(val initialLat: Double, val initialLon: Double)
  */
 fun isMapRoute(route: Any?): Boolean = when (route) {
     is MapRoute, MapRoute::class -> true
-    is String -> route.contains("MapRoute")
-    else -> route?.let { it::class.simpleName == "MapRoute" } ?: false
+    is String -> route == "MapRoute" || route == "com.muhammadridha.fjalar.ui.navigation.MapRoute"
+    else -> false
 }
 
 /**
@@ -33,8 +33,8 @@ fun isMapRoute(route: Any?): Boolean = when (route) {
  */
 fun isAlarmsRoute(route: Any?): Boolean = when (route) {
     is AlarmsRoute, AlarmsRoute::class -> true
-    is String -> route.contains("AlarmsRoute")
-    else -> route?.let { it::class.simpleName == "AlarmsRoute" } ?: false
+    is String -> route == "AlarmsRoute" || route == "com.muhammadridha.fjalar.ui.navigation.AlarmsRoute"
+    else -> false
 }
 
 /**

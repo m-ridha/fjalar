@@ -886,6 +886,20 @@ class FjalarViewModelTest {
     }
 
     @Test
+    fun leavingFailedEditorClearsItsFailure() = runTest {
+        val (vm, _, scope) = createTestViewModel(savePort = FakeSaveAlarmPort(shouldFail = true))
+        try {
+            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val draft = vm.uiState.value.activeDraft!!.copy(label = "London")
+            vm.onUpdateDraft(draft)
+            vm.onSaveDraftAlarm(draft) {}
+            assertTrue(vm.uiState.value.hasOperationFailure)
+            vm.onClearDraft()
+            assertFalse(vm.uiState.value.hasOperationFailure)
+        } finally { scope.cancel() }
+    }
+
+    @Test
     fun saveCompletionOnlyNavigatesAfterSuccessfulPersistence() = runTest {
         val save = FakeSaveAlarmPort(shouldFail = true)
         val (vm, _, scope) = createTestViewModel(savePort = save)

@@ -50,6 +50,13 @@ class ConfigureAlarmScreenTest {
     )
 
     @Test
+    fun manuallyMovedPinDoesNotRestoreOldAddressOnSave() {
+        val saved = sampleAlarm()
+        val draft = ConfigureAlarmDraft.fromAlarm(saved).withNewCoordinates(GeoCoordinates(51.5, -0.1))
+        assertNull(draft.toLocationAlarm(saved).addressLabel)
+    }
+
+    @Test
     fun draft_fromAlarm_populatesAllFieldsAccurately() {
         val alarm = sampleAlarm()
         val draft = ConfigureAlarmDraft.fromAlarm(alarm)
@@ -92,7 +99,7 @@ class ConfigureAlarmScreenTest {
         assertEquals("draft-id-99", newDraft.alarmId)
         assertEquals("Custom Work Commute", newDraft.label)
         assertEquals(1200, newDraft.radiusMeters)
-        assertEquals("Old Location", newDraft.addressLabel)
+        assertNull(newDraft.addressLabel)
         assertEquals(ScheduleType.SCHEDULED, newDraft.scheduleType)
         assertEquals(8 * 60, newDraft.startMinuteOfDay)
         assertEquals(10 * 60, newDraft.endMinuteOfDay)
@@ -279,4 +286,12 @@ class ConfigureAlarmScreenTest {
         }
     }
 
+}
+
+class DeleteInvalidDraftTest {
+    @Test fun deletionUsesPersistedAlarmWithIncompleteDraft() {
+        val saved = LocationAlarm("saved", "Office", GeoCoordinates(1.0, 2.0), TriggerRadius(500), AlarmSchedule.ONE_TIME)
+        val draft = ConfigureAlarmDraft.fromAlarm(saved).copy(label = "", startMinuteOfDay = 420, endMinuteOfDay = 420)
+        assertEquals(saved, draft.deletionTarget(listOf(saved)))
+    }
 }

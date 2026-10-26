@@ -11,6 +11,14 @@ import kotlin.test.assertTrue
 class NavigationDestinationsTest {
 
     @Test
+    fun routeNamesDoNotMatchSubstringsOrArguments() {
+        assertFalse(isMapRoute("NotMapRoute"))
+        assertFalse(isMapRoute("ConfigureRoute?alarmId=MapRoute"))
+        assertFalse(isAlarmsRoute("NotAlarmsRoute"))
+        assertFalse(isAlarmsRoute("ConfigureRoute?alarmId=AlarmsRoute"))
+    }
+
+    @Test
     fun configureRoute_defaultAlarmIdIsNull() {
         val route = ConfigureRoute()
         assertNull(route.alarmId)

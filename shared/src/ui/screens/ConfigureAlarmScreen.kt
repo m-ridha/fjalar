@@ -80,7 +80,10 @@ data class ConfigureAlarmDraft(
     val vibrateEnabled: Boolean = true,
 ) {
     fun withNewCoordinates(newCoordinates: GeoCoordinates): ConfigureAlarmDraft =
-        copy(coordinates = newCoordinates)
+        copy(coordinates = newCoordinates, addressLabel = if (newCoordinates == coordinates) addressLabel else null)
+
+    fun deletionTarget(alarms: List<LocationAlarm>): LocationAlarm? =
+        alarms.firstOrNull { it.id == alarmId }
 
     fun toLocationAlarm(existingAlarm: LocationAlarm? = null): LocationAlarm {
         val id = alarmId ?: existingAlarm?.id ?: "alarm-${Clock.System.now().toEpochMilliseconds()}"
@@ -111,7 +114,7 @@ data class ConfigureAlarmDraft(
                 vibrateEnabled = vibrateEnabled,
             ),
             state = finalState,
-            addressLabel = addressLabel ?: existingAlarm?.addressLabel,
+            addressLabel = addressLabel,
             suppressedUntil = existingAlarm?.suppressedUntil,
         )
     }
@@ -147,6 +150,7 @@ fun ConfigureAlarmScreen(
     locale: AppLocale = LiquidGlassTheme.locale,
     isOperationPending: Boolean = false,
     hasOperationFailure: Boolean = false,
+    persistedAlarm: LocationAlarm? = null,
 ) {
     val colors = LiquidGlassTheme.colors
 
@@ -589,7 +593,7 @@ fun ConfigureAlarmScreen(
             }
 
             // Delete Alarm Button (if editing existing alarm)
-            if (draft.alarmId != null && onDelete != null) {
+            if (persistedAlarm != null && onDelete != null) {
                 Spacer(modifier = Modifier.height(24.dp))
                 Box(
                     modifier = Modifier
@@ -611,7 +615,7 @@ fun ConfigureAlarmScreen(
 
                 if (showDeleteDialog) {
                     DeleteAlarmConfirmationDialog(
-                        alarm = draft.toLocationAlarm(),
+                        alarm = persistedAlarm,
                         onConfirm = { id ->
                             showDeleteDialog = false
                             onDelete(id)

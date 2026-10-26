@@ -300,29 +300,14 @@ object FjalarStrings {
 
     private fun formatTemplate(template: String, args: Array<out Any>): String {
         if (args.isEmpty()) return template
-        var result = template
-
-        // Replace positional arguments: %1$s, %2$s, %1$d, etc.
-        for (i in args.indices) {
-            val pos = i + 1
-            val strVal = args[i].toString()
-            val escapedReplacement = Regex.escapeReplacement(strVal)
-            result = result.replace("%$pos\$s", strVal)
-                .replace("%$pos\$d", strVal)
-                .replace(Regex("%$pos\\$[a-zA-Z]"), escapedReplacement)
+        var nextArgument = 0
+        // Match only the original template. Inserted user text is never scanned again.
+        val placeholders = Regex("%([0-9]+\\$)?[a-zA-Z]")
+        return placeholders.replace(template) { match ->
+            val position = match.groupValues[1]
+            val index = if (position.isEmpty()) nextArgument++ else position.dropLast(1).toInt() - 1
+            args.getOrNull(index)?.toString() ?: match.value
         }
-
-        // Replace simple non-positional arguments: %s, %d sequentially
-        for (arg in args) {
-            val strVal = arg.toString()
-            if (result.contains("%s")) {
-                result = result.replaceFirst("%s", strVal)
-            } else if (result.contains("%d")) {
-                result = result.replaceFirst("%d", strVal)
-            }
-        }
-
-        return result
     }
 }
 

@@ -246,6 +246,7 @@ fun FjalarApp(
 
                     ConfigureAlarmScreen(
                         draft = draft,
+                        persistedAlarm = draft.deletionTarget(uiState.alarms),
                         isOperationPending = uiState.isOperationPending,
                         hasOperationFailure = uiState.hasOperationFailure,
                         onDraftChange = viewModel::onUpdateDraft,

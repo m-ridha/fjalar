@@ -10,6 +10,15 @@ import kotlin.test.assertTrue
 class FjalarStringsTest {
 
     @Test
+    fun argumentPlaceholderTextRemainsLiteral() {
+        for (locale in AppLocale.entries) {
+            val label = "Station %s %2\$s %d"
+            val result = FjalarStrings.get(FjalarStringKey.STATUS_ARMED_ONE_TIME, locale, label, "500m")
+            assertTrue(result.contains(label))
+        }
+    }
+
+    @Test
     fun get_returnsEnglishAndIndonesianStringsAccurately() {
         val enTitle = FjalarStrings.get(FjalarStringKey.EDITOR_TITLE, AppLocale.EN)
         val idTitle = FjalarStrings.get(FjalarStringKey.EDITOR_TITLE, AppLocale.ID)

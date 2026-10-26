@@ -97,6 +97,27 @@ class LocationRecenterTest {
     }
 
     @Test
+    fun recenterRequestsNewFixAndCentersOnDelayedResult() = runTest {
+        val (viewModel, _, vmScope) = createTestViewModel()
+        try {
+            var requests = 0
+            viewModel.requestCurrentLocation = { requests++ }
+            viewModel.onRecenterMap()
+            assertEquals(1, requests)
+            assertNull(viewModel.uiState.value.userLocation)
+            val first = GeoCoordinates(51.5, -0.12)
+            viewModel.onCurrentLocationReceived(first)
+            assertEquals(first, viewModel.uiState.value.mapViewportCenter)
+            viewModel.onRecenterMap()
+            val moved = GeoCoordinates(51.6, -0.2)
+            viewModel.onCurrentLocationReceived(moved)
+            assertEquals(2, requests)
+            assertEquals(moved, viewModel.uiState.value.userLocation)
+            assertEquals(moved, viewModel.uiState.value.mapViewportCenter)
+        } finally { vmScope.cancel() }
+    }
+
+    @Test
     fun onPermissionResult_updatesHasLocationPermission() = runTest {
         val (viewModel, _, vmScope) = createTestViewModel()
         try {
