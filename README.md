@@ -117,7 +117,7 @@ fjalar/
 │   │   ├── ui/                  # Compose Multiplatform UI (FjalarApp, sheets, HUD, LiquidGlassTheme)
 │   │   └── adapters/            # Platform implementations (location, ringer, scheduler, map, search, repo)
 │   ├── src@android/             # Android-specific adapters (FusedLocation, AlarmManager, MapLibre, Photon)
-│   ├── src@ios/                 # iOS-specific adapters (CLLocation, RegionMonitoring, MapKit, CLGeocoder)
+│   ├── src@ios/                 # iOS-specific adapters (CLLocation, IosBackgroundSchedulerAdapter, MapKit, CLGeocoder)
 │   ├── composeResources/        # Multiplatform strings (values, values-in, values-id) & drawables
 │   └── test/                    # In-memory test suites & fakes (commonTest, androidTest, iosTest)
 ├── scripts/                     # Production asset pipeline & verification scripts
