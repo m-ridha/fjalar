@@ -43,4 +43,3 @@ fun isAlarmsRoute(route: Any?): Boolean = when (route) {
  */
 fun isBottomBarVisible(route: Any?): Boolean =
     isMapRoute(route ?: "MapRoute") || isAlarmsRoute(route)
-
