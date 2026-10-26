@@ -261,12 +261,14 @@ fun FjalarApp(
                             navController.popBackStack()
                         },
                         onNavigateToPicker = { coords ->
-                            navController.navigate(
-                                MapPickerRoute(
-                                    initialLat = coords.latitude,
-                                    initialLon = coords.longitude,
+                            if (!viewModel.uiState.value.isOperationPending) {
+                                navController.navigate(
+                                    MapPickerRoute(
+                                        initialLat = coords.latitude,
+                                        initialLon = coords.longitude,
+                                    )
                                 )
-                            )
+                            }
                         },
                         onDelete = { id ->
                             viewModel.onDeleteAlarm(id) {

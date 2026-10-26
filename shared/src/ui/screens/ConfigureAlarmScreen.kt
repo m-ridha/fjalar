@@ -303,6 +303,7 @@ fun ConfigureAlarmScreen(
                             .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                             .clickable(
                                 role = Role.Button,
+                                enabled = !isOperationPending,
                                 onClick = {
                                     val target = draft.coordinates ?: GeoCoordinates(0.0, 0.0)
                                     onNavigateToPicker(target)

@@ -992,4 +992,31 @@ class FjalarViewModelTest {
         }
     }
 
+    @Test
+    fun delayedSaveDoesNotClearNewerEditsInTheSameEditor() = runTest {
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val port = object : SaveAlarmPort {
+            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> {
+                release.await()
+                return Result.success(Unit)
+            }
+        }
+        val (vm, _, scope) = createTestViewModel(savePort = port)
+        try {
+            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val submittedDraft = vm.uiState.value.activeDraft!!.copy(label = "London")
+            vm.onUpdateDraft(submittedDraft)
+            vm.onSaveDraftAlarm(submittedDraft)
+            val editedDraft = submittedDraft.copy(label = "London Bridge", radiusMeters = 1000)
+            vm.onUpdateDraft(editedDraft)
+            vm.onDraftCoordinatesChanged(GeoCoordinates(51.505, -0.09))
+            release.complete(Unit)
+            assertEquals("London Bridge", vm.uiState.value.activeDraft?.label)
+            assertEquals(1000, vm.uiState.value.activeDraft?.radiusMeters)
+            assertEquals(GeoCoordinates(51.505, -0.09), vm.uiState.value.activeDraft?.coordinates)
+        } finally {
+            scope.cancel()
+        }
+    }
+
 }
