@@ -87,6 +87,9 @@ class FjalarStringsTest {
         assertEquals("Add", FjalarStrings.get(FjalarStringKey.NAV_ADD, AppLocale.EN))
         assertEquals("Tambah", FjalarStrings.get(FjalarStringKey.NAV_ADD, AppLocale.ID))
 
+        assertEquals("Add Alarm", FjalarStrings.get(FjalarStringKey.NAV_ADD_ALARM, AppLocale.EN))
+        assertEquals("Tambah Alarm", FjalarStrings.get(FjalarStringKey.NAV_ADD_ALARM, AppLocale.ID))
+
         assertEquals("Delete Alarm?", FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_TITLE, AppLocale.EN))
         assertEquals("Hapus Alarm?", FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_TITLE, AppLocale.ID))
 

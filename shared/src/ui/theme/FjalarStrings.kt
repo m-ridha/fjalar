@@ -79,6 +79,7 @@ enum class FjalarStringKey {
     NAV_MAP,
     NAV_ALARMS,
     NAV_ADD,
+    NAV_ADD_ALARM,
 
     // Delete Confirmation Dialog
     DIALOG_DELETE_TITLE,
@@ -166,6 +167,7 @@ object FjalarStrings {
         FjalarStringKey.NAV_MAP to "Map",
         FjalarStringKey.NAV_ALARMS to "Alarms",
         FjalarStringKey.NAV_ADD to "Add",
+        FjalarStringKey.NAV_ADD_ALARM to "Add Alarm",
 
         FjalarStringKey.DIALOG_DELETE_TITLE to "Delete Alarm?",
         FjalarStringKey.DIALOG_DELETE_MESSAGE to "Are you sure you want to delete '%s'?",
@@ -247,6 +249,7 @@ object FjalarStrings {
         FjalarStringKey.NAV_MAP to "Peta",
         FjalarStringKey.NAV_ALARMS to "Alarm",
         FjalarStringKey.NAV_ADD to "Tambah",
+        FjalarStringKey.NAV_ADD_ALARM to "Tambah Alarm",
 
         FjalarStringKey.DIALOG_DELETE_TITLE to "Hapus Alarm?",
         FjalarStringKey.DIALOG_DELETE_MESSAGE to "Apakah Anda yakin ingin menghapus '%s'?",
