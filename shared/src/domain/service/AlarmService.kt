@@ -8,6 +8,7 @@ import com.muhammadridha.fjalar.domain.model.AlarmState.SCHEDULED_IDLE
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ScheduleType
+import com.muhammadridha.fjalar.domain.ports.inbound.DeleteAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.HandleLocationUpdatePort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
@@ -38,7 +39,7 @@ class AlarmService(
     private val scheduleEvaluator: ScheduleEvaluator,
     private val clock: Clock = Clock.System,
 ) : ObserveAlarmsPort, SaveAlarmPort, ToggleAlarmPort, HandleLocationUpdatePort,
-    DismissAlarmPort, SkipTodayPort, SyncSchedulesPort {
+    DismissAlarmPort, SkipTodayPort, SyncSchedulesPort, DeleteAlarmPort {
 
     private val evaluator = AlarmEvaluator(scheduleEvaluator)
 
@@ -61,6 +62,20 @@ class AlarmService(
     override suspend fun dismissAlarm(alarmId: String): Result<Unit> = mutate(alarmId, evaluator::dismiss)
 
     override suspend fun skipToday(alarmId: String): Result<Unit> = mutate(alarmId, evaluator::skip)
+
+    override suspend fun deleteAlarm(alarmId: String): Result<Unit> = resultOf {
+        mutex.withLock {
+            val existing = repository.getAlarm(alarmId)
+            if (existing != null) {
+                if (existing.state == RINGING) {
+                    ringer.stopRinging(alarmId)
+                }
+                scheduler.cancelWakeup(alarmId)
+                repository.deleteAlarm(alarmId)
+                applySideEffects(clock.now())
+            }
+        }
+    }
 
     override suspend fun handleLocationUpdate(
         coordinates: GeoCoordinates,

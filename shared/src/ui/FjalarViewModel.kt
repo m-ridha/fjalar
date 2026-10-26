@@ -10,6 +10,7 @@ import com.muhammadridha.fjalar.domain.model.PlaceCategory
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
+import com.muhammadridha.fjalar.domain.ports.inbound.DeleteAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
@@ -66,6 +67,7 @@ class FjalarViewModel(
     private val syncSchedulesPort: SyncSchedulesPort? = null,
     private val mapRendererPort: MapRendererPort? = null,
     private val searchPlacesPort: SearchPlacesPort? = null,
+    private val deleteAlarmPort: DeleteAlarmPort? = null,
     coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
 
@@ -224,6 +226,26 @@ class FjalarViewModel(
                     )
                 }
                 mapRendererPort?.clearOverlays()
+            }
+        }
+    }
+
+    fun onDeleteAlarm(alarmId: String) {
+        scope.launch {
+            val result = deleteAlarmPort?.deleteAlarm(alarmId)
+            if (result == null || result.isSuccess) {
+                if (_uiState.value.selectedAlarmForEdit?.id == alarmId) {
+                    _uiState.update { current ->
+                        current.copy(
+                            isConfigureSheetVisible = false,
+                            selectedAlarmForEdit = null,
+                            initialAlarmLabel = null,
+                            selectedCoordinates = null,
+                            selectedRadius = TriggerRadius.DEFAULT,
+                        )
+                    }
+                    mapRendererPort?.clearOverlays()
+                }
             }
         }
     }

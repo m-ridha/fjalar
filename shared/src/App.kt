@@ -97,6 +97,7 @@ fun createDefaultViewModel(
         syncSchedulesPort = effectiveSyncSchedulesPort,
         mapRendererPort = mapRendererPort,
         searchPlacesPort = effectiveSearchPlacesPort,
+        deleteAlarmPort = effectiveAlarmService,
         coroutineScope = coroutineScope,
     )
 

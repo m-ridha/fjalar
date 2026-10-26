@@ -11,6 +11,7 @@ import com.muhammadridha.fjalar.domain.model.PlaceCategory
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
+import com.muhammadridha.fjalar.domain.ports.inbound.DeleteAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
@@ -79,6 +80,14 @@ class FjalarViewModelTest {
         }
     }
 
+    private class FakeDeleteAlarmPort : DeleteAlarmPort {
+        val deleted = mutableListOf<String>()
+        override suspend fun deleteAlarm(alarmId: String): Result<Unit> {
+            deleted.add(alarmId)
+            return Result.success(Unit)
+        }
+    }
+
     private class FakeSyncSchedulesPort : SyncSchedulesPort {
         var syncCount = 0
         override suspend fun syncSchedules(): List<LocationAlarm> {
@@ -138,6 +147,7 @@ class FjalarViewModelTest {
         togglePort: ToggleAlarmPort = FakeToggleAlarmPort(),
         dismissPort: DismissAlarmPort = FakeDismissAlarmPort(),
         skipTodayPort: SkipTodayPort = FakeSkipTodayPort(),
+        deleteAlarmPort: DeleteAlarmPort? = null,
         syncSchedulesPort: SyncSchedulesPort? = null,
         mapRendererPort: MapRendererPort? = null,
         searchPlacesPort: SearchPlacesPort? = null,
@@ -156,6 +166,7 @@ class FjalarViewModelTest {
             syncSchedulesPort = syncSchedulesPort,
             mapRendererPort = mapRendererPort,
             searchPlacesPort = searchPlacesPort,
+            deleteAlarmPort = deleteAlarmPort,
             coroutineScope = vmScope,
         )
         return Triple(viewModel, preferencesPort, vmScope)
@@ -213,6 +224,26 @@ class FjalarViewModelTest {
             viewModel.onSaveAlarm(newAlarm)
 
             assertEquals(listOf(newAlarm), savePort.savedAlarms)
+            assertFalse(viewModel.uiState.value.isConfigureSheetVisible)
+            assertNull(viewModel.uiState.value.selectedAlarmForEdit)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun deleteAlarmDispatchesToPortAndClosesConfigureSheetIfMatching() = runTest {
+        val deletePort = FakeDeleteAlarmPort()
+        val alarm = manggaraiAlarm()
+        val (viewModel, _, vmScope) = createTestViewModel(deleteAlarmPort = deletePort)
+        try {
+            viewModel.onOpenEditAlarm(alarm)
+            assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
+            assertEquals(alarm, viewModel.uiState.value.selectedAlarmForEdit)
+
+            viewModel.onDeleteAlarm(alarm.id)
+
+            assertEquals(listOf(alarm.id), deletePort.deleted)
             assertFalse(viewModel.uiState.value.isConfigureSheetVisible)
             assertNull(viewModel.uiState.value.selectedAlarmForEdit)
         } finally {

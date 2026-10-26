@@ -60,13 +60,16 @@ class FakeAlarmRinger : AlarmRingerPort {
 
 class FakeAlarmScheduler : AlarmSchedulerPort {
     val wakeups = mutableMapOf<String, Instant>()
+    val cancelledWakeups = mutableSetOf<String>()
 
     override suspend fun scheduleWakeup(alarmId: String, at: Instant) {
         wakeups[alarmId] = at
+        cancelledWakeups -= alarmId
     }
 
     override suspend fun cancelWakeup(alarmId: String) {
         wakeups -= alarmId
+        cancelledWakeups += alarmId
     }
 }
 
