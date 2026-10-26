@@ -16,11 +16,18 @@ interface IosNotificationTitleResolver {
 
 open class DefaultIosNotificationTitleResolver(
     private val appNameResourceProvider: (suspend () -> String) = { getString(Res.string.app_name) },
+    private val localizedBundleResolver: (languageCode: String?) -> String? = ::resolveLocalizedBundleTitle,
 ) : IosNotificationTitleResolver {
 
     override suspend fun resolveTitle(preferredLanguage: String?): String {
         if (preferredLanguage != null) {
             val primarySubtag = preferredLanguage.lowercase().split('-', '_').firstOrNull() ?: ""
+            // First attempt to resolve dynamically from localized bundle strings (e.g. InfoPlist.strings)
+            val bundleTitle = localizedBundleResolver(primarySubtag)
+            if (!bundleTitle.isNullOrBlank()) {
+                return bundleTitle
+            }
+
             return if (primarySubtag == "id" || primarySubtag == "in") {
                 INDONESIAN_APP_NAME
             } else {
@@ -42,5 +49,14 @@ open class DefaultIosNotificationTitleResolver(
     companion object {
         const val ENGLISH_APP_NAME = "Wake Me at"
         const val INDONESIAN_APP_NAME = "Bangunkan Saya di"
+
+        fun resolveLocalizedBundleTitle(languageCode: String?): String? {
+            if (languageCode.isNullOrBlank()) return null
+            val path = NSBundle.mainBundle.pathForResource(name = languageCode, ofType = "lproj")
+            val bundle = if (path != null) NSBundle.bundleWithPath(path) else null
+            val localized = bundle?.localizedStringForKey(key = "CFBundleDisplayName", value = null, table = "InfoPlist")
+                ?: bundle?.localizedStringForKey(key = "CFBundleName", value = null, table = "InfoPlist")
+            return localized?.takeIf { it != "CFBundleDisplayName" && it != "CFBundleName" && it.isNotBlank() }
+        }
     }
 }

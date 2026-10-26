@@ -61,4 +61,16 @@ class IosBackgroundSchedulerAdapterTest {
             adapter.resolveNotificationTitle()
         }
     }
+
+    @Test
+    fun resolveNotificationTitle_localizedBundleResolver_usesDynamicBundleLookup() = runTest {
+        val dynamicResolver = DefaultIosNotificationTitleResolver(
+            localizedBundleResolver = { lang ->
+                if (lang == "id") "Bangunkan Saya (Bundle)" else null
+            }
+        )
+        val adapter = IosBackgroundSchedulerAdapter(titleResolver = dynamicResolver)
+        assertEquals("Bangunkan Saya (Bundle)", adapter.resolveNotificationTitle("id-ID"))
+        assertEquals("Wake Me at", adapter.resolveNotificationTitle("en-US"))
+    }
 }
