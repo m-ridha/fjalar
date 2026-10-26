@@ -467,4 +467,80 @@ class FjalarViewModelTest {
             vmScope.cancel()
         }
     }
+
+    @Test
+    fun onOpenNewAlarm_defaultsToUserLocationWhenSelectedCoordinatesNull() = runTest {
+        val fakeMapRenderer = FakeMapRendererPort()
+        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        try {
+            val userLocation = GeoCoordinates(-6.1754, 106.8272)
+            viewModel.onUserLocationChanged(userLocation)
+            assertNull(viewModel.uiState.value.selectedCoordinates)
+
+            viewModel.onOpenNewAlarm()
+
+            val state = viewModel.uiState.value
+            assertTrue(state.isConfigureSheetVisible)
+            assertNull(state.selectedAlarmForEdit)
+            assertEquals(userLocation, state.selectedCoordinates)
+            assertEquals(TriggerRadius.DEFAULT, state.selectedRadius)
+            assertEquals(userLocation, fakeMapRenderer.lastPin)
+            assertEquals(userLocation to TriggerRadius.DEFAULT, fakeMapRenderer.lastGeofence)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun onOpenEditAlarm_syncsSelectedCoordinatesAndRadiusAndCentersViewport() = runTest {
+        val fakeMapRenderer = FakeMapRendererPort()
+        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        try {
+            val alarm = manggaraiAlarm().copy(
+                coordinates = GeoCoordinates(-6.2098, 106.8501),
+                radius = TriggerRadius(750),
+            )
+
+            viewModel.onOpenEditAlarm(alarm)
+
+            val state = viewModel.uiState.value
+            assertTrue(state.isConfigureSheetVisible)
+            assertEquals(alarm, state.selectedAlarmForEdit)
+            assertEquals(alarm.coordinates, state.selectedCoordinates)
+            assertEquals(alarm.radius, state.selectedRadius)
+            assertEquals(alarm.coordinates, state.mapViewportCenter)
+            assertEquals(alarm.coordinates, fakeMapRenderer.lastPin)
+            assertEquals(alarm.coordinates to alarm.radius, fakeMapRenderer.lastGeofence)
+            assertEquals(alarm.coordinates to 15.0, fakeMapRenderer.lastViewport)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun editMode_mapClickUpdatesSelectedCoordinatesPreservingEditedRadius() = runTest {
+        val fakeMapRenderer = FakeMapRendererPort()
+        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        try {
+            val alarm = manggaraiAlarm().copy(
+                coordinates = GeoCoordinates(-6.2098, 106.8501),
+                radius = TriggerRadius(600),
+            )
+            viewModel.onOpenEditAlarm(alarm)
+
+            val newRadius = TriggerRadius(1200)
+            viewModel.onRadiusChanged(newRadius)
+
+            val newCoordinates = GeoCoordinates(-6.2100, 106.8600)
+            viewModel.onMapClicked(newCoordinates)
+
+            val state = viewModel.uiState.value
+            assertEquals(newCoordinates, state.selectedCoordinates)
+            assertEquals(newRadius, state.selectedRadius)
+            assertEquals(newCoordinates, fakeMapRenderer.lastPin)
+            assertEquals(newCoordinates to newRadius, fakeMapRenderer.lastGeofence)
+        } finally {
+            vmScope.cancel()
+        }
+    }
 }

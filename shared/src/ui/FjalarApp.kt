@@ -58,19 +58,21 @@ fun FjalarApp(
         val isDarkTheme = uiState.themeMode == ThemeMode.DARK ||
             (uiState.themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
 
-        val activeAlarm = uiState.selectedAlarmForEdit
-            ?: uiState.alarms.firstOrNull { it.state == AlarmState.ARMED_MONITORING }
+        val activeAlarm = uiState.alarms.firstOrNull { it.state == AlarmState.ARMED_MONITORING }
 
-        val pinLocation = uiState.selectedAlarmForEdit?.coordinates
-            ?: uiState.selectedCoordinates
-            ?: activeAlarm?.coordinates
+        val pinLocation = if (uiState.isConfigureSheetVisible) {
+            uiState.selectedCoordinates ?: uiState.selectedAlarmForEdit?.coordinates
+        } else {
+            activeAlarm?.coordinates ?: uiState.selectedCoordinates
+        }
 
-        val geofenceCenter = uiState.selectedAlarmForEdit?.coordinates
-            ?: uiState.selectedCoordinates
-            ?: activeAlarm?.coordinates
+        val geofenceCenter = pinLocation
 
-        val geofenceRadius = uiState.selectedAlarmForEdit?.radius
-            ?: (if (uiState.selectedCoordinates != null) uiState.selectedRadius else activeAlarm?.radius)
+        val geofenceRadius = if (uiState.isConfigureSheetVisible) {
+            uiState.selectedRadius
+        } else {
+            activeAlarm?.radius ?: uiState.selectedRadius
+        }
 
         val center = uiState.mapViewportCenter
             ?: pinLocation

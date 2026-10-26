@@ -154,12 +154,19 @@ class FjalarViewModel(
     }
 
     fun onOpenNewAlarm() {
+        val target = _uiState.value.selectedCoordinates
+            ?: _uiState.value.userLocation
+            ?: GeoCoordinates.DEFAULT_JAKARTA
         _uiState.update { current ->
             current.copy(
                 selectedAlarmForEdit = null,
                 isConfigureSheetVisible = true,
+                selectedCoordinates = target,
+                selectedRadius = TriggerRadius.DEFAULT,
             )
         }
+        mapRendererPort?.placePin(target)
+        mapRendererPort?.showGeofence(target, TriggerRadius.DEFAULT)
     }
 
     fun onOpenEditAlarm(alarm: LocationAlarm) {
@@ -167,8 +174,14 @@ class FjalarViewModel(
             current.copy(
                 selectedAlarmForEdit = alarm,
                 isConfigureSheetVisible = true,
+                selectedCoordinates = alarm.coordinates,
+                selectedRadius = alarm.radius,
+                mapViewportCenter = alarm.coordinates,
             )
         }
+        mapRendererPort?.placePin(alarm.coordinates)
+        mapRendererPort?.showGeofence(alarm.coordinates, alarm.radius)
+        mapRendererPort?.setViewport(alarm.coordinates, zoom = 15.0)
     }
 
     fun onDismissConfigureSheet() {

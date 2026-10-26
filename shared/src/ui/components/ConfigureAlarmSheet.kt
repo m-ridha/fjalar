@@ -161,7 +161,7 @@ fun ConfigureAlarmSheet(
                         }
 
                         val id = initialAlarm?.id ?: "alarm-${Clock.System.now().toEpochMilliseconds()}"
-                        val coordinates = initialAlarm?.coordinates ?: selectedCoordinates ?: GeoCoordinates.DEFAULT_JAKARTA
+                        val coordinates = selectedCoordinates ?: initialAlarm?.coordinates ?: GeoCoordinates.DEFAULT_JAKARTA
                         val updated = LocationAlarm(
                             id = id,
                             label = label.trim(),
