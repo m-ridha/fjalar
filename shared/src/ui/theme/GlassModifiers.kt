@@ -7,8 +7,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+
+data class GlassSurfaceSpec(
+    val backgroundColor: Color,
+    val borderWidth: Dp,
+    val rimHighlight: Color,
+    val borderSubtle: Color,
+    val isReducedTransparency: Boolean,
+)
+
+fun resolveGlassSurfaceSpec(
+    colors: LiquidGlassColors,
+    level: GlassLevel,
+    reducedTransparency: Boolean = colors.isReducedTransparency,
+): GlassSurfaceSpec {
+    val effectiveColors = colors.withReducedTransparency(reducedTransparency)
+    val borderWidth = if (effectiveColors.isReducedTransparency) 1.5.dp else 1.dp
+    return GlassSurfaceSpec(
+        backgroundColor = effectiveColors.glassBackground(level),
+        borderWidth = borderWidth,
+        rimHighlight = effectiveColors.rimHighlight,
+        borderSubtle = effectiveColors.borderSubtle,
+        isReducedTransparency = effectiveColors.isReducedTransparency,
+    )
+}
 
 fun Modifier.glassSurface(
     colors: LiquidGlassColors,
@@ -16,17 +42,15 @@ fun Modifier.glassSurface(
     shape: Shape = RoundedCornerShape(16.dp),
     reducedTransparency: Boolean = colors.isReducedTransparency,
 ): Modifier {
-    val effectiveColors = colors.withReducedTransparency(reducedTransparency)
-    val backgroundColor = effectiveColors.glassBackground(level)
+    val spec = resolveGlassSurfaceSpec(colors, level, reducedTransparency)
     val rimBrush = Brush.linearGradient(
-        colors = listOf(effectiveColors.rimHighlight, effectiveColors.borderSubtle),
+        colors = listOf(spec.rimHighlight, spec.borderSubtle),
         start = Offset.Zero,
         end = Offset.Infinite,
     )
-    val borderWidth = if (effectiveColors.isReducedTransparency) 1.5.dp else 1.dp
     return this
-        .background(color = backgroundColor, shape = shape)
-        .border(width = borderWidth, brush = rimBrush, shape = shape)
+        .background(color = spec.backgroundColor, shape = shape)
+        .border(width = spec.borderWidth, brush = rimBrush, shape = shape)
 }
 
 fun Modifier.glassSurface(

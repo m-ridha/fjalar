@@ -243,6 +243,13 @@ def main():
         print(f"   Saved {fg_path}")
         print(f"   Saved {mono_path}")
 
+        # Clean up any unqualified adaptive bitmaps in androidApp/res/drawable/ to avoid shadowing
+        for stale_name in ("ic_launcher_foreground.png", "ic_launcher_monochrome.png"):
+            stale_unqualified = full_path(f"androidApp/res/drawable/{stale_name}")
+            if os.path.exists(stale_unqualified):
+                os.remove(stale_unqualified)
+                print(f"   Removed stale unqualified bitmap {stale_unqualified}")
+
         # 3. Android Play Store Master (512x512)
         print("3. Generating Play Store master icon (512x512)...")
         playstore_path = full_path("androidApp/ic_launcher-playstore.png")

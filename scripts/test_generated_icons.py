@@ -233,6 +233,14 @@ class TestGeneratedIcons(unittest.TestCase):
             f"Stale vector {stale_vector} must be deleted to avoid shadowing PNG foreground",
         )
 
+        # 1b. Unqualified adaptive bitmaps must not exist in androidApp/res/drawable/ (must be in drawable-xxxhdpi)
+        for unqualified_name in ("ic_launcher_foreground.png", "ic_launcher_monochrome.png"):
+            unqualified_path = self.full_path(f"androidApp/res/drawable/{unqualified_name}")
+            self.assertFalse(
+                os.path.exists(unqualified_path),
+                f"Unqualified bitmap {unqualified_path} must not exist in drawable/ (should be in drawable-xxxhdpi/)",
+            )
+
         # 2. ic_launcher_background.xml must be clean solid #FFFFFF
         bg_xml_path = self.full_path("androidApp/res/drawable/ic_launcher_background.xml")
         self.assertTrue(os.path.isfile(bg_xml_path), f"Missing {bg_xml_path}")
