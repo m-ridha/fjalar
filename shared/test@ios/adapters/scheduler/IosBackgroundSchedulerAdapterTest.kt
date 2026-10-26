@@ -1,5 +1,6 @@
 package com.muhammadridha.fjalar.adapters.scheduler
 
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -23,11 +24,26 @@ class IosBackgroundSchedulerAdapterTest {
     }
 
     @Test
-    fun resolveNotificationTitle_bilingualLocalization() {
+    fun resolveNotificationTitle_bilingualLocalization() = runTest {
         val adapter = IosBackgroundSchedulerAdapter()
         assertEquals("Bangunkan Saya di", adapter.resolveNotificationTitle("id-ID"))
         assertEquals("Bangunkan Saya di", adapter.resolveNotificationTitle("in"))
         assertEquals("Wake Me at", adapter.resolveNotificationTitle("en-US"))
         assertEquals("Wake Me at", adapter.resolveNotificationTitle(""))
+    }
+
+    @Test
+    fun resolveNotificationTitle_customInjectedTitleResolver() = runTest {
+        val customResolver = object : IosNotificationTitleResolver {
+            override suspend fun resolveTitle(preferredLanguage: String?): String = "Custom Title"
+        }
+        val adapter = IosBackgroundSchedulerAdapter(titleResolver = customResolver)
+        assertEquals("Custom Title", adapter.resolveNotificationTitle())
+    }
+
+    @Test
+    fun resolveNotificationTitle_staticLocalizedTitleConstructor() = runTest {
+        val adapter = IosBackgroundSchedulerAdapter(localizedTitle = "Fixed Title")
+        assertEquals("Fixed Title", adapter.resolveNotificationTitle())
     }
 }
