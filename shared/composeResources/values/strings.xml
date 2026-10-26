@@ -86,7 +86,7 @@
     <string name="picker_title">Select Destination Pin</string>
     <string name="picker_confirm">Set Location</string>
     <string name="picker_change_pin">Change Pin on Map</string>
-    <string name="picker_hint">Pan map and drag pin to destination</string>
+    <string name="picker_hint">Pan map to position the crosshair</string>
 
     <!-- Empty alarms list -->
     <string name="alarms_empty_title">No Alarms Yet</string>

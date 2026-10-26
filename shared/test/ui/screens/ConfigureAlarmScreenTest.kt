@@ -257,8 +257,8 @@ class ConfigureAlarmScreenTest {
         val enChangePin = FjalarStrings.get(FjalarStringKey.PICKER_CHANGE_PIN, AppLocale.EN)
         val idChangePin = FjalarStrings.get(FjalarStringKey.PICKER_CHANGE_PIN, AppLocale.ID)
 
-        assertEquals("Pan map and drag pin to destination", enPickerHint)
-        assertEquals("Geser peta dan arahkan pin ke tujuan", idPickerHint)
+        assertEquals("Pan map to position the crosshair", enPickerHint)
+        assertEquals("Geser peta untuk menempatkan bidik silang", idPickerHint)
         assertEquals("Set Location", enPickerConfirm)
         assertEquals("Tetapkan Lokasi", idPickerConfirm)
         assertEquals("Change Pin on Map", enChangePin)

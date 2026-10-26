@@ -86,7 +86,7 @@
     <string name="picker_title">Pilih Titik Tujuan</string>
     <string name="picker_confirm">Tetapkan Lokasi</string>
     <string name="picker_change_pin">Ubah Titik di Peta</string>
-    <string name="picker_hint">Geser peta dan arahkan pin ke tujuan</string>
+    <string name="picker_hint">Geser peta untuk menempatkan bidik silang</string>
 
     <!-- Empty alarms list -->
     <string name="alarms_empty_title">Belum Ada Alarm</string>
