@@ -136,7 +136,7 @@ fun createDefaultViewModel(
 }
 
 /**
- * Root Composable entry point for Fjalar (Wake me up at!).
+ * Root Composable entry point for Fjalar (Wake me up there).
  *
  * Accepts an optional [FjalarPlatformContainer] (or individual platform adapters)
  * to wire production platform services while falling back to in-memory fakes for previews.

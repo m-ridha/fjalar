@@ -1,4 +1,4 @@
-# Fjalar (Wake me up at!)
+# Fjalar (Wake me up there)
 
 <p align="center">
   <img src="assets/icons/icon_master_light_1024.png" alt="Fjalar Logo" width="256" height="256" style="border-radius: 22.37%;">
