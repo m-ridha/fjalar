@@ -25,9 +25,9 @@ class IosBackgroundSchedulerAdapterTest {
     @Test
     fun resolveNotificationTitle_bilingualLocalization() {
         val adapter = IosBackgroundSchedulerAdapter()
-        assertEquals("Bangunkan saya di sana", adapter.resolveNotificationTitle("id-ID"))
-        assertEquals("Bangunkan saya di sana", adapter.resolveNotificationTitle("in"))
-        assertEquals("Wake me up there", adapter.resolveNotificationTitle("en-US"))
-        assertEquals("Wake me up there", adapter.resolveNotificationTitle(""))
+        assertEquals("Bangunkan Saya di", adapter.resolveNotificationTitle("id-ID"))
+        assertEquals("Bangunkan Saya di", adapter.resolveNotificationTitle("in"))
+        assertEquals("Wake Me at", adapter.resolveNotificationTitle("en-US"))
+        assertEquals("Wake Me at", adapter.resolveNotificationTitle(""))
     }
 }

@@ -1,15 +1,15 @@
-# Fjalar (Wake me up there - Location-based alarm)
+# Fjalar (Wake Me at - Location-based alarm)
 
-<p align="center">
+<p style="text-align: center;">
   <img src="assets/icons/icon_master_light_1024.png" alt="Fjalar Logo" width="256" height="256" style="border-radius: 22.37%;">
 </p>
 
-<p align="center">
+<p style="text-align: center;">
   <strong>A modern, privacy-first, location-based wake-up alarm for daily commuters.</strong><br>
   Built with Kotlin Multiplatform (KMM / KMP), Hexagonal Architecture (Ports & Adapters), and an iPhone-inspired Liquid Glass UI for Android and iOS.
 </p>
 
-<p align="center">
+<p style="text-align: center;">
   <a href="#features">Features</a> •
   <a href="#architecture">Architecture</a> •
   <a href="#prerequisites">Prerequisites</a> •

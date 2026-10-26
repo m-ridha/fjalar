@@ -1,10 +1,10 @@
-# Agent Guide for Fjalar (Wake me up there - Location-based alarm)
+# Agent Guide for Fjalar (Wake Me at - Location-based alarm)
 
 ## Start here
 
 Read the user's current instructions and inspect affected code before relying on documented behavior or historical passing checks. Canonical requirements and design tokens are tracked in the Notion documents below; private planning files or memory summaries are not prerequisites.
 
-- **PRD (Behavior & Invariants):** [PRD: Fjalar (Wake me up there) v0.4](https://app.notion.com/p/4030ee070c2381068c72ff3840f77325)
+- **PRD (Behavior & Invariants):** [PRD: Fjalar (Wake Me at) v0.4](https://app.notion.com/p/4030ee070c2381068c72ff3840f77325)
 - **UI/UX & Design Tokens:** [Product and UI Design v0.5](https://app.notion.com/p/4030ee070c2381008ebeddc2ab6c654e)
 - **Interactive Screens & Themes:** [Google Stitch Project 12482101652095184669](https://stitch.withgoogle.com/projects/12482101652095184669) (`Liquid Glass Transit` & `Liquid Glass Transit Dark Mode`)
 - **Approved 2D Vector App Icon:** [App Icon Design v1.1](https://app.notion.com/p/4040ee070c2381ea8359ef1f191029bf) (masters in `assets/icons/`)

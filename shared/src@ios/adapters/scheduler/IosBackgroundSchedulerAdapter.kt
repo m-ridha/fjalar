@@ -97,9 +97,9 @@ class IosBackgroundSchedulerAdapter(
             ""
         }
         return if (lang.startsWith("id") || lang.startsWith("in")) {
-            "Bangunkan saya di sana"
+            "Bangunkan Saya di"
         } else {
-            "Wake me up there"
+            "Wake Me at"
         }
     }
 
