@@ -24,10 +24,6 @@ class HybridPlaceSearchAdapter(
         locale: AppLocale,
         proximity: GeoCoordinates?,
     ): List<SearchResultPlace> {
-        if (query.isBlank()) {
-            return emptyList()
-        }
-
         val matchingOffline = offlineStations.filter { place ->
             place.matchesQuery(query)
         }
@@ -40,7 +36,7 @@ class HybridPlaceSearchAdapter(
             matchingOffline
         }
 
-        if (sortedOffline.size >= offlineMatchThreshold || onlineEngine == null) {
+        if (query.isBlank() || sortedOffline.size >= offlineMatchThreshold || onlineEngine == null) {
             return sortedOffline
         }
 

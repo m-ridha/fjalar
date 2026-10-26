@@ -41,15 +41,15 @@ class HybridPlaceSearchAdapterTest {
     }
 
     @Test
-    fun blankQueryReturnsEmptyListImmediately() = runTest {
+    fun blankQueryReturnsOfflineCatalogWithoutCallingOnlineEngine() = runTest {
         val fakeEngine = FakeOnlineGeocodingEngine()
         val adapter = HybridPlaceSearchAdapter(onlineEngine = fakeEngine)
 
         val result1 = adapter.searchPlaces("", AppLocale.EN)
         val result2 = adapter.searchPlaces("   ", AppLocale.ID)
 
-        assertTrue(result1.isEmpty())
-        assertTrue(result2.isEmpty())
+        assertEquals(TransitStationCatalog.STATIONS.size, result1.size)
+        assertEquals(TransitStationCatalog.STATIONS.size, result2.size)
         assertEquals(0, fakeEngine.queryCount)
     }
 

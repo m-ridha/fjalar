@@ -6,9 +6,11 @@ import com.muhammadridha.fjalar.domain.model.PlaceCategory
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import platform.CoreLocation.CLGeocoder
 import platform.CoreLocation.CLPlacemark
+import platform.Foundation.NSLocale
 import kotlin.coroutines.resume
 
 /**
@@ -38,7 +40,12 @@ class IosAppleGeocoderEngine(
                     geocoder.cancelGeocode()
                 }
 
-                geocoder.geocodeAddressString(trimmed) { placemarks, error ->
+                val preferredLocale = NSLocale(localeIdentifier = if (locale == AppLocale.ID) "id_ID" else "en_US")
+                geocoder.geocodeAddressString(
+                    addressString = trimmed,
+                    inRegion = null,
+                    preferredLocale = preferredLocale,
+                ) { placemarks, error ->
                     if (error != null || placemarks == null) {
                         continuation.resume(emptyList())
                         return@geocodeAddressString
@@ -79,7 +86,10 @@ class IosAppleGeocoderEngine(
                     continuation.resume(results)
                 }
             }
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
+            if (e is CancellationException) {
+                throw e
+            }
             emptyList()
         }
     }

@@ -33,7 +33,7 @@ class AndroidNominatimEngine(
         limit: Int,
     ): List<SearchResultPlace> = withContext(ioDispatcher) {
         val trimmed = query.trim()
-        if (trimmed.isEmpty() || limit <= 0) {
+        if (trimmed.length < MIN_QUERY_LENGTH || limit <= 0) {
             return@withContext emptyList()
         }
 
@@ -120,8 +120,8 @@ class AndroidNominatimEngine(
     }
 
     private fun resolveCategory(categoryClass: String, type: String): PlaceCategory = when {
-        categoryClass == "railway" || type in listOf("station", "halt") -> PlaceCategory.TRAIN_STATION
         type in listOf("subway", "subway_entrance", "metro_station") -> PlaceCategory.METRO_STATION
+        categoryClass == "railway" || type in listOf("station", "halt") -> PlaceCategory.TRAIN_STATION
         categoryClass in listOf("aeroway", "bus_station") ||
             type in listOf("aerodrome", "bus_stop", "platform", "tram_stop", "ferry_terminal") -> PlaceCategory.TRANSIT_STOP
         categoryClass in listOf("tourism", "historic", "attraction") -> PlaceCategory.LANDMARK
@@ -129,6 +129,7 @@ class AndroidNominatimEngine(
     }
 
     companion object {
+        const val MIN_QUERY_LENGTH: Int = 3
         const val DEFAULT_BASE_URL: String = "https://nominatim.openstreetmap.org"
         const val DEFAULT_USER_AGENT: String = "Fjalar/1.0 (wake-me-up-there)"
         const val DEFAULT_TIMEOUT_MS: Int = 5000

@@ -648,8 +648,13 @@ class FjalarViewModelTest {
         try {
             assertFalse(viewModel.uiState.value.isSearchSheetVisible)
 
+            // Open configure sheet first to verify onOpenSearch dismisses it
+            viewModel.onOpenNewAlarm()
+            assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
+
             viewModel.onOpenSearch()
             assertTrue(viewModel.uiState.value.isSearchSheetVisible)
+            assertFalse(viewModel.uiState.value.isConfigureSheetVisible, "Opening search must dismiss configure sheet")
             assertEquals(1, fakeSearchPort.searchCallCount)
             assertEquals("", fakeSearchPort.lastQuery)
             assertEquals(1, viewModel.uiState.value.searchResults.size)
@@ -681,6 +686,7 @@ class FjalarViewModelTest {
         val (viewModel, _, vmScope) = createTestViewModel(searchPlacesPort = fakeSearchPort)
         try {
             viewModel.onSearchQueryChanged("Sudirman")
+            testScheduler.advanceUntilIdle()
 
             val state = viewModel.uiState.value
             assertEquals("Sudirman", state.searchQuery)

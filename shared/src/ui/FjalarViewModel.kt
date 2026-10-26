@@ -21,6 +21,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -107,7 +108,7 @@ class FjalarViewModel(
     }
 
     fun onOpenSearch() {
-        _uiState.update { it.copy(isSearchSheetVisible = true) }
+        _uiState.update { it.copy(isSearchSheetVisible = true, isConfigureSheetVisible = false) }
         if (_uiState.value.searchResults.isEmpty() && _uiState.value.searchQuery.isBlank()) {
             onSearchQueryChanged("")
         }
@@ -121,6 +122,9 @@ class FjalarViewModel(
         _uiState.update { it.copy(searchQuery = query, isSearching = true) }
         searchJob?.cancel()
         searchJob = scope.launch {
+            if (query.isNotBlank()) {
+                delay(SEARCH_DEBOUNCE_MILLIS)
+            }
             val locale = _uiState.value.appLocale
             val proximity = _uiState.value.userLocation ?: _uiState.value.selectedCoordinates
             val places = searchPlacesPort?.searchPlaces(query, locale, proximity) ?: emptyList()
@@ -322,5 +326,9 @@ class FjalarViewModel(
         if (coords != null) {
             mapRendererPort?.showGeofence(coords, radius)
         }
+    }
+
+    companion object {
+        const val SEARCH_DEBOUNCE_MILLIS: Long = 300L
     }
 }
