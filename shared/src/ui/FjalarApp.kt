@@ -27,6 +27,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -76,6 +78,8 @@ fun FjalarApp(
     onRequestPermission: (() -> Unit)? = null,
     navController: NavHostController = rememberNavController(),
 ) {
+    val density = LocalDensity.current
+    var dockHeight by remember { mutableStateOf(100.dp) }
     val uiState by viewModel.uiState.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -210,6 +214,7 @@ fun FjalarApp(
                 composable<AlarmsRoute> {
                     AlarmsScreen(
                         alarms = uiState.alarms,
+                        bottomDockClearance = dockHeight,
                         hasOperationFailure = uiState.hasOperationFailure,
                         onToggleAlarm = viewModel::onToggleAlarm,
                         onSkipToday = viewModel::onSkipToday,
@@ -325,7 +330,9 @@ fun FjalarApp(
                         )
                         navController.navigate(ConfigureRoute())
                     },
-                    modifier = Modifier.align(Alignment.BottomCenter),
+                    modifier = Modifier.align(Alignment.BottomCenter).onSizeChanged { size ->
+                        dockHeight = with(density) { size.height.toDp() }
+                    },
                 )
             }
 

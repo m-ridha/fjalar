@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.ui.WindowInsetsLayoutHelper
@@ -60,6 +61,7 @@ fun AlarmsScreen(
     modifier: Modifier = Modifier,
     locale: AppLocale = LiquidGlassTheme.locale,
     hasOperationFailure: Boolean = false,
+    bottomDockClearance: Dp = 100.dp,
 ) {
     val colors = LiquidGlassTheme.colors
     var alarmToDelete by remember { mutableStateOf<LocationAlarm?>(null) }
@@ -197,7 +199,7 @@ fun AlarmsScreen(
                     start = 16.dp,
                     end = 16.dp,
                     top = 8.dp,
-                    bottom = 100.dp, // Ensures content can scroll past floating bottom dock
+                    bottom = bottomDockClearance + 8.dp,
                 ),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
