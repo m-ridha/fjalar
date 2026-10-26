@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +49,7 @@ import com.muhammadridha.fjalar.ui.navigation.FrostedBottomNavigationBar
 import com.muhammadridha.fjalar.ui.navigation.MapPickerRoute
 import com.muhammadridha.fjalar.ui.navigation.MapRoute
 import com.muhammadridha.fjalar.ui.navigation.isBottomBarVisible
+import com.muhammadridha.fjalar.ui.navigation.mapPickerDestination
 import com.muhammadridha.fjalar.ui.screens.AlarmsScreen
 import com.muhammadridha.fjalar.ui.screens.ConfigureAlarmDraft
 import com.muhammadridha.fjalar.ui.screens.ConfigureAlarmScreen
@@ -196,7 +198,9 @@ fun FjalarApp(
                                 isLoading = uiState.isSearching,
                                 userLocation = uiState.userLocation,
                                 locale = uiState.appLocale,
-                                modifier = WindowInsetsLayoutHelper.sheetBottomPaddingModifier(),
+                                modifier = WindowInsetsLayoutHelper.sheetBottomPaddingModifier()
+                                    .imePadding()
+                                    .padding(bottom = 100.dp),
                             )
                         }
                     }
@@ -276,7 +280,7 @@ fun FjalarApp(
                 }
 
                 // Screen 4: Map Location Picker Full-Screen Modal
-                composable<MapPickerRoute> { backStackEntry ->
+                mapPickerDestination { backStackEntry ->
                     val route = backStackEntry.toRoute<MapPickerRoute>()
                     MapPickerScreen(
                         initialCoordinates = GeoCoordinates(route.initialLat, route.initialLon),

@@ -940,4 +940,56 @@ class FjalarViewModelTest {
         } finally { scope.cancel() }
     }
 
+    @Test
+    fun delayedSaveDoesNotClearAnIdenticalDraftFromANewerEditor() = runTest {
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val port = object : SaveAlarmPort {
+            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> {
+                release.await()
+                return Result.success(Unit)
+            }
+        }
+        val renderer = FakeMapRendererPort()
+        val (vm, _, scope) = createTestViewModel(savePort = port, mapRendererPort = renderer)
+        try {
+            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val originalDraft = vm.uiState.value.activeDraft!!.copy(label = "London")
+            vm.onUpdateDraft(originalDraft)
+            vm.onSaveDraftAlarm(originalDraft)
+            vm.onClearDraft()
+            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val newerDraft = vm.uiState.value.activeDraft!!.copy(label = "London")
+            vm.onUpdateDraft(newerDraft)
+            release.complete(Unit)
+            assertEquals(newerDraft, vm.uiState.value.activeDraft)
+            assertEquals(GeoCoordinates(51.5, -0.1), vm.uiState.value.selectedCoordinates)
+            assertFalse(renderer.overlaysCleared)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun delayedDeleteDoesNotClearDraftOpenedFromTheList() = runTest {
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val port = object : DeleteAlarmPort {
+            override suspend fun deleteAlarm(alarmId: String): Result<Unit> {
+                release.await()
+                return Result.success(Unit)
+            }
+        }
+        val (vm, _, scope) = createTestViewModel(deleteAlarmPort = port)
+        try {
+            vm.onDeleteAlarm("old-alarm")
+            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val newerDraft = vm.uiState.value.activeDraft!!.copy(label = "London")
+            vm.onUpdateDraft(newerDraft)
+            release.complete(Unit)
+            assertEquals(newerDraft, vm.uiState.value.activeDraft)
+            assertEquals(GeoCoordinates(51.5, -0.1), vm.uiState.value.selectedCoordinates)
+        } finally {
+            scope.cancel()
+        }
+    }
+
 }

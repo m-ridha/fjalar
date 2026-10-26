@@ -77,6 +77,7 @@ class FjalarViewModel(
 ) : ViewModel() {
 
     internal val scope: CoroutineScope = coroutineScope ?: viewModelScope
+    private var draftSessionId: Long = 0L
 
     private val _uiState = MutableStateFlow(FjalarUiState())
     val uiState: StateFlow<FjalarUiState> = _uiState.asStateFlow()
@@ -152,6 +153,7 @@ class FjalarViewModel(
     }
 
     fun onSelectPlace(place: SearchResultPlace) {
+        draftSessionId++
         _uiState.update { current ->
             current.copy(
                 isSearchSheetVisible = false,
@@ -248,13 +250,18 @@ class FjalarViewModel(
 
     fun onDeleteAlarm(alarmId: String, onSuccess: () -> Unit = {}) {
         if (_uiState.value.isOperationPending) return
+        val operationDraftSessionId = draftSessionId
         _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false) }
         scope.launch {
             val result = deleteAlarmPort?.deleteAlarm(alarmId)
+            val ownsDraft = operationDraftSessionId == draftSessionId
             _uiState.update {
-                it.copy(isOperationPending = false, hasOperationFailure = result?.isSuccess != true)
+                it.copy(
+                    isOperationPending = false,
+                    hasOperationFailure = ownsDraft && result?.isSuccess != true,
+                )
             }
-            if (result?.isSuccess == true) {
+            if (result?.isSuccess == true && ownsDraft) {
                 if (_uiState.value.selectedAlarmForEdit?.id == alarmId) {
                     _uiState.update { current ->
                         current.copy(
@@ -328,6 +335,7 @@ class FjalarViewModel(
     }
 
     fun onStartConfiguringAlarm(alarmId: String?, defaultCoordinates: GeoCoordinates? = null) {
+        draftSessionId++
         val draft = if (alarmId != null) {
             val alarm = _uiState.value.alarms.firstOrNull { it.id == alarmId }
             alarm?.let { ConfigureAlarmDraft.fromAlarm(it) }
@@ -393,13 +401,15 @@ class FjalarViewModel(
         }
         if (_uiState.value.isOperationPending) return
         val alarm = draft.toLocationAlarm(existing)
+        val operationDraftSessionId = draftSessionId
         _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false) }
         scope.launch {
             val result = saveAlarmPort.saveAlarm(alarm)
+            val ownsDraft = operationDraftSessionId == draftSessionId
             _uiState.update {
-                it.copy(isOperationPending = false, hasOperationFailure = result.isFailure)
+                it.copy(isOperationPending = false, hasOperationFailure = ownsDraft && result.isFailure)
             }
-            if (result.isSuccess) {
+            if (result.isSuccess && ownsDraft) {
                 _uiState.update { current ->
                     current.copy(
                         activeDraft = null,
@@ -416,6 +426,7 @@ class FjalarViewModel(
     }
 
     fun onClearDraft() {
+        draftSessionId++
         _uiState.update { it.copy(activeDraft = null) }
     }
 
