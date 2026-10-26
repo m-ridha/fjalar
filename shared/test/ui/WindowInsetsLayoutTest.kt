@@ -14,6 +14,7 @@ class WindowInsetsLayoutTest {
         assertNotNull(WindowInsetsLayoutHelper.hudTopPaddingModifier())
         assertNotNull(WindowInsetsLayoutHelper.navigationBottomPaddingModifier())
         assertNotNull(WindowInsetsLayoutHelper.safeDrawingPaddingModifier())
+        assertNotNull(WindowInsetsLayoutHelper.sheetBottomPaddingModifier())
     }
 
     @Test
@@ -29,5 +30,9 @@ class WindowInsetsLayoutTest {
         val baseSafe = Modifier.fillMaxSize()
         val safeModifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(baseSafe)
         assertNotNull(safeModifier)
+
+        val baseSheet = Modifier.fillMaxWidth()
+        val sheetModifier = WindowInsetsLayoutHelper.sheetBottomPaddingModifier(baseSheet)
+        assertNotNull(sheetModifier)
     }
 }

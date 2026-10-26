@@ -15,9 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -197,7 +195,7 @@ fun FjalarApp(
                     onDismiss = viewModel::onDismissRingingAlarm,
                     // shortcut: dedicated snooze port deferred to milestone 2; keep snooze inert to prevent single-tap dismissal (Invariant 3)
                     onSnooze = {},
-                    modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier.fillMaxSize()),
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
         }

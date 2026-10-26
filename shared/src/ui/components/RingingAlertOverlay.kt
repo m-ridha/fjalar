@@ -40,6 +40,7 @@ import com.muhammadridha.fjalar.resources.Res
 import com.muhammadridha.fjalar.resources.ringing_headline
 import com.muhammadridha.fjalar.resources.ringing_in_zone_badge
 import com.muhammadridha.fjalar.resources.ringing_snooze_action
+import com.muhammadridha.fjalar.ui.WindowInsetsLayoutHelper
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
@@ -80,11 +81,11 @@ fun RingingAlertOverlay(
                         awaitPointerEvent().changes.forEach { it.consume() }
                     }
                 }
-            }
-            .padding(horizontal = 24.dp, vertical = 32.dp),
+            },
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier.fillMaxSize())
+                .padding(horizontal = 24.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
