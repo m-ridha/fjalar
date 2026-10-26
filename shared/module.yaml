@@ -20,6 +20,7 @@ test-dependencies:
 
 dependencies@android:
   - $compose.uiTooling
+  - $libs.maplibre.android.sdk
 
 settings:
   compose:
