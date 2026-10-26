@@ -33,6 +33,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -1004,6 +1005,34 @@ class FjalarViewModelTest {
         } finally {
             scope.cancel()
         }
+    }
+
+    @Test
+    fun delayedSaveAndResaveOfNewerEditsReuseOneIdentity() = runTest {
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val writes = mutableListOf<LocationAlarm>()
+        val port = object : SaveAlarmPort {
+            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> {
+                writes += alarm
+                release.await()
+                return Result.success(Unit)
+            }
+        }
+        val (vm, _, scope) = createTestViewModel(savePort = port)
+        try {
+            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val submitted = vm.uiState.value.activeDraft!!.copy(label = "London")
+            assertNotNull(submitted.alarmId)
+            vm.onUpdateDraft(submitted)
+            vm.onSaveDraftAlarm(submitted)
+            vm.onUpdateDraft(submitted.copy(label = "London Bridge"))
+            release.complete(Unit)
+            val revised = vm.uiState.value.activeDraft!!
+            vm.onSaveDraftAlarm(revised)
+            assertEquals(2, writes.size)
+            assertEquals(writes.first().id, writes.last().id)
+            assertEquals("London Bridge", writes.last().label)
+        } finally { scope.cancel() }
     }
 
     @Test

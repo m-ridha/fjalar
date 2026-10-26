@@ -29,6 +29,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.random.Random
+import kotlin.time.Clock
 
 /**
  * Observable UI state representation for the entire Fjalar application.
@@ -152,6 +154,9 @@ class FjalarViewModel(
         }
     }
 
+    private fun newDraftIdentity(): String =
+        "alarm-${Clock.System.now().toEpochMilliseconds()}-${Random.nextLong().toString(16)}"
+
     fun onSelectPlace(place: SearchResultPlace) {
         draftRevision++
         _uiState.update { current ->
@@ -161,6 +166,7 @@ class FjalarViewModel(
                 selectedAlarmForEdit = null,
                 initialAlarmLabel = place.name,
                 activeDraft = ConfigureAlarmDraft(
+                    alarmId = newDraftIdentity(),
                     label = place.name,
                     coordinates = place.coordinates,
                     addressLabel = place.detail,
@@ -347,6 +353,7 @@ class FjalarViewModel(
                 )
         } else {
             ConfigureAlarmDraft(
+                alarmId = newDraftIdentity(),
                 coordinates = defaultCoordinates
                     ?: _uiState.value.selectedCoordinates
                     ?: _uiState.value.userLocation,
@@ -386,7 +393,7 @@ class FjalarViewModel(
         draftRevision++
         _uiState.update { current ->
             val updatedDraft = current.activeDraft?.withNewCoordinates(coordinates)
-                ?: ConfigureAlarmDraft(coordinates = coordinates)
+                ?: ConfigureAlarmDraft(alarmId = newDraftIdentity(), coordinates = coordinates)
             current.copy(
                 activeDraft = updatedDraft,
                 selectedCoordinates = coordinates,

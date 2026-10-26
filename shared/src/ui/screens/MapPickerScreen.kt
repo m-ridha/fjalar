@@ -68,16 +68,14 @@ fun MapPickerScreen(
         PlatformMapView(
             center = currentCoordinates,
             zoom = initialZoom,
-            pinLocation = currentCoordinates,
+            // Crosshair-only selection: panning chooses the true camera center. A separate
+            // tappable/draggable pin would disagree with the crosshair after a gesture.
+            pinLocation = null,
             geofenceCenter = currentCoordinates,
             geofenceRadius = TriggerRadius(500),
             isDarkTheme = isDarkTheme,
-            onMapClick = {
-                currentCoordinates = it
-            },
-            onPinDrag = {
-                currentCoordinates = it
-            },
+            onMapClick = {},
+            onPinDrag = {},
             onCameraCenterChanged = { currentCoordinates = it },
             // Selection follows gestures without issuing a camera reset to initialZoom.
             viewportRequestId = 0L,
