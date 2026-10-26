@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.DropdownMenu
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.ThemeMode
+import com.muhammadridha.fjalar.ui.WindowInsetsLayoutHelper
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
@@ -78,7 +80,7 @@ fun LanguageDropdown(
             DropdownMenuItem(
                 text = {
                     Text(
-                        text = "English (EN)",
+                        text = fjalarString(FjalarStringKey.LANG_ENGLISH),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = if (selectedLocale == AppLocale.EN) FontWeight.Bold else FontWeight.Normal,
                     )
@@ -91,7 +93,7 @@ fun LanguageDropdown(
             DropdownMenuItem(
                 text = {
                     Text(
-                        text = "Bahasa Indonesia (ID)",
+                        text = fjalarString(FjalarStringKey.LANG_INDONESIAN),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = if (selectedLocale == AppLocale.ID) FontWeight.Bold else FontWeight.Normal,
                     )
@@ -129,7 +131,7 @@ fun FloatingHudBar(
     }
 
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = WindowInsetsLayoutHelper.hudTopPaddingModifier(modifier).fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

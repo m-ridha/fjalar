@@ -104,8 +104,7 @@ fun FjalarApp(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding(),
+                    .align(Alignment.TopCenter),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 FloatingHudBar(
@@ -114,7 +113,7 @@ fun FjalarApp(
                     onSelectLocale = viewModel::onSelectLocale,
                     onToggleTheme = viewModel::onToggleTheme,
                     onRecenter = viewModel::onRecenterMap,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier,
                     locale = uiState.appLocale,
                     themeMode = uiState.themeMode,
                 )
@@ -138,10 +137,11 @@ fun FjalarApp(
                 onNewAlarm = viewModel::onOpenNewAlarm,
                 onSkipToday = viewModel::onSkipToday,
                 locale = uiState.appLocale,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding(),
+                modifier = WindowInsetsLayoutHelper.navigationBottomPaddingModifier(
+                    Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                ),
             )
 
             // Layer 4: Configure Alarm Modal Sheet (animated visibility)
@@ -161,7 +161,7 @@ fun FjalarApp(
                     onSave = viewModel::onSaveAlarm,
                     onCancel = viewModel::onDismissConfigureSheet,
                     locale = uiState.appLocale,
-                    modifier = Modifier.navigationBarsPadding(),
+                    modifier = WindowInsetsLayoutHelper.sheetBottomPaddingModifier(),
                 )
             }
 
@@ -185,7 +185,7 @@ fun FjalarApp(
                     isLoading = uiState.isSearching,
                     userLocation = uiState.userLocation,
                     locale = uiState.appLocale,
-                    modifier = Modifier.navigationBarsPadding(),
+                    modifier = WindowInsetsLayoutHelper.sheetBottomPaddingModifier(),
                 )
             }
 
@@ -197,7 +197,7 @@ fun FjalarApp(
                     onDismiss = viewModel::onDismissRingingAlarm,
                     // shortcut: dedicated snooze port deferred to milestone 2; keep snooze inert to prevent single-tap dismissal (Invariant 3)
                     onSnooze = {},
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier.fillMaxSize()),
                 )
             }
         }

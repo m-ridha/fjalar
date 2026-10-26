@@ -55,6 +55,17 @@ class FjalarStringsTest {
     }
 
     @Test
+    fun get_withSpecialCharactersInArguments_formatsSafelyWithoutRegexError() {
+        val formatted = FjalarStrings.get(
+            FjalarStringKey.STATUS_ARMED_ONE_TIME,
+            AppLocale.EN,
+            "Special $100 \\ Station",
+            "500m",
+        )
+        assertTrue(formatted.contains("Special $100 \\ Station"))
+    }
+
+    @Test
     fun catalogParity_allKeysExistInBothEnglishAndIndonesian() {
         for (key in FjalarStringKey.entries) {
             val en = FjalarStrings.get(key, AppLocale.EN)

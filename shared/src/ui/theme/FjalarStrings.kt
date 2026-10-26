@@ -282,9 +282,10 @@ object FjalarStrings {
         for (i in args.indices) {
             val pos = i + 1
             val strVal = args[i].toString()
+            val escapedReplacement = Regex.escapeReplacement(strVal)
             result = result.replace("%$pos\$s", strVal)
                 .replace("%$pos\$d", strVal)
-                .replace(Regex("%$pos\\$[a-zA-Z]"), strVal)
+                .replace(Regex("%$pos\\$[a-zA-Z]"), escapedReplacement)
         }
 
         // Replace simple non-positional arguments: %s, %d sequentially

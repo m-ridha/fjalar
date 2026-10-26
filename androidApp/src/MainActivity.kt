@@ -16,6 +16,7 @@ import com.muhammadridha.fjalar.adapters.storage.SharedPreferencesKeyValueStorag
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         awakenScreenAndShowOverKeyguard()
+        // Draw edge-to-edge behind system status and navigation bars; safe insets are handled via WindowInsetsLayoutHelper
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         val app = application as? FjalarApplication
