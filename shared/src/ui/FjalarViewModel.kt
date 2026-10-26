@@ -20,6 +20,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
 import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
+import com.muhammadridha.fjalar.ui.screens.ConfigureAlarmDraft
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -51,6 +52,7 @@ data class FjalarUiState(
     val mapViewportZoom: Double = 14.0,
     val selectedRadius: TriggerRadius = TriggerRadius.DEFAULT,
     val viewportRequestId: Long = 0L,
+    val activeDraft: ConfigureAlarmDraft? = null,
 )
 
 /**
@@ -308,6 +310,93 @@ class FjalarViewModel(
             )
         }
         mapRendererPort?.clearOverlays()
+    }
+
+    fun onStartConfiguringAlarm(alarmId: String?, defaultCoordinates: GeoCoordinates? = null) {
+        val draft = if (alarmId != null) {
+            val alarm = _uiState.value.alarms.firstOrNull { it.id == alarmId }
+            alarm?.let { ConfigureAlarmDraft.fromAlarm(it) }
+                ?: ConfigureAlarmDraft(
+                    alarmId = alarmId,
+                    coordinates = defaultCoordinates
+                        ?: _uiState.value.selectedCoordinates
+                        ?: _uiState.value.userLocation
+                        ?: GeoCoordinates.DEFAULT_JAKARTA,
+                )
+        } else {
+            ConfigureAlarmDraft(
+                coordinates = defaultCoordinates
+                    ?: _uiState.value.selectedCoordinates
+                    ?: _uiState.value.userLocation
+                    ?: GeoCoordinates.DEFAULT_JAKARTA,
+            )
+        }
+        _uiState.update { current ->
+            current.copy(
+                activeDraft = draft,
+                selectedAlarmForEdit = _uiState.value.alarms.firstOrNull { it.id == alarmId },
+                selectedCoordinates = draft.coordinates,
+                selectedRadius = TriggerRadius(draft.radiusMeters),
+            )
+        }
+        draft.coordinates?.let { coords ->
+            mapRendererPort?.placePin(coords)
+            mapRendererPort?.showGeofence(coords, TriggerRadius(draft.radiusMeters))
+        }
+    }
+
+    fun onUpdateDraft(draft: ConfigureAlarmDraft) {
+        _uiState.update { current ->
+            current.copy(
+                activeDraft = draft,
+                selectedCoordinates = draft.coordinates,
+                selectedRadius = TriggerRadius(draft.radiusMeters),
+            )
+        }
+        draft.coordinates?.let { coords ->
+            mapRendererPort?.placePin(coords)
+            mapRendererPort?.showGeofence(coords, TriggerRadius(draft.radiusMeters))
+        }
+    }
+
+    fun onDraftCoordinatesChanged(coordinates: GeoCoordinates) {
+        _uiState.update { current ->
+            val updatedDraft = current.activeDraft?.withNewCoordinates(coordinates)
+                ?: ConfigureAlarmDraft(coordinates = coordinates)
+            current.copy(
+                activeDraft = updatedDraft,
+                selectedCoordinates = coordinates,
+            )
+        }
+        val radius = _uiState.value.activeDraft?.let { TriggerRadius(it.radiusMeters) } ?: TriggerRadius.DEFAULT
+        mapRendererPort?.placePin(coordinates)
+        mapRendererPort?.showGeofence(coordinates, radius)
+    }
+
+    fun onSaveDraftAlarm(draft: ConfigureAlarmDraft) {
+        val existing = draft.alarmId?.let { id ->
+            _uiState.value.alarms.firstOrNull { it.id == id }
+        }
+        val alarm = draft.toLocationAlarm(existing)
+        scope.launch {
+            val result = saveAlarmPort.saveAlarm(alarm)
+            if (result.isSuccess) {
+                _uiState.update { current ->
+                    current.copy(
+                        activeDraft = null,
+                        selectedAlarmForEdit = null,
+                        initialAlarmLabel = null,
+                        selectedCoordinates = null,
+                        selectedRadius = TriggerRadius.DEFAULT,
+                    )
+                }
+                mapRendererPort?.clearOverlays()
+            }
+        }
+    }
+
+    fun onClearDraft() {
+        _uiState.update { it.copy(activeDraft = null) }
     }
 
     /**
