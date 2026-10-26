@@ -62,7 +62,7 @@ class AndroidAlarmManagerSchedulerAdapterTest {
                     alarmId = alarmId,
                 )
             )
-            scheduledCalls.removeAll { it.requestCode == requestCode }
+            scheduledCalls.removeAll { it.requestCode == requestCode && it.alarmId == alarmId }
         }
     }
 
@@ -175,5 +175,29 @@ class AndroidAlarmManagerSchedulerAdapterTest {
 
         assertEquals(1, fakeGateway.scheduledCalls.size)
         assertEquals(idB.hashCode(), fakeGateway.scheduledCalls[0].requestCode)
+    }
+
+    @Test
+    fun collidingHashCodes_distinguishPendingIntentsByAlarmId() = runTest {
+        val fakeGateway = FakeAlarmManagerGateway()
+        val adapter = AndroidAlarmManagerSchedulerAdapter(
+            apiLevel = 34,
+            gateway = fakeGateway,
+        )
+
+        val id1 = "alarm-id-alpha"
+        val id2 = "alarm-id-beta"
+        val instant = Instant.parse("2026-10-26T08:00:00Z")
+
+        adapter.scheduleWakeup(id1, instant)
+        adapter.scheduleWakeup(id2, instant)
+
+        assertEquals(2, fakeGateway.scheduledCalls.size)
+
+        // Cancel only id1
+        adapter.cancelWakeup(id1)
+
+        assertEquals(1, fakeGateway.scheduledCalls.size)
+        assertEquals(id2, fakeGateway.scheduledCalls.first().alarmId)
     }
 }

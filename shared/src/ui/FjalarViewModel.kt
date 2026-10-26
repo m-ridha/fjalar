@@ -11,9 +11,11 @@ import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
+import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
 import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,6 +47,7 @@ class FjalarViewModel(
     private val dismissAlarmPort: DismissAlarmPort,
     private val skipTodayPort: SkipTodayPort,
     private val preferencesPort: PreferencesPort,
+    private val syncSchedulesPort: SyncSchedulesPort? = null,
     coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
 
@@ -168,6 +171,14 @@ class FjalarViewModel(
                 selectedAlarmForEdit = null,
             )
         }
+    }
+
+    /**
+     * Re-synchronizes all saved alarms against current time to re-arm commute windows
+     * and transition states. Invoked during foreground application entry and system events.
+     */
+    fun syncSchedules(): Job = scope.launch {
+        syncSchedulesPort?.syncSchedules()
     }
 
     fun onRecenterMap() {

@@ -11,6 +11,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
+import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -72,6 +73,14 @@ class FjalarViewModelTest {
         }
     }
 
+    private class FakeSyncSchedulesPort : SyncSchedulesPort {
+        var syncCount = 0
+        override suspend fun syncSchedules(): List<LocationAlarm> {
+            syncCount++
+            return emptyList()
+        }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun TestScope.createTestViewModel(
         observePort: ObserveAlarmsPort = FakeObserveAlarmsPort(),
@@ -79,6 +88,7 @@ class FjalarViewModelTest {
         togglePort: ToggleAlarmPort = FakeToggleAlarmPort(),
         dismissPort: DismissAlarmPort = FakeDismissAlarmPort(),
         skipTodayPort: SkipTodayPort = FakeSkipTodayPort(),
+        syncSchedulesPort: SyncSchedulesPort? = null,
         storage: InMemoryKeyValueStorage = InMemoryKeyValueStorage(),
     ): Triple<FjalarViewModel, PersistentPreferencesAdapter, CoroutineScope> {
         val testDispatcher = UnconfinedTestDispatcher(testScheduler)
@@ -91,6 +101,7 @@ class FjalarViewModelTest {
             dismissAlarmPort = dismissPort,
             skipTodayPort = skipTodayPort,
             preferencesPort = preferencesPort,
+            syncSchedulesPort = syncSchedulesPort,
             coroutineScope = vmScope,
         )
         return Triple(viewModel, preferencesPort, vmScope)
@@ -304,6 +315,18 @@ class FjalarViewModelTest {
             viewModel.onToggleTheme()
             assertEquals(ThemeMode.DARK, viewModel.uiState.value.themeMode)
             assertEquals(ThemeMode.DARK, preferences.observeThemeMode().first())
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun syncSchedules_invokesSyncSchedulesPort() = runTest {
+        val fakeSyncPort = FakeSyncSchedulesPort()
+        val (viewModel, _, vmScope) = createTestViewModel(syncSchedulesPort = fakeSyncPort)
+        try {
+            viewModel.syncSchedules().join()
+            assertEquals(1, fakeSyncPort.syncCount)
         } finally {
             vmScope.cancel()
         }

@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import kotlin.time.Instant
@@ -13,7 +14,8 @@ import kotlin.time.Instant
  *
  * Schedules exact OS wakeups targeting [com.muhammadridha.fjalar.CommuteWindowReceiver]
  * via [ACTION_COMMUTE_WINDOW]. Each scheduled alarm uses an isolated request code
- * derived from [alarmId.hashCode].
+ * derived from [alarmId.hashCode] and a distinct [PendingIntent] identity embedded with
+ * [alarmId] via intent data URI and identifier to prevent token collisions across colliding hash codes.
  *
  * On Android 12+ (API 31+), verifies [AlarmManager.canScheduleExactAlarms] before attempting
  * exact scheduling. If exact alarm permission is missing or revoked, it falls back defensively
@@ -166,13 +168,7 @@ class DefaultAlarmManagerGateway(
         action: String,
         alarmId: String,
     ) {
-        val intent = createIntent(action, alarmId)
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            requestCode,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+        val pendingIntent = createPendingIntent(requestCode, action, alarmId)
         alarmManager.cancel(pendingIntent)
         pendingIntent.cancel()
     }
@@ -198,6 +194,10 @@ class DefaultAlarmManagerGateway(
         }
         return intent.apply {
             this.action = action
+            data = Uri.fromParts("alarm", alarmId, null)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                identifier = alarmId
+            }
             putExtra(AndroidAlarmManagerSchedulerAdapter.EXTRA_ALARM_ID, alarmId)
         }
     }

@@ -16,6 +16,7 @@ import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ScheduleType
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
+import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
@@ -43,6 +44,7 @@ fun createDefaultViewModel(
     ringer: AlarmRingerPort? = null,
     alarmService: AlarmService? = null,
     preferencesPort: PreferencesPort? = null,
+    syncSchedulesPort: SyncSchedulesPort? = null,
     seedSampleAlarms: Boolean = false,
     coroutineScope: CoroutineScope? = null,
 ): FjalarViewModel {
@@ -77,6 +79,8 @@ fun createDefaultViewModel(
         )
     }
 
+    val effectiveSyncSchedulesPort = syncSchedulesPort ?: effectiveAlarmService
+
     val vm = FjalarViewModel(
         observeAlarmsPort = effectiveAlarmService,
         saveAlarmPort = effectiveAlarmService,
@@ -84,6 +88,7 @@ fun createDefaultViewModel(
         dismissAlarmPort = effectiveAlarmService,
         skipTodayPort = effectiveAlarmService,
         preferencesPort = preferences,
+        syncSchedulesPort = effectiveSyncSchedulesPort,
         coroutineScope = coroutineScope,
     )
 
@@ -145,6 +150,7 @@ fun App(
     ringer: AlarmRingerPort? = container?.alarmRinger,
     alarmService: AlarmService? = container?.alarmService,
     preferencesPort: PreferencesPort? = container?.preferences,
+    syncSchedulesPort: SyncSchedulesPort? = container?.syncSchedulesPort,
     viewModel: FjalarViewModel = viewModel {
         createDefaultViewModel(
             keyValueStorage = keyValueStorage,
@@ -153,6 +159,7 @@ fun App(
             ringer = ringer,
             alarmService = alarmService,
             preferencesPort = preferencesPort,
+            syncSchedulesPort = syncSchedulesPort,
         )
     },
     modifier: Modifier = Modifier,
