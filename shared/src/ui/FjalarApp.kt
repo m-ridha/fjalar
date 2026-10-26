@@ -75,7 +75,6 @@ fun FjalarApp(
         }
 
         val center = uiState.mapViewportCenter
-            ?: pinLocation
             ?: uiState.userLocation
             ?: GeoCoordinates.DEFAULT_JAKARTA
 
@@ -94,6 +93,7 @@ fun FjalarApp(
                 isDarkTheme = isDarkTheme,
                 onMapClick = viewModel::onMapClicked,
                 onPinDrag = viewModel::onPinDragged,
+                viewportRequestId = uiState.viewportRequestId,
                 modifier = Modifier.fillMaxSize(),
             )
 
@@ -145,30 +145,19 @@ fun FjalarApp(
                 visible = uiState.isConfigureSheetVisible,
                 enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
                 exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter),
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.55f))
-                        .clickable(onClick = viewModel::onDismissConfigureSheet),
-                    contentAlignment = Alignment.BottomCenter,
-                ) {
-                    ConfigureAlarmSheet(
-                        initialAlarm = uiState.selectedAlarmForEdit,
-                        selectedCoordinates = uiState.selectedCoordinates,
-                        onRadiusChanged = viewModel::onRadiusChanged,
-                        onSave = viewModel::onSaveAlarm,
-                        onCancel = viewModel::onDismissConfigureSheet,
-                        locale = uiState.appLocale,
-                        modifier = Modifier
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {},
-                            )
-                            .navigationBarsPadding(),
-                    )
-                }
+                ConfigureAlarmSheet(
+                    initialAlarm = uiState.selectedAlarmForEdit,
+                    selectedCoordinates = uiState.selectedCoordinates,
+                    onRadiusChanged = viewModel::onRadiusChanged,
+                    onSave = viewModel::onSaveAlarm,
+                    onCancel = viewModel::onDismissConfigureSheet,
+                    locale = uiState.appLocale,
+                    modifier = Modifier.navigationBarsPadding(),
+                )
             }
 
             // Layer 5: Full-screen Ringing Alert Overlay (Topmost critical safety layer)

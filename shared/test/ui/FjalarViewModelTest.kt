@@ -543,4 +543,65 @@ class FjalarViewModelTest {
             vmScope.cancel()
         }
     }
+
+    @Test
+    fun onSaveAlarm_clearsSelectedCoordinatesAndRadiusAndOverlays() = runTest {
+        val savePort = FakeSaveAlarmPort()
+        val fakeMapRenderer = FakeMapRendererPort()
+        val (viewModel, _, vmScope) = createTestViewModel(savePort = savePort, mapRendererPort = fakeMapRenderer)
+        try {
+            val coords = GeoCoordinates(-6.2088, 106.8456)
+            viewModel.onMapClicked(coords)
+            viewModel.onRadiusChanged(TriggerRadius(1500))
+
+            val alarm = manggaraiAlarm()
+            viewModel.onSaveAlarm(alarm)
+
+            val state = viewModel.uiState.value
+            assertFalse(state.isConfigureSheetVisible)
+            assertNull(state.selectedAlarmForEdit)
+            assertNull(state.selectedCoordinates)
+            assertEquals(TriggerRadius.DEFAULT, state.selectedRadius)
+            assertTrue(fakeMapRenderer.overlaysCleared)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun onDismissConfigureSheet_clearsSelectedCoordinatesAndRadiusAndOverlays() = runTest {
+        val fakeMapRenderer = FakeMapRendererPort()
+        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        try {
+            val coords = GeoCoordinates(-6.2088, 106.8456)
+            viewModel.onMapClicked(coords)
+            viewModel.onOpenNewAlarm()
+
+            viewModel.onDismissConfigureSheet()
+
+            val state = viewModel.uiState.value
+            assertFalse(state.isConfigureSheetVisible)
+            assertNull(state.selectedCoordinates)
+            assertEquals(TriggerRadius.DEFAULT, state.selectedRadius)
+            assertTrue(fakeMapRenderer.overlaysCleared)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun onRecenterMap_incrementsViewportRequestId() = runTest {
+        val (viewModel, _, vmScope) = createTestViewModel()
+        try {
+            assertEquals(0L, viewModel.uiState.value.viewportRequestId)
+
+            viewModel.onRecenterMap()
+            assertEquals(1L, viewModel.uiState.value.viewportRequestId)
+
+            viewModel.onRecenterMap()
+            assertEquals(2L, viewModel.uiState.value.viewportRequestId)
+        } finally {
+            vmScope.cancel()
+        }
+    }
 }

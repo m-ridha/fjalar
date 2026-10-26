@@ -16,6 +16,7 @@ actual fun PlatformMapView(
     isDarkTheme: Boolean,
     onMapClick: (GeoCoordinates) -> Unit,
     onPinDrag: (GeoCoordinates) -> Unit,
+    viewportRequestId: Long,
     modifier: Modifier,
 ) {
     AndroidMapLibreView(
@@ -27,6 +28,7 @@ actual fun PlatformMapView(
         isDarkTheme = isDarkTheme,
         onMapClick = onMapClick,
         onPinDrag = onPinDrag,
+        viewportRequestId = viewportRequestId,
         modifier = modifier,
     )
 }

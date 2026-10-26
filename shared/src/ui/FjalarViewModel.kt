@@ -40,6 +40,7 @@ data class FjalarUiState(
     val mapViewportCenter: GeoCoordinates? = null,
     val mapViewportZoom: Double = 14.0,
     val selectedRadius: TriggerRadius = TriggerRadius.DEFAULT,
+    val viewportRequestId: Long = 0L,
 )
 
 /**
@@ -141,8 +142,11 @@ class FjalarViewModel(
                     current.copy(
                         isConfigureSheetVisible = false,
                         selectedAlarmForEdit = null,
+                        selectedCoordinates = null,
+                        selectedRadius = TriggerRadius.DEFAULT,
                     )
                 }
+                mapRendererPort?.clearOverlays()
             }
         }
     }
@@ -177,6 +181,7 @@ class FjalarViewModel(
                 selectedCoordinates = alarm.coordinates,
                 selectedRadius = alarm.radius,
                 mapViewportCenter = alarm.coordinates,
+                viewportRequestId = current.viewportRequestId + 1L,
             )
         }
         mapRendererPort?.placePin(alarm.coordinates)
@@ -189,8 +194,11 @@ class FjalarViewModel(
             current.copy(
                 isConfigureSheetVisible = false,
                 selectedAlarmForEdit = null,
+                selectedCoordinates = null,
+                selectedRadius = TriggerRadius.DEFAULT,
             )
         }
+        mapRendererPort?.clearOverlays()
     }
 
     /**
@@ -205,7 +213,12 @@ class FjalarViewModel(
         val target = _uiState.value.userLocation
             ?: _uiState.value.selectedCoordinates
             ?: GeoCoordinates.DEFAULT_JAKARTA
-        _uiState.update { it.copy(mapViewportCenter = target) }
+        _uiState.update { current ->
+            current.copy(
+                mapViewportCenter = target,
+                viewportRequestId = current.viewportRequestId + 1L,
+            )
+        }
         mapRendererPort?.setViewport(target, zoom = 15.0)
     }
 

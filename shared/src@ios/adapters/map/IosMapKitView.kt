@@ -120,6 +120,7 @@ fun IosMapKitView(
     isDarkTheme: Boolean,
     onMapClick: (GeoCoordinates) -> Unit,
     onPinDrag: (GeoCoordinates) -> Unit,
+    viewportRequestId: Long = 0L,
     modifier: Modifier = Modifier,
 ) {
     val adapter = remember { IosMapKitAdapter(isDarkTheme = isDarkTheme) }
@@ -171,8 +172,14 @@ fun IosMapKitView(
         delegate.onPinDrag = { currentOnPinDrag(it) }
     }
 
-    LaunchedEffect(center, zoom) {
+    LaunchedEffect(mapView) {
         if (center != null) {
+            adapter.setViewport(center, zoom)
+        }
+    }
+
+    LaunchedEffect(viewportRequestId) {
+        if (center != null && viewportRequestId > 0L) {
             adapter.setViewport(center, zoom)
         }
     }
