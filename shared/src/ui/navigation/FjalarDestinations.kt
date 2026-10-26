@@ -36,3 +36,11 @@ fun isAlarmsRoute(route: Any?): Boolean = when (route) {
     is String -> route.contains("AlarmsRoute")
     else -> route?.let { it::class.simpleName == "AlarmsRoute" } ?: false
 }
+
+/**
+ * Determines whether the bottom navigation bar should be visible for the given route.
+ * Bottom navigation is only visible on top-level tabs (MapRoute and AlarmsRoute).
+ */
+fun isBottomBarVisible(route: Any?): Boolean =
+    isMapRoute(route ?: "MapRoute") || isAlarmsRoute(route)
+
