@@ -73,4 +73,51 @@ class IosBackgroundSchedulerAdapterTest {
         assertEquals("Bangunkan Saya (Bundle)", adapter.resolveNotificationTitle("id-ID"))
         assertEquals("Wake Me at", adapter.resolveNotificationTitle("en-US"))
     }
+
+    @Test
+    fun resolveLocalizedBundleTitle_blankOrNullLanguage_returnsNull() {
+        assertEquals(null, DefaultIosNotificationTitleResolver.resolveLocalizedBundleTitle(null))
+        assertEquals(null, DefaultIosNotificationTitleResolver.resolveLocalizedBundleTitle(""))
+        assertEquals(null, DefaultIosNotificationTitleResolver.resolveLocalizedBundleTitle("   "))
+    }
+
+    @Test
+    fun resolveLocalizedBundleTitle_prefersDisplayNameWhenValid() {
+        val title = DefaultIosNotificationTitleResolver.resolveLocalizedBundleTitle(
+            languageCode = "id",
+            bundleLookup = { lang, key ->
+                when (key) {
+                    "CFBundleDisplayName" -> "Bangunkan Saya di"
+                    "CFBundleName" -> "Fjalar"
+                    else -> null
+                }
+            }
+        )
+        assertEquals("Bangunkan Saya di", title)
+    }
+
+    @Test
+    fun resolveLocalizedBundleTitle_fallsBackToBundleNameWhenDisplayNameMissingOrPlaceholder() {
+        // When CFBundleDisplayName is missing, localizedStringForKey returns the key placeholder
+        val title = DefaultIosNotificationTitleResolver.resolveLocalizedBundleTitle(
+            languageCode = "id",
+            bundleLookup = { lang, key ->
+                when (key) {
+                    "CFBundleDisplayName" -> null // simulated rejected placeholder/null
+                    "CFBundleName" -> "Fjalar"
+                    else -> null
+                }
+            }
+        )
+        assertEquals("Fjalar", title)
+    }
+
+    @Test
+    fun resolveLocalizedBundleTitle_returnsNullWhenBothKeysMissingOrBlank() {
+        val title = DefaultIosNotificationTitleResolver.resolveLocalizedBundleTitle(
+            languageCode = "id",
+            bundleLookup = { _, _ -> null }
+        )
+        assertEquals(null, title)
+    }
 }

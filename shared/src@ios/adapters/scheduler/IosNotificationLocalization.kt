@@ -16,7 +16,7 @@ interface IosNotificationTitleResolver {
 
 open class DefaultIosNotificationTitleResolver(
     private val appNameResourceProvider: (suspend () -> String) = { getString(Res.string.app_name) },
-    private val localizedBundleResolver: (languageCode: String?) -> String? = ::resolveLocalizedBundleTitle,
+    private val localizedBundleResolver: (languageCode: String?) -> String? = { resolveLocalizedBundleTitle(it) },
 ) : IosNotificationTitleResolver {
 
     override suspend fun resolveTitle(preferredLanguage: String?): String {
@@ -50,13 +50,18 @@ open class DefaultIosNotificationTitleResolver(
         const val ENGLISH_APP_NAME = "Wake Me at"
         const val INDONESIAN_APP_NAME = "Bangunkan Saya di"
 
-        fun resolveLocalizedBundleTitle(languageCode: String?): String? {
+        fun resolveLocalizedBundleTitle(
+            languageCode: String?,
+            bundleLookup: (languageCode: String, key: String) -> String? = { lang, key ->
+                val path = NSBundle.mainBundle.pathForResource(name = lang, ofType = "lproj")
+                val bundle = if (path != null) NSBundle.bundleWithPath(path) else null
+                val localized = bundle?.localizedStringForKey(key = key, value = null, table = "InfoPlist")
+                localized?.takeIf { it != key && it.isNotBlank() }
+            },
+        ): String? {
             if (languageCode.isNullOrBlank()) return null
-            val path = NSBundle.mainBundle.pathForResource(name = languageCode, ofType = "lproj")
-            val bundle = if (path != null) NSBundle.bundleWithPath(path) else null
-            val localized = bundle?.localizedStringForKey(key = "CFBundleDisplayName", value = null, table = "InfoPlist")
-                ?: bundle?.localizedStringForKey(key = "CFBundleName", value = null, table = "InfoPlist")
-            return localized?.takeIf { it != "CFBundleDisplayName" && it != "CFBundleName" && it.isNotBlank() }
+            return bundleLookup(languageCode, "CFBundleDisplayName")
+                ?: bundleLookup(languageCode, "CFBundleName")
         }
     }
 }
