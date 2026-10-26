@@ -181,6 +181,7 @@ class FjalarViewModel(
                 selectedCoordinates = alarm.coordinates,
                 selectedRadius = alarm.radius,
                 mapViewportCenter = alarm.coordinates,
+                mapViewportZoom = 15.0,
                 viewportRequestId = current.viewportRequestId + 1L,
             )
         }
@@ -216,6 +217,7 @@ class FjalarViewModel(
         _uiState.update { current ->
             current.copy(
                 mapViewportCenter = target,
+                mapViewportZoom = 15.0,
                 viewportRequestId = current.viewportRequestId + 1L,
             )
         }

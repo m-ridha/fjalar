@@ -426,6 +426,7 @@ class FjalarViewModelTest {
             viewModel.onRecenterMap()
 
             assertEquals(userLocation, viewModel.uiState.value.mapViewportCenter)
+            assertEquals(15.0, viewModel.uiState.value.mapViewportZoom)
             assertEquals(userLocation to 15.0, fakeMapRenderer.lastViewport)
         } finally {
             vmScope.cancel()
@@ -443,6 +444,7 @@ class FjalarViewModelTest {
             viewModel.onRecenterMap()
 
             assertEquals(GeoCoordinates.DEFAULT_JAKARTA, viewModel.uiState.value.mapViewportCenter)
+            assertEquals(15.0, viewModel.uiState.value.mapViewportZoom)
             assertEquals(GeoCoordinates.DEFAULT_JAKARTA to 15.0, fakeMapRenderer.lastViewport)
         } finally {
             vmScope.cancel()
@@ -509,6 +511,7 @@ class FjalarViewModelTest {
             assertEquals(alarm.coordinates, state.selectedCoordinates)
             assertEquals(alarm.radius, state.selectedRadius)
             assertEquals(alarm.coordinates, state.mapViewportCenter)
+            assertEquals(15.0, state.mapViewportZoom)
             assertEquals(alarm.coordinates, fakeMapRenderer.lastPin)
             assertEquals(alarm.coordinates to alarm.radius, fakeMapRenderer.lastGeofence)
             assertEquals(alarm.coordinates to 15.0, fakeMapRenderer.lastViewport)
