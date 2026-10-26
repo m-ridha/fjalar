@@ -63,6 +63,8 @@ enum class FjalarStringKey {
     // Permissions
     PERM_LOCATION_TITLE,
     PERM_LOCATION_BODY,
+    PERM_LOCATION_GRANT,
+    PERM_LOCATION_DISMISS,
 
     // Search Station Modal
     SEARCH_PLACEHOLDER,
@@ -153,6 +155,8 @@ object FjalarStrings {
 
         FjalarStringKey.PERM_LOCATION_TITLE to "Allow Background Location for Wake-Up Alarms",
         FjalarStringKey.PERM_LOCATION_BODY to "Fjalar checks your GPS distance in the background only while an alarm is armed so it can wake you up even when your screen is locked. Your location never leaves your phone.",
+        FjalarStringKey.PERM_LOCATION_GRANT to "Grant Permission",
+        FjalarStringKey.PERM_LOCATION_DISMISS to "Dismiss",
 
         FjalarStringKey.SEARCH_PLACEHOLDER to "Search stations, stops, or places...",
         FjalarStringKey.SEARCH_CATEGORY_ALL to "All",
@@ -235,6 +239,8 @@ object FjalarStrings {
 
         FjalarStringKey.PERM_LOCATION_TITLE to "Izinkan Lokasi Latar Belakang untuk Alarm Tujuan",
         FjalarStringKey.PERM_LOCATION_BODY to "Fjalar memeriksa jarak GPS di latar belakang hanya saat alarm aktif agar dapat membangunkan Anda meski layar terkunci. Lokasi Anda tidak pernah dikirim keluar dari ponsel ini.",
+        FjalarStringKey.PERM_LOCATION_GRANT to "Izinkan Akses",
+        FjalarStringKey.PERM_LOCATION_DISMISS to "Abaikan",
 
         FjalarStringKey.SEARCH_PLACEHOLDER to "Cari stasiun, halte, atau tempat...",
         FjalarStringKey.SEARCH_CATEGORY_ALL to "Semua",

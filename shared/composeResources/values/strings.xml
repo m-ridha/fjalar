@@ -56,6 +56,8 @@
     <!-- Permissions modal -->
     <string name="perm_location_title">Allow Background Location for Wake-Up Alarms</string>
     <string name="perm_location_body">Fjalar checks your GPS distance in the background only while an alarm is armed so it can wake you up even when your screen is locked. Your location never leaves your phone.</string>
+    <string name="perm_location_grant">Grant Permission</string>
+    <string name="perm_location_dismiss">Dismiss</string>
 
     <!-- Search modal & station catalog -->
     <string name="search_placeholder">Search stations, stops, or places...</string>

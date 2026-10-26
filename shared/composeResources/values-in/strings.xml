@@ -56,6 +56,8 @@
     <!-- Permissions modal -->
     <string name="perm_location_title">Izinkan Lokasi Latar Belakang untuk Alarm Tujuan</string>
     <string name="perm_location_body">Fjalar memeriksa jarak GPS di latar belakang hanya saat alarm aktif agar dapat membangunkan Anda meski layar terkunci. Lokasi Anda tidak pernah dikirim keluar dari ponsel ini.</string>
+    <string name="perm_location_grant">Izinkan Akses</string>
+    <string name="perm_location_dismiss">Abaikan</string>
 
     <!-- Search modal & station catalog -->
     <string name="search_placeholder">Cari stasiun, halte, atau tempat...</string>

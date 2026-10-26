@@ -53,6 +53,7 @@ data class FjalarUiState(
     val selectedRadius: TriggerRadius = TriggerRadius.DEFAULT,
     val viewportRequestId: Long = 0L,
     val activeDraft: ConfigureAlarmDraft? = null,
+    val hasLocationPermission: Boolean = true,
 )
 
 /**
@@ -407,22 +408,33 @@ class FjalarViewModel(
         syncSchedulesPort?.syncSchedules()
     }
 
+    fun onPermissionResult(granted: Boolean) {
+        _uiState.update { it.copy(hasLocationPermission = granted) }
+    }
+
     fun onRecenterMap() {
-        val target = _uiState.value.userLocation
-            ?: _uiState.value.selectedCoordinates
+        val current = _uiState.value
+        val target = current.userLocation
+            ?: current.selectedCoordinates
+            ?: current.alarms.firstOrNull()?.coordinates
             ?: GeoCoordinates.DEFAULT_JAKARTA
-        _uiState.update { current ->
-            current.copy(
+        _uiState.update { state ->
+            state.copy(
                 mapViewportCenter = target,
                 mapViewportZoom = 15.0,
-                viewportRequestId = current.viewportRequestId + 1L,
+                viewportRequestId = state.viewportRequestId + 1L,
             )
         }
         mapRendererPort?.setViewport(target, zoom = 15.0)
     }
 
     fun onUserLocationChanged(coordinates: GeoCoordinates) {
-        _uiState.update { it.copy(userLocation = coordinates) }
+        _uiState.update { current ->
+            current.copy(
+                userLocation = coordinates,
+                mapViewportCenter = current.mapViewportCenter ?: coordinates,
+            )
+        }
     }
 
     fun onMapClicked(coordinates: GeoCoordinates) {

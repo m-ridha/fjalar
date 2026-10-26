@@ -31,6 +31,7 @@ import com.muhammadridha.fjalar.ui.components.ArmedStatusPill
 import com.muhammadridha.fjalar.ui.components.ConfigureAlarmSheet
 import com.muhammadridha.fjalar.ui.components.FloatingHudBar
 import com.muhammadridha.fjalar.ui.components.GlassBottomSheet
+import com.muhammadridha.fjalar.ui.components.LocationPermissionBanner
 import com.muhammadridha.fjalar.ui.components.PlatformMapView
 import com.muhammadridha.fjalar.ui.components.RingingAlertOverlay
 import com.muhammadridha.fjalar.ui.components.SearchPlacesSheet
@@ -46,6 +47,7 @@ fun FjalarApp(
     viewModel: FjalarViewModel,
     modifier: Modifier = Modifier,
     reducedTransparency: Boolean = false,
+    onRequestPermission: (() -> Unit)? = null,
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -115,6 +117,17 @@ fun FjalarApp(
                     locale = uiState.appLocale,
                     themeMode = uiState.themeMode,
                 )
+
+                if (!uiState.hasLocationPermission) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LocationPermissionBanner(
+                        onRequestPermission = { onRequestPermission?.invoke() },
+                        onDismiss = { viewModel.onPermissionResult(true) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                    )
+                }
 
                 val armedAlarm = uiState.alarms.firstOrNull { it.state == AlarmState.ARMED_MONITORING }
                 if (armedAlarm != null) {

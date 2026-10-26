@@ -176,11 +176,13 @@ fun App(
         )
     },
     reducedTransparency: Boolean = false,
+    onRequestPermission: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     FjalarApp(
         viewModel = viewModel,
         modifier = modifier,
         reducedTransparency = reducedTransparency,
+        onRequestPermission = onRequestPermission,
     )
 }

@@ -98,5 +98,11 @@ class FjalarStringsTest {
 
         assertEquals("Set Location", FjalarStrings.get(FjalarStringKey.PICKER_CONFIRM, AppLocale.EN))
         assertEquals("Tetapkan Lokasi", FjalarStrings.get(FjalarStringKey.PICKER_CONFIRM, AppLocale.ID))
+
+        assertEquals("Grant Permission", FjalarStrings.get(FjalarStringKey.PERM_LOCATION_GRANT, AppLocale.EN))
+        assertEquals("Izinkan Akses", FjalarStrings.get(FjalarStringKey.PERM_LOCATION_GRANT, AppLocale.ID))
+
+        assertEquals("Dismiss", FjalarStrings.get(FjalarStringKey.PERM_LOCATION_DISMISS, AppLocale.EN))
+        assertEquals("Abaikan", FjalarStrings.get(FjalarStringKey.PERM_LOCATION_DISMISS, AppLocale.ID))
     }
 }
