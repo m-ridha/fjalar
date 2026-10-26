@@ -27,9 +27,27 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
 
     fun disable(alarm: LocationAlarm): LocationAlarm = alarm.copy(state = DISABLED, suppressedUntil = null)
 
+    /** Editing mode keeps disabled/ringing states and any unfinished completion guard. */
+    fun prepareSave(previous: LocationAlarm?, edited: LocationAlarm, now: Instant): LocationAlarm {
+        if (previous == null || previous.schedule.type == edited.schedule.type) {
+            return syncSchedule(edited, now)
+        }
+        val preserved = edited.copy(state = previous.state, suppressedUntil = previous.suppressedUntil)
+        if (preserved.state == DISABLED || preserved.state == RINGING) return preserved
+        if (preserved.suppressedUntil != null && now < preserved.suppressedUntil) {
+            return preserved.copy(state = COMPLETED_FOR_WINDOW)
+        }
+        return enable(preserved, now)
+    }
+
     /** Moves scheduled alarms in or out of monitoring as windows open and close. */
     fun syncSchedule(alarm: LocationAlarm, now: Instant): LocationAlarm {
-        if (alarm.schedule.type != ScheduleType.SCHEDULED) return alarm
+        if (alarm.schedule.type != ScheduleType.SCHEDULED) {
+            return if (alarm.state == COMPLETED_FOR_WINDOW &&
+                (alarm.suppressedUntil == null || now >= alarm.suppressedUntil)) {
+                alarm.copy(state = ARMED_MONITORING, suppressedUntil = null)
+            } else alarm
+        }
         return when (alarm.state) {
             // A ringing alarm keeps ringing past the window end until the user stops it.
             DISABLED, RINGING -> alarm

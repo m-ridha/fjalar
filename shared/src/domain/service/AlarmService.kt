@@ -51,7 +51,8 @@ class AlarmService(
     override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> = resultOf {
         mutex.withLock {
             val now = clock.now()
-            persist(repository.getAlarm(alarm.id), evaluator.syncSchedule(alarm, now))
+            val previous = repository.getAlarm(alarm.id)
+            persist(previous, evaluator.prepareSave(previous, alarm, now))
             applySideEffects(now)
         }
     }
@@ -139,6 +140,7 @@ class AlarmService(
     }
 
     private fun nextWakeup(alarm: LocationAlarm, now: Instant): Instant? {
+        if (alarm.state == COMPLETED_FOR_WINDOW) return alarm.suppressedUntil
         if (alarm.schedule.type != ScheduleType.SCHEDULED) return null
         return when (alarm.state) {
             DISABLED, RINGING -> null

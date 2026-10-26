@@ -44,6 +44,22 @@ class AlarmServiceTest {
     )
 
     @Test
+    fun convertedCompletedAlarmKeepsWakeupUntilSuppressionEnds() = runTest {
+        val end = Instant.fromEpochMilliseconds(clock.now().toEpochMilliseconds() + 60_000L)
+        val old = createSampleAlarm(schedule = AlarmSchedule(
+            type = ScheduleType.SCHEDULED, startMinuteOfDay = 420,
+            endMinuteOfDay = 540, daysOfWeekMask = AlarmSchedule.WEEKDAYS,
+        ), state = AlarmState.COMPLETED_FOR_WINDOW).copy(suppressedUntil = end)
+        service.saveAlarm(old).getOrThrow()
+        service.saveAlarm(old.copy(schedule = AlarmSchedule.ONE_TIME)).getOrThrow()
+        assertFalse(tracker.isTracking)
+        kotlin.test.assertEquals(end, scheduler.wakeups[old.id])
+        clock.now = end
+        service.syncSchedules()
+        assertTrue(tracker.isTracking)
+    }
+
+    @Test
     fun deleteAlarm_removesAlarmFromRepository() = runTest {
         val alarm = createSampleAlarm(id = "del-1")
         service.saveAlarm(alarm)
@@ -58,6 +74,7 @@ class AlarmServiceTest {
     fun deleteAlarm_whenAlarmIsArmed_stopsTrackingAndCancelsSchedule() = runTest {
         val armed = createSampleAlarm(id = "del-armed", state = AlarmState.ARMED_MONITORING)
         service.saveAlarm(armed)
+        scheduler.cancelledWakeups.clear()
 
         service.deleteAlarm("del-armed")
 
