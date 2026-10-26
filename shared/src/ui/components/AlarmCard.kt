@@ -2,6 +2,7 @@ package com.muhammadridha.fjalar.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,6 +54,7 @@ fun AlarmCard(
     onEdit: (alarm: LocationAlarm) -> Unit,
     modifier: Modifier = Modifier,
     onSkipToday: (id: String) -> Unit = {},
+    onDelete: ((alarm: LocationAlarm) -> Unit)? = null,
     locale: AppLocale = LiquidGlassTheme.locale,
 ) {
     val colors = LiquidGlassTheme.colors
@@ -100,16 +103,36 @@ fun AlarmCard(
                 }
             }
 
-            Switch(
-                checked = alarm.isEnabled,
-                onCheckedChange = { checked -> onToggle(alarm.id, checked) },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = colors.primary,
-                    checkedTrackColor = colors.primary.copy(alpha = 0.4f),
-                    uncheckedThumbColor = colors.textSecondary.copy(alpha = 0.7f),
-                    uncheckedTrackColor = colors.textSecondary.copy(alpha = 0.2f),
-                ),
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (onDelete != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                            .clickable(role = Role.Button) { onDelete(alarm) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "🗑️",
+                            fontSize = 14.sp,
+                        )
+                    }
+                }
+
+                Switch(
+                    checked = alarm.isEnabled,
+                    onCheckedChange = { checked -> onToggle(alarm.id, checked) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = colors.primary,
+                        checkedTrackColor = colors.primary.copy(alpha = 0.4f),
+                        uncheckedThumbColor = colors.textSecondary.copy(alpha = 0.7f),
+                        uncheckedTrackColor = colors.textSecondary.copy(alpha = 0.2f),
+                    ),
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
