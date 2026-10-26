@@ -35,6 +35,7 @@ import com.muhammadridha.fjalar.ui.components.FloatingHudBar
 import com.muhammadridha.fjalar.ui.components.GlassBottomSheet
 import com.muhammadridha.fjalar.ui.components.PlatformMapView
 import com.muhammadridha.fjalar.ui.components.RingingAlertOverlay
+import com.muhammadridha.fjalar.ui.components.SearchPlacesSheet
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 
 /**
@@ -106,7 +107,7 @@ fun FjalarApp(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 FloatingHudBar(
-                    onSearchClick = { /* Open search */ },
+                    onSearchClick = viewModel::onOpenSearch,
                     onToggleLocale = viewModel::onToggleLocale,
                     onToggleTheme = viewModel::onToggleTheme,
                     onRecenter = viewModel::onRecenterMap,
@@ -151,10 +152,35 @@ fun FjalarApp(
             ) {
                 ConfigureAlarmSheet(
                     initialAlarm = uiState.selectedAlarmForEdit,
+                    initialLabel = uiState.initialAlarmLabel,
                     selectedCoordinates = uiState.selectedCoordinates,
                     onRadiusChanged = viewModel::onRadiusChanged,
                     onSave = viewModel::onSaveAlarm,
                     onCancel = viewModel::onDismissConfigureSheet,
+                    locale = uiState.appLocale,
+                    modifier = Modifier.navigationBarsPadding(),
+                )
+            }
+
+            // Layer 4b: Search Places Modal Sheet (animated visibility)
+            AnimatedVisibility(
+                visible = uiState.isSearchSheetVisible,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter),
+            ) {
+                SearchPlacesSheet(
+                    query = uiState.searchQuery,
+                    onQueryChange = viewModel::onSearchQueryChanged,
+                    results = uiState.searchResults,
+                    selectedCategory = uiState.selectedCategoryFilter,
+                    onCategorySelect = viewModel::onSelectCategoryFilter,
+                    onPlaceSelect = viewModel::onSelectPlace,
+                    onDismiss = viewModel::onDismissSearch,
+                    isLoading = uiState.isSearching,
+                    userLocation = uiState.userLocation,
                     locale = uiState.appLocale,
                     modifier = Modifier.navigationBarsPadding(),
                 )

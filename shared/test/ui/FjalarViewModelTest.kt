@@ -7,6 +7,8 @@ import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
+import com.muhammadridha.fjalar.domain.model.PlaceCategory
+import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
@@ -16,6 +18,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
 import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
+import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -109,6 +112,25 @@ class FjalarViewModelTest {
         }
     }
 
+    private class FakeSearchPlacesPort(
+        var places: List<SearchResultPlace> = emptyList(),
+    ) : SearchPlacesPort {
+        var lastQuery: String? = null
+        var lastProximity: GeoCoordinates? = null
+        var searchCallCount: Int = 0
+
+        override suspend fun searchPlaces(
+            query: String,
+            locale: AppLocale,
+            proximity: GeoCoordinates?,
+        ): List<SearchResultPlace> {
+            searchCallCount++
+            lastQuery = query
+            lastProximity = proximity
+            return places.filter { it.matchesQuery(query) }
+        }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun TestScope.createTestViewModel(
         observePort: ObserveAlarmsPort = FakeObserveAlarmsPort(),
@@ -118,6 +140,7 @@ class FjalarViewModelTest {
         skipTodayPort: SkipTodayPort = FakeSkipTodayPort(),
         syncSchedulesPort: SyncSchedulesPort? = null,
         mapRendererPort: MapRendererPort? = null,
+        searchPlacesPort: SearchPlacesPort? = null,
         storage: InMemoryKeyValueStorage = InMemoryKeyValueStorage(),
     ): Triple<FjalarViewModel, PersistentPreferencesAdapter, CoroutineScope> {
         val testDispatcher = UnconfinedTestDispatcher(testScheduler)
@@ -132,6 +155,7 @@ class FjalarViewModelTest {
             preferencesPort = preferencesPort,
             syncSchedulesPort = syncSchedulesPort,
             mapRendererPort = mapRendererPort,
+            searchPlacesPort = searchPlacesPort,
             coroutineScope = vmScope,
         )
         return Triple(viewModel, preferencesPort, vmScope)
@@ -603,6 +627,176 @@ class FjalarViewModelTest {
 
             viewModel.onRecenterMap()
             assertEquals(2L, viewModel.uiState.value.viewportRequestId)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun testOpenAndDismissSearch() = runTest {
+        val fakeSearchPort = FakeSearchPlacesPort(
+            places = listOf(
+                SearchResultPlace(
+                    id = "station_1",
+                    name = "Manggarai",
+                    coordinates = GeoCoordinates(-6.20988, 106.85016),
+                    category = PlaceCategory.TRAIN_STATION,
+                ),
+            ),
+        )
+        val (viewModel, _, vmScope) = createTestViewModel(searchPlacesPort = fakeSearchPort)
+        try {
+            assertFalse(viewModel.uiState.value.isSearchSheetVisible)
+
+            viewModel.onOpenSearch()
+            assertTrue(viewModel.uiState.value.isSearchSheetVisible)
+            assertEquals(1, fakeSearchPort.searchCallCount)
+            assertEquals("", fakeSearchPort.lastQuery)
+            assertEquals(1, viewModel.uiState.value.searchResults.size)
+
+            viewModel.onDismissSearch()
+            assertFalse(viewModel.uiState.value.isSearchSheetVisible)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun testSearchQueryChanged() = runTest {
+        val mri = SearchResultPlace(
+            id = "krl_mri",
+            name = "Stasiun Manggarai",
+            coordinates = GeoCoordinates(-6.20988, 106.85016),
+            category = PlaceCategory.TRAIN_STATION,
+            aliases = listOf("MRI", "Manggarai"),
+        )
+        val sud = SearchResultPlace(
+            id = "krl_sud",
+            name = "Stasiun Sudirman",
+            coordinates = GeoCoordinates(-6.20235, 106.82365),
+            category = PlaceCategory.TRAIN_STATION,
+            aliases = listOf("SUD", "Sudirman"),
+        )
+        val fakeSearchPort = FakeSearchPlacesPort(places = listOf(mri, sud))
+        val (viewModel, _, vmScope) = createTestViewModel(searchPlacesPort = fakeSearchPort)
+        try {
+            viewModel.onSearchQueryChanged("Sudirman")
+
+            val state = viewModel.uiState.value
+            assertEquals("Sudirman", state.searchQuery)
+            assertFalse(state.isSearching)
+            assertEquals(1, state.searchResults.size)
+            assertEquals("krl_sud", state.searchResults.first().id)
+            assertEquals("Sudirman", fakeSearchPort.lastQuery)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun testSelectCategoryFilter() = runTest {
+        val train = SearchResultPlace(
+            id = "krl_mri",
+            name = "Stasiun Manggarai",
+            coordinates = GeoCoordinates(-6.20988, 106.85016),
+            category = PlaceCategory.TRAIN_STATION,
+        )
+        val metro = SearchResultPlace(
+            id = "mrt_bundaran_hi",
+            name = "Bundaran HI",
+            coordinates = GeoCoordinates(-6.19277, 106.82302),
+            category = PlaceCategory.METRO_STATION,
+        )
+        val transit = SearchResultPlace(
+            id = "tj_harmoni",
+            name = "Harmoni Central Busway",
+            coordinates = GeoCoordinates(-6.16611, 106.82056),
+            category = PlaceCategory.TRANSIT_STOP,
+        )
+        val fakeSearchPort = FakeSearchPlacesPort(places = listOf(train, metro, transit))
+        val (viewModel, _, vmScope) = createTestViewModel(searchPlacesPort = fakeSearchPort)
+        try {
+            viewModel.onSearchQueryChanged("")
+            assertEquals(3, viewModel.uiState.value.searchResults.size)
+
+            viewModel.onSelectCategoryFilter(PlaceCategory.TRAIN_STATION)
+            assertEquals(PlaceCategory.TRAIN_STATION, viewModel.uiState.value.selectedCategoryFilter)
+            assertEquals(1, viewModel.uiState.value.searchResults.size)
+            assertEquals("krl_mri", viewModel.uiState.value.searchResults.first().id)
+
+            viewModel.onSelectCategoryFilter(PlaceCategory.METRO_STATION)
+            assertEquals(PlaceCategory.METRO_STATION, viewModel.uiState.value.selectedCategoryFilter)
+            assertEquals(1, viewModel.uiState.value.searchResults.size)
+            assertEquals("mrt_bundaran_hi", viewModel.uiState.value.searchResults.first().id)
+
+            viewModel.onSelectCategoryFilter(null)
+            assertNull(viewModel.uiState.value.selectedCategoryFilter)
+            assertEquals(3, viewModel.uiState.value.searchResults.size)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun testSelectPlace() = runTest {
+        val fakeMapRenderer = FakeMapRendererPort()
+        val place = SearchResultPlace(
+            id = "krl_mri",
+            name = "Stasiun Manggarai",
+            coordinates = GeoCoordinates(-6.20988, 106.85016),
+            category = PlaceCategory.TRAIN_STATION,
+        )
+        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        try {
+            viewModel.onOpenSearch()
+            assertTrue(viewModel.uiState.value.isSearchSheetVisible)
+
+            viewModel.onSelectPlace(place)
+
+            val state = viewModel.uiState.value
+            assertFalse(state.isSearchSheetVisible)
+            assertTrue(state.isConfigureSheetVisible)
+            assertNull(state.selectedAlarmForEdit)
+            assertEquals("Stasiun Manggarai", state.initialAlarmLabel)
+            assertEquals(place.coordinates, state.selectedCoordinates)
+            assertEquals(TriggerRadius.DEFAULT, state.selectedRadius)
+            assertEquals(place.coordinates, state.mapViewportCenter)
+            assertEquals(15.0, state.mapViewportZoom)
+            assertEquals(1L, state.viewportRequestId)
+
+            assertEquals(place.coordinates, fakeMapRenderer.lastPin)
+            assertEquals(place.coordinates to TriggerRadius.DEFAULT, fakeMapRenderer.lastGeofence)
+            assertEquals(place.coordinates to 15.0, fakeMapRenderer.lastViewport)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun testInitialAlarmLabelLifecycle() = runTest {
+        val (viewModel, _, vmScope) = createTestViewModel()
+        try {
+            val place = SearchResultPlace(
+                id = "krl_mri",
+                name = "Stasiun Manggarai",
+                coordinates = GeoCoordinates(-6.20988, 106.85016),
+                category = PlaceCategory.TRAIN_STATION,
+            )
+            viewModel.onSelectPlace(place)
+            assertEquals("Stasiun Manggarai", viewModel.uiState.value.initialAlarmLabel)
+
+            // Open new alarm resets initialAlarmLabel to null
+            viewModel.onOpenNewAlarm()
+            assertNull(viewModel.uiState.value.initialAlarmLabel)
+
+            // Open edit alarm sets initialAlarmLabel to alarm.label
+            val alarm = manggaraiAlarm()
+            viewModel.onOpenEditAlarm(alarm)
+            assertEquals(alarm.label, viewModel.uiState.value.initialAlarmLabel)
+
+            // Dismiss configure sheet resets initialAlarmLabel to null
+            viewModel.onDismissConfigureSheet()
+            assertNull(viewModel.uiState.value.initialAlarmLabel)
         } finally {
             vmScope.cancel()
         }

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.muhammadridha.fjalar.adapters.search.HybridPlaceSearchAdapter
 import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.PersistentAlarmRepository
@@ -22,6 +23,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
+import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import com.muhammadridha.fjalar.domain.service.AlarmService
 import com.muhammadridha.fjalar.domain.service.ScheduleEvaluator
 import com.muhammadridha.fjalar.ui.FjalarApp
@@ -47,6 +49,7 @@ fun createDefaultViewModel(
     preferencesPort: PreferencesPort? = null,
     syncSchedulesPort: SyncSchedulesPort? = null,
     mapRendererPort: MapRendererPort? = null,
+    searchPlacesPort: SearchPlacesPort? = null,
     seedSampleAlarms: Boolean = false,
     coroutineScope: CoroutineScope? = null,
 ): FjalarViewModel {
@@ -82,6 +85,7 @@ fun createDefaultViewModel(
     }
 
     val effectiveSyncSchedulesPort = syncSchedulesPort ?: effectiveAlarmService
+    val effectiveSearchPlacesPort = searchPlacesPort ?: HybridPlaceSearchAdapter()
 
     val vm = FjalarViewModel(
         observeAlarmsPort = effectiveAlarmService,
@@ -92,6 +96,7 @@ fun createDefaultViewModel(
         preferencesPort = preferences,
         syncSchedulesPort = effectiveSyncSchedulesPort,
         mapRendererPort = mapRendererPort,
+        searchPlacesPort = effectiveSearchPlacesPort,
         coroutineScope = coroutineScope,
     )
 
@@ -155,6 +160,7 @@ fun App(
     preferencesPort: PreferencesPort? = container?.preferences,
     syncSchedulesPort: SyncSchedulesPort? = container?.syncSchedulesPort,
     mapRendererPort: MapRendererPort? = container?.mapRendererPort,
+    searchPlacesPort: SearchPlacesPort? = container?.searchPlacesPort,
     viewModel: FjalarViewModel = viewModel {
         createDefaultViewModel(
             keyValueStorage = keyValueStorage,
@@ -165,6 +171,7 @@ fun App(
             preferencesPort = preferencesPort,
             syncSchedulesPort = syncSchedulesPort,
             mapRendererPort = mapRendererPort,
+            searchPlacesPort = searchPlacesPort,
         )
     },
     modifier: Modifier = Modifier,

@@ -79,13 +79,16 @@ fun ConfigureAlarmSheet(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     initialAlarm: LocationAlarm? = null,
+    initialLabel: String? = null,
     selectedCoordinates: GeoCoordinates? = null,
     onRadiusChanged: (TriggerRadius) -> Unit = {},
     locale: AppLocale = LiquidGlassTheme.locale,
 ) {
     val colors = LiquidGlassTheme.colors
 
-    var label by remember { mutableStateOf(initialAlarm?.label ?: "") }
+    var label by remember(initialAlarm, initialLabel) {
+        mutableStateOf(initialLabel ?: initialAlarm?.label ?: "")
+    }
     var radiusMeters by remember {
         mutableIntStateOf(initialAlarm?.radius?.meters ?: 500)
     }

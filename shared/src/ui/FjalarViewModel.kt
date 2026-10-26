@@ -6,6 +6,8 @@ import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
+import com.muhammadridha.fjalar.domain.model.PlaceCategory
+import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
@@ -16,6 +18,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
 import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
+import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +38,11 @@ data class FjalarUiState(
     val selectedAlarmForEdit: LocationAlarm? = null,
     val isConfigureSheetVisible: Boolean = false,
     val searchQuery: String = "",
+    val isSearchSheetVisible: Boolean = false,
+    val searchResults: List<SearchResultPlace> = emptyList(),
+    val isSearching: Boolean = false,
+    val selectedCategoryFilter: PlaceCategory? = null,
+    val initialAlarmLabel: String? = null,
     val userLocation: GeoCoordinates? = null,
     val selectedCoordinates: GeoCoordinates? = null,
     val mapViewportCenter: GeoCoordinates? = null,
@@ -56,6 +64,7 @@ class FjalarViewModel(
     private val preferencesPort: PreferencesPort,
     private val syncSchedulesPort: SyncSchedulesPort? = null,
     private val mapRendererPort: MapRendererPort? = null,
+    private val searchPlacesPort: SearchPlacesPort? = null,
     coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
 
@@ -63,6 +72,9 @@ class FjalarViewModel(
 
     private val _uiState = MutableStateFlow(FjalarUiState())
     val uiState: StateFlow<FjalarUiState> = _uiState.asStateFlow()
+
+    private var searchJob: Job? = null
+    private var unfilteredSearchResults: List<SearchResultPlace> = emptyList()
 
     init {
         scope.launch {
@@ -94,8 +106,68 @@ class FjalarViewModel(
         }
     }
 
+    fun onOpenSearch() {
+        _uiState.update { it.copy(isSearchSheetVisible = true) }
+        if (_uiState.value.searchResults.isEmpty() && _uiState.value.searchQuery.isBlank()) {
+            onSearchQueryChanged("")
+        }
+    }
+
+    fun onDismissSearch() {
+        _uiState.update { it.copy(isSearchSheetVisible = false) }
+    }
+
     fun onSearchQueryChanged(query: String) {
-        _uiState.update { it.copy(searchQuery = query) }
+        _uiState.update { it.copy(searchQuery = query, isSearching = true) }
+        searchJob?.cancel()
+        searchJob = scope.launch {
+            val locale = _uiState.value.appLocale
+            val proximity = _uiState.value.userLocation ?: _uiState.value.selectedCoordinates
+            val places = searchPlacesPort?.searchPlaces(query, locale, proximity) ?: emptyList()
+            unfilteredSearchResults = places
+            val filtered = applyCategoryFilter(places, _uiState.value.selectedCategoryFilter)
+            _uiState.update { it.copy(searchResults = filtered, isSearching = false) }
+        }
+    }
+
+    fun onSelectCategoryFilter(category: PlaceCategory?) {
+        val filtered = applyCategoryFilter(unfilteredSearchResults, category)
+        _uiState.update { current ->
+            current.copy(
+                selectedCategoryFilter = category,
+                searchResults = filtered,
+            )
+        }
+    }
+
+    fun onSelectPlace(place: SearchResultPlace) {
+        _uiState.update { current ->
+            current.copy(
+                isSearchSheetVisible = false,
+                isConfigureSheetVisible = true,
+                selectedAlarmForEdit = null,
+                initialAlarmLabel = place.name,
+                selectedCoordinates = place.coordinates,
+                selectedRadius = TriggerRadius.DEFAULT,
+                mapViewportCenter = place.coordinates,
+                mapViewportZoom = 15.0,
+                viewportRequestId = current.viewportRequestId + 1L,
+            )
+        }
+        mapRendererPort?.placePin(place.coordinates)
+        mapRendererPort?.showGeofence(place.coordinates, TriggerRadius.DEFAULT)
+        mapRendererPort?.setViewport(place.coordinates, zoom = 15.0)
+    }
+
+    private fun applyCategoryFilter(
+        places: List<SearchResultPlace>,
+        category: PlaceCategory?,
+    ): List<SearchResultPlace> {
+        return if (category == null) {
+            places
+        } else {
+            places.filter { it.category == category }
+        }
     }
 
     fun onToggleTheme() {
@@ -142,6 +214,7 @@ class FjalarViewModel(
                     current.copy(
                         isConfigureSheetVisible = false,
                         selectedAlarmForEdit = null,
+                        initialAlarmLabel = null,
                         selectedCoordinates = null,
                         selectedRadius = TriggerRadius.DEFAULT,
                     )
@@ -164,6 +237,7 @@ class FjalarViewModel(
         _uiState.update { current ->
             current.copy(
                 selectedAlarmForEdit = null,
+                initialAlarmLabel = null,
                 isConfigureSheetVisible = true,
                 selectedCoordinates = target,
                 selectedRadius = TriggerRadius.DEFAULT,
@@ -177,6 +251,7 @@ class FjalarViewModel(
         _uiState.update { current ->
             current.copy(
                 selectedAlarmForEdit = alarm,
+                initialAlarmLabel = alarm.label,
                 isConfigureSheetVisible = true,
                 selectedCoordinates = alarm.coordinates,
                 selectedRadius = alarm.radius,
@@ -195,6 +270,7 @@ class FjalarViewModel(
             current.copy(
                 isConfigureSheetVisible = false,
                 selectedAlarmForEdit = null,
+                initialAlarmLabel = null,
                 selectedCoordinates = null,
                 selectedRadius = TriggerRadius.DEFAULT,
             )
