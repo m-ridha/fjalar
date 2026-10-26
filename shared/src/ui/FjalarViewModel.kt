@@ -7,12 +7,14 @@ import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ThemeMode
+import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
+import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -34,6 +36,11 @@ data class FjalarUiState(
     val isConfigureSheetVisible: Boolean = false,
     val searchQuery: String = "",
     val userLocation: GeoCoordinates? = null,
+    val selectedCoordinates: GeoCoordinates? = null,
+    val mapViewportCenter: GeoCoordinates? = null,
+    val mapViewportZoom: Double = 14.0,
+    val selectedRadius: TriggerRadius = TriggerRadius.DEFAULT,
+    val viewportRequestId: Long = 0L,
 )
 
 /**
@@ -48,6 +55,7 @@ class FjalarViewModel(
     private val skipTodayPort: SkipTodayPort,
     private val preferencesPort: PreferencesPort,
     private val syncSchedulesPort: SyncSchedulesPort? = null,
+    private val mapRendererPort: MapRendererPort? = null,
     coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
 
@@ -134,8 +142,11 @@ class FjalarViewModel(
                     current.copy(
                         isConfigureSheetVisible = false,
                         selectedAlarmForEdit = null,
+                        selectedCoordinates = null,
+                        selectedRadius = TriggerRadius.DEFAULT,
                     )
                 }
+                mapRendererPort?.clearOverlays()
             }
         }
     }
@@ -147,12 +158,19 @@ class FjalarViewModel(
     }
 
     fun onOpenNewAlarm() {
+        val target = _uiState.value.selectedCoordinates
+            ?: _uiState.value.userLocation
+            ?: GeoCoordinates.DEFAULT_JAKARTA
         _uiState.update { current ->
             current.copy(
                 selectedAlarmForEdit = null,
                 isConfigureSheetVisible = true,
+                selectedCoordinates = target,
+                selectedRadius = TriggerRadius.DEFAULT,
             )
         }
+        mapRendererPort?.placePin(target)
+        mapRendererPort?.showGeofence(target, TriggerRadius.DEFAULT)
     }
 
     fun onOpenEditAlarm(alarm: LocationAlarm) {
@@ -160,8 +178,16 @@ class FjalarViewModel(
             current.copy(
                 selectedAlarmForEdit = alarm,
                 isConfigureSheetVisible = true,
+                selectedCoordinates = alarm.coordinates,
+                selectedRadius = alarm.radius,
+                mapViewportCenter = alarm.coordinates,
+                mapViewportZoom = 15.0,
+                viewportRequestId = current.viewportRequestId + 1L,
             )
         }
+        mapRendererPort?.placePin(alarm.coordinates)
+        mapRendererPort?.showGeofence(alarm.coordinates, alarm.radius)
+        mapRendererPort?.setViewport(alarm.coordinates, zoom = 15.0)
     }
 
     fun onDismissConfigureSheet() {
@@ -169,8 +195,11 @@ class FjalarViewModel(
             current.copy(
                 isConfigureSheetVisible = false,
                 selectedAlarmForEdit = null,
+                selectedCoordinates = null,
+                selectedRadius = TriggerRadius.DEFAULT,
             )
         }
+        mapRendererPort?.clearOverlays()
     }
 
     /**
@@ -182,6 +211,40 @@ class FjalarViewModel(
     }
 
     fun onRecenterMap() {
-        // Map recenter hook
+        val target = _uiState.value.userLocation
+            ?: _uiState.value.selectedCoordinates
+            ?: GeoCoordinates.DEFAULT_JAKARTA
+        _uiState.update { current ->
+            current.copy(
+                mapViewportCenter = target,
+                mapViewportZoom = 15.0,
+                viewportRequestId = current.viewportRequestId + 1L,
+            )
+        }
+        mapRendererPort?.setViewport(target, zoom = 15.0)
+    }
+
+    fun onUserLocationChanged(coordinates: GeoCoordinates) {
+        _uiState.update { it.copy(userLocation = coordinates) }
+    }
+
+    fun onMapClicked(coordinates: GeoCoordinates) {
+        _uiState.update { it.copy(selectedCoordinates = coordinates) }
+        mapRendererPort?.placePin(coordinates)
+        mapRendererPort?.showGeofence(coordinates, _uiState.value.selectedRadius)
+    }
+
+    fun onPinDragged(coordinates: GeoCoordinates) {
+        _uiState.update { it.copy(selectedCoordinates = coordinates) }
+        mapRendererPort?.placePin(coordinates)
+        mapRendererPort?.showGeofence(coordinates, _uiState.value.selectedRadius)
+    }
+
+    fun onRadiusChanged(radius: TriggerRadius) {
+        _uiState.update { it.copy(selectedRadius = radius) }
+        val coords = _uiState.value.selectedCoordinates
+        if (coords != null) {
+            mapRendererPort?.showGeofence(coords, radius)
+        }
     }
 }

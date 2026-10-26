@@ -79,6 +79,8 @@ fun ConfigureAlarmSheet(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     initialAlarm: LocationAlarm? = null,
+    selectedCoordinates: GeoCoordinates? = null,
+    onRadiusChanged: (TriggerRadius) -> Unit = {},
     locale: AppLocale = LiquidGlassTheme.locale,
 ) {
     val colors = LiquidGlassTheme.colors
@@ -159,7 +161,7 @@ fun ConfigureAlarmSheet(
                         }
 
                         val id = initialAlarm?.id ?: "alarm-${Clock.System.now().toEpochMilliseconds()}"
-                        val coordinates = initialAlarm?.coordinates ?: GeoCoordinates(-6.2088, 106.8456)
+                        val coordinates = selectedCoordinates ?: initialAlarm?.coordinates ?: GeoCoordinates.DEFAULT_JAKARTA
                         val updated = LocationAlarm(
                             id = id,
                             label = label.trim(),
@@ -240,7 +242,10 @@ fun ConfigureAlarmSheet(
                         .weight(1f)
                         .clip(CircleShape)
                         .background(if (isSelected) colors.primary else colors.glassPill)
-                        .clickable(role = Role.Button) { radiusMeters = preset }
+                        .clickable(role = Role.Button) {
+                            radiusMeters = preset
+                            onRadiusChanged(TriggerRadius(preset))
+                        }
                         .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -261,7 +266,11 @@ fun ConfigureAlarmSheet(
         // Interactive Radius Slider
         Slider(
             value = radiusMeters.toFloat(),
-            onValueChange = { radiusMeters = it.roundToInt().coerceIn(100, 10000) },
+            onValueChange = {
+                val newRadius = it.roundToInt().coerceIn(100, 10000)
+                radiusMeters = newRadius
+                onRadiusChanged(TriggerRadius(newRadius))
+            },
             valueRange = 100f..10000f,
             colors = SliderDefaults.colors(
                 thumbColor = colors.primary,
