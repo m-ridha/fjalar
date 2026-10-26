@@ -6,6 +6,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
+import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
 import com.muhammadridha.fjalar.domain.service.AlarmService
 import kotlinx.datetime.TimeZone
@@ -23,6 +24,7 @@ interface FjalarPlatformContainer {
     val alarmRinger: AlarmRingerPort
     val alarmService: AlarmService
     val syncSchedulesPort: SyncSchedulesPort
+    val mapRendererPort: MapRendererPort? get() = null
 
     fun onTimezoneChanged(newTimeZone: TimeZone = TimeZone.currentSystemDefault())
 }

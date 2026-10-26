@@ -20,6 +20,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
+import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
 import com.muhammadridha.fjalar.domain.service.AlarmService
 import com.muhammadridha.fjalar.domain.service.ScheduleEvaluator
@@ -45,6 +46,7 @@ fun createDefaultViewModel(
     alarmService: AlarmService? = null,
     preferencesPort: PreferencesPort? = null,
     syncSchedulesPort: SyncSchedulesPort? = null,
+    mapRendererPort: MapRendererPort? = null,
     seedSampleAlarms: Boolean = false,
     coroutineScope: CoroutineScope? = null,
 ): FjalarViewModel {
@@ -89,6 +91,7 @@ fun createDefaultViewModel(
         skipTodayPort = effectiveAlarmService,
         preferencesPort = preferences,
         syncSchedulesPort = effectiveSyncSchedulesPort,
+        mapRendererPort = mapRendererPort,
         coroutineScope = coroutineScope,
     )
 
@@ -151,6 +154,7 @@ fun App(
     alarmService: AlarmService? = container?.alarmService,
     preferencesPort: PreferencesPort? = container?.preferences,
     syncSchedulesPort: SyncSchedulesPort? = container?.syncSchedulesPort,
+    mapRendererPort: MapRendererPort? = container?.mapRendererPort,
     viewModel: FjalarViewModel = viewModel {
         createDefaultViewModel(
             keyValueStorage = keyValueStorage,
@@ -160,6 +164,7 @@ fun App(
             alarmService = alarmService,
             preferencesPort = preferencesPort,
             syncSchedulesPort = syncSchedulesPort,
+            mapRendererPort = mapRendererPort,
         )
     },
     modifier: Modifier = Modifier,

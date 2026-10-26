@@ -12,6 +12,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
+import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
 import com.muhammadridha.fjalar.domain.service.AlarmService
 import com.muhammadridha.fjalar.domain.service.ScheduleEvaluator
@@ -27,6 +28,7 @@ open class FjalarIosContainer(
     override val alarmScheduler: AlarmSchedulerPort = IosBackgroundSchedulerAdapter(),
     locationTracker: LocationTrackerPort? = null,
     override val alarmRinger: AlarmRingerPort = IosCriticalAudioRingerAdapter(),
+    override val mapRendererPort: MapRendererPort? = null,
 ) : FjalarPlatformContainer {
 
     override val locationTracker: LocationTrackerPort = locationTracker ?: IosCLLocationAdapter(

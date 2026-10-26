@@ -5,14 +5,17 @@ import com.muhammadridha.fjalar.adapters.storage.PersistentPreferencesAdapter
 import com.muhammadridha.fjalar.domain.manggaraiAlarm
 import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.AppLocale
+import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ThemeMode
+import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
+import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -81,6 +84,31 @@ class FjalarViewModelTest {
         }
     }
 
+    private class FakeMapRendererPort : MapRendererPort {
+        var lastViewport: Pair<GeoCoordinates, Double>? = null
+        var lastPin: GeoCoordinates? = null
+        var lastGeofence: Pair<GeoCoordinates, TriggerRadius>? = null
+        var overlaysCleared: Boolean = false
+
+        override fun setViewport(center: GeoCoordinates, zoom: Double) {
+            lastViewport = center to zoom
+        }
+
+        override fun placePin(coordinates: GeoCoordinates) {
+            lastPin = coordinates
+        }
+
+        override fun showGeofence(center: GeoCoordinates, radius: TriggerRadius) {
+            lastGeofence = center to radius
+        }
+
+        override fun clearOverlays() {
+            overlaysCleared = true
+            lastPin = null
+            lastGeofence = null
+        }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun TestScope.createTestViewModel(
         observePort: ObserveAlarmsPort = FakeObserveAlarmsPort(),
@@ -89,6 +117,7 @@ class FjalarViewModelTest {
         dismissPort: DismissAlarmPort = FakeDismissAlarmPort(),
         skipTodayPort: SkipTodayPort = FakeSkipTodayPort(),
         syncSchedulesPort: SyncSchedulesPort? = null,
+        mapRendererPort: MapRendererPort? = null,
         storage: InMemoryKeyValueStorage = InMemoryKeyValueStorage(),
     ): Triple<FjalarViewModel, PersistentPreferencesAdapter, CoroutineScope> {
         val testDispatcher = UnconfinedTestDispatcher(testScheduler)
@@ -102,6 +131,7 @@ class FjalarViewModelTest {
             skipTodayPort = skipTodayPort,
             preferencesPort = preferencesPort,
             syncSchedulesPort = syncSchedulesPort,
+            mapRendererPort = mapRendererPort,
             coroutineScope = vmScope,
         )
         return Triple(viewModel, preferencesPort, vmScope)
@@ -327,6 +357,112 @@ class FjalarViewModelTest {
         try {
             viewModel.syncSchedules().join()
             assertEquals(1, fakeSyncPort.syncCount)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun onMapClicked_updatesSelectedCoordinatesAndMapRenderer() = runTest {
+        val fakeMapRenderer = FakeMapRendererPort()
+        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        try {
+            val coords = GeoCoordinates(-6.2000, 106.8166)
+            viewModel.onMapClicked(coords)
+
+            assertEquals(coords, viewModel.uiState.value.selectedCoordinates)
+            assertEquals(coords, fakeMapRenderer.lastPin)
+            assertEquals(coords to TriggerRadius.DEFAULT, fakeMapRenderer.lastGeofence)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun onPinDragged_updatesSelectedCoordinates() = runTest {
+        val fakeMapRenderer = FakeMapRendererPort()
+        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        try {
+            val initialCoords = GeoCoordinates(-6.2000, 106.8166)
+            val draggedCoords = GeoCoordinates(-6.2100, 106.8200)
+
+            viewModel.onMapClicked(initialCoords)
+            viewModel.onPinDragged(draggedCoords)
+
+            assertEquals(draggedCoords, viewModel.uiState.value.selectedCoordinates)
+            assertEquals(draggedCoords, fakeMapRenderer.lastPin)
+            assertEquals(draggedCoords to TriggerRadius.DEFAULT, fakeMapRenderer.lastGeofence)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun onRadiusChanged_updatesSelectedRadiusAndGeofenceOverlay() = runTest {
+        val fakeMapRenderer = FakeMapRendererPort()
+        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        try {
+            val coords = GeoCoordinates(-6.2000, 106.8166)
+            val newRadius = TriggerRadius(1000)
+
+            viewModel.onMapClicked(coords)
+            viewModel.onRadiusChanged(newRadius)
+
+            assertEquals(newRadius, viewModel.uiState.value.selectedRadius)
+            assertEquals(coords to newRadius, fakeMapRenderer.lastGeofence)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun onRecenterMap_centersOnUserLocationWhenAvailable() = runTest {
+        val fakeMapRenderer = FakeMapRendererPort()
+        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        try {
+            val userLocation = GeoCoordinates(-6.1754, 106.8272)
+            viewModel.onUserLocationChanged(userLocation)
+
+            viewModel.onRecenterMap()
+
+            assertEquals(userLocation, viewModel.uiState.value.mapViewportCenter)
+            assertEquals(userLocation to 15.0, fakeMapRenderer.lastViewport)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun onRecenterMap_fallsBackToDefaultCoordinatesWhenUserLocationNull() = runTest {
+        val fakeMapRenderer = FakeMapRendererPort()
+        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        try {
+            assertNull(viewModel.uiState.value.userLocation)
+            assertNull(viewModel.uiState.value.selectedCoordinates)
+
+            viewModel.onRecenterMap()
+
+            assertEquals(GeoCoordinates.DEFAULT_JAKARTA, viewModel.uiState.value.mapViewportCenter)
+            assertEquals(GeoCoordinates.DEFAULT_JAKARTA to 15.0, fakeMapRenderer.lastViewport)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun onOpenNewAlarm_preservesSelectedMapCoordinates() = runTest {
+        val fakeMapRenderer = FakeMapRendererPort()
+        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        try {
+            val coords = GeoCoordinates(-6.2088, 106.8456)
+            viewModel.onMapClicked(coords)
+            assertEquals(coords, viewModel.uiState.value.selectedCoordinates)
+
+            viewModel.onOpenNewAlarm()
+
+            assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
+            assertNull(viewModel.uiState.value.selectedAlarmForEdit)
+            assertEquals(coords, viewModel.uiState.value.selectedCoordinates)
         } finally {
             vmScope.cancel()
         }
