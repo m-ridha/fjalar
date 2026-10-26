@@ -489,7 +489,7 @@ object TransitStationCatalog {
         SearchResultPlace(
             id = "krl_cjt",
             name = "Stasiun Cilejit",
-            coordinates = GeoCoordinates(-6.35750, 106.51611),
+            coordinates = GeoCoordinates(-6.35437, 106.50958),
             category = PlaceCategory.TRAIN_STATION,
             detail = "KRL Commuter Line (Rangkasbitung)",
             aliases = listOf("CJT", "Cilejit", "Stasiun Cilejit"),
@@ -497,7 +497,7 @@ object TransitStationCatalog {
         SearchResultPlace(
             id = "krl_dar",
             name = "Stasiun Daru",
-            coordinates = GeoCoordinates(-6.36028, 106.47944),
+            coordinates = GeoCoordinates(-6.33805, 106.49246),
             category = PlaceCategory.TRAIN_STATION,
             detail = "KRL Commuter Line (Rangkasbitung)",
             aliases = listOf("DAR", "Daru", "Stasiun Daru"),
@@ -505,7 +505,7 @@ object TransitStationCatalog {
         SearchResultPlace(
             id = "krl_tej",
             name = "Stasiun Tenjo",
-            coordinates = GeoCoordinates(-6.33583, 106.45278),
+            coordinates = GeoCoordinates(-6.32733, 106.46178),
             category = PlaceCategory.TRAIN_STATION,
             detail = "KRL Commuter Line (Rangkasbitung)",
             aliases = listOf("TEJ", "Tenjo", "Stasiun Tenjo"),
@@ -513,7 +513,7 @@ object TransitStationCatalog {
         SearchResultPlace(
             id = "krl_tgs",
             name = "Stasiun Tigaraksa",
-            coordinates = GeoCoordinates(-6.33111, 106.42639),
+            coordinates = GeoCoordinates(-6.32833, 106.43472),
             category = PlaceCategory.TRAIN_STATION,
             detail = "KRL Commuter Line (Rangkasbitung)",
             aliases = listOf("TGS", "Tigaraksa", "Stasiun Tigaraksa"),
@@ -521,7 +521,7 @@ object TransitStationCatalog {
         SearchResultPlace(
             id = "krl_cky",
             name = "Stasiun Cikoya",
-            coordinates = GeoCoordinates(-6.33056, 106.40194),
+            coordinates = GeoCoordinates(-6.33556, 106.41179),
             category = PlaceCategory.TRAIN_STATION,
             detail = "KRL Commuter Line (Rangkasbitung)",
             aliases = listOf("CKY", "Cikoya", "Stasiun Cikoya"),
@@ -529,7 +529,7 @@ object TransitStationCatalog {
         SearchResultPlace(
             id = "krl_mj",
             name = "Stasiun Maja",
-            coordinates = GeoCoordinates(-6.33194, 106.39861),
+            coordinates = GeoCoordinates(-6.33231, 106.39656),
             category = PlaceCategory.TRAIN_STATION,
             detail = "KRL Commuter Line (Rangkasbitung)",
             aliases = listOf("MJ", "Maja", "Stasiun Maja"),

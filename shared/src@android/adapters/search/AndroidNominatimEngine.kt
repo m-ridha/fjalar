@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
@@ -40,7 +41,13 @@ class AndroidNominatimEngine(
         try {
             val encodedQuery = URLEncoder.encode(trimmed, "UTF-8")
             val langCode = locale.tag
-            val urlString = "$baseUrl/search?q=$encodedQuery&format=json&addressdetails=1&limit=$limit"
+            val urlString = if (baseUrl.contains("photon")) {
+                val base = if (baseUrl.endsWith("/")) baseUrl.dropLast(1) else baseUrl
+                "$base?q=$encodedQuery&limit=$limit&lang=$langCode"
+            } else {
+                val base = if (baseUrl.endsWith("/")) baseUrl.dropLast(1) else baseUrl
+                "$base/search?q=$encodedQuery&format=json&addressdetails=1&limit=$limit"
+            }
 
             val url = URL(urlString)
             val connection = (url.openConnection() as HttpURLConnection).apply {
@@ -62,7 +69,14 @@ class AndroidNominatimEngine(
                     reader.readText()
                 }
 
-                parseNominatimResponse(responseBody, limit)
+                val trimmedResponse = responseBody.trim()
+                if (trimmedResponse.startsWith("{")) {
+                    parsePhotonResponse(trimmedResponse, limit)
+                } else if (trimmedResponse.startsWith("[")) {
+                    parseNominatimResponse(trimmedResponse, limit)
+                } else {
+                    emptyList()
+                }
             } finally {
                 connection.disconnect()
             }
@@ -119,9 +133,60 @@ class AndroidNominatimEngine(
         return results
     }
 
+    private fun parsePhotonResponse(jsonText: String, limit: Int): List<SearchResultPlace> {
+        val root = JSONObject(jsonText)
+        val features = root.optJSONArray("features") ?: return emptyList()
+        val results = mutableListOf<SearchResultPlace>()
+
+        for (i in 0 until features.length()) {
+            if (results.size >= limit) break
+            val feature = features.optJSONObject(i) ?: continue
+            val geometry = feature.optJSONObject("geometry") ?: continue
+            val coordsArray = geometry.optJSONArray("coordinates") ?: continue
+            if (coordsArray.length() < 2) continue
+
+            // GeoJSON coordinates order is [longitude, latitude]
+            val lon = coordsArray.optDouble(0, Double.NaN)
+            val lat = coordsArray.optDouble(1, Double.NaN)
+            if (lat.isNaN() || lon.isNaN() || lat !in -90.0..90.0 || lon !in -180.0..180.0) {
+                continue
+            }
+
+            val props = feature.optJSONObject("properties") ?: continue
+            val name = props.optString("name", "").trim()
+            if (name.isEmpty()) continue
+
+            val osmId = props.optLong("osm_id", -1L).takeIf { it != -1L }?.toString()
+                ?: props.optString("osm_id", "").takeIf { it.isNotEmpty() }
+                ?: "photon_$i"
+
+            val osmKey = props.optString("osm_key", "")
+            val osmValue = props.optString("osm_value", "")
+            val category = resolveCategory(osmKey, osmValue)
+
+            val detailParts = listOfNotNull(
+                props.optString("city", "").takeIf { it.isNotEmpty() },
+                props.optString("state", "").takeIf { it.isNotEmpty() },
+                props.optString("country", "").takeIf { it.isNotEmpty() },
+            )
+            val detail = if (detailParts.isNotEmpty()) detailParts.joinToString(", ") else null
+
+            results.add(
+                SearchResultPlace(
+                    id = "osm_$osmId",
+                    name = name,
+                    coordinates = GeoCoordinates(latitude = lat, longitude = lon),
+                    category = category,
+                    detail = detail,
+                )
+            )
+        }
+        return results
+    }
+
     private fun resolveCategory(categoryClass: String, type: String): PlaceCategory = when {
         type in listOf("subway", "subway_entrance", "metro_station") -> PlaceCategory.METRO_STATION
-        categoryClass == "railway" || type in listOf("station", "halt") -> PlaceCategory.TRAIN_STATION
+        categoryClass == "railway" -> PlaceCategory.TRAIN_STATION
         categoryClass in listOf("aeroway", "bus_station") ||
             type in listOf("aerodrome", "bus_stop", "platform", "tram_stop", "ferry_terminal") -> PlaceCategory.TRANSIT_STOP
         categoryClass in listOf("tourism", "historic", "attraction") -> PlaceCategory.LANDMARK
@@ -130,7 +195,7 @@ class AndroidNominatimEngine(
 
     companion object {
         const val MIN_QUERY_LENGTH: Int = 3
-        const val DEFAULT_BASE_URL: String = "https://nominatim.openstreetmap.org"
+        const val DEFAULT_BASE_URL: String = "https://photon.komoot.io/api"
         const val DEFAULT_USER_AGENT: String = "Fjalar/1.0 (wake-me-up-there)"
         const val DEFAULT_TIMEOUT_MS: Int = 5000
     }
