@@ -94,7 +94,7 @@ def generate_android_adaptive_foreground(emblem: Image.Image) -> tuple[Image.Ima
     canvas_fg = Image.new("RGBA", (432, 432), (0, 0, 0, 0))
     pos_x = (432 - nw) // 2
     pos_y = (432 - nh) // 2
-    canvas_fg.paste(scaled, (pos_x, pos_y), scaled)
+    canvas_fg.alpha_composite(scaled, (pos_x, pos_y))
 
     # Verify safe-zone circle constraint: distance from center (216, 216) <= 132.0 px
     pixels = canvas_fg.load()
@@ -235,8 +235,8 @@ def main():
         # 2. Android Adaptive Foreground & Monochrome
         print("2. Generating Android adaptive foreground and monochrome icons (432x432 xxxhdpi)...")
         fg, mono = generate_android_adaptive_foreground(emblem)
-        fg_path = full_path("androidApp/res/drawable/ic_launcher_foreground.png")
-        mono_path = full_path("androidApp/res/drawable/ic_launcher_monochrome.png")
+        fg_path = full_path("androidApp/res/drawable-nodpi/ic_launcher_foreground.png")
+        mono_path = full_path("androidApp/res/drawable-nodpi/ic_launcher_monochrome.png")
         os.makedirs(os.path.dirname(fg_path), exist_ok=True)
         fg.save(fg_path, "PNG")
         mono.save(mono_path, "PNG")

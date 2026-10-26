@@ -106,7 +106,7 @@ class TestGeneratedIcons(unittest.TestCase):
 
     def test_adaptive_icon_foreground_safe_zone(self):
         """Android adaptive foreground (432x432 px xxxhdpi) contained strictly within 66dp (264px) safe circle."""
-        path = self.full_path("androidApp/res/drawable/ic_launcher_foreground.png")
+        path = self.full_path("androidApp/res/drawable-nodpi/ic_launcher_foreground.png")
         self.assertTrue(os.path.isfile(path), f"Missing {path}")
 
         with Image.open(path) as img:
@@ -141,7 +141,7 @@ class TestGeneratedIcons(unittest.TestCase):
 
     def test_adaptive_icon_monochrome(self):
         """Android Material You monochrome mask (432x432 px xxxhdpi solid white with alpha)."""
-        path = self.full_path("androidApp/res/drawable/ic_launcher_monochrome.png")
+        path = self.full_path("androidApp/res/drawable-nodpi/ic_launcher_monochrome.png")
         self.assertTrue(os.path.isfile(path), f"Missing {path}")
 
         with Image.open(path) as img:
