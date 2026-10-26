@@ -111,6 +111,7 @@ fun FjalarApp(
                 FloatingHudBar(
                     onSearchClick = viewModel::onOpenSearch,
                     onToggleLocale = viewModel::onToggleLocale,
+                    onSelectLocale = viewModel::onSelectLocale,
                     onToggleTheme = viewModel::onToggleTheme,
                     onRecenter = viewModel::onRecenterMap,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

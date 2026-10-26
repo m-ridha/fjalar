@@ -200,6 +200,12 @@ class FjalarViewModel(
         }
     }
 
+    fun onSelectLocale(locale: AppLocale) {
+        scope.launch {
+            preferencesPort.setLocale(locale)
+        }
+    }
+
     fun onToggleAlarm(alarmId: String, enabled: Boolean) {
         scope.launch {
             toggleAlarmPort.toggleAlarm(alarmId, enabled)

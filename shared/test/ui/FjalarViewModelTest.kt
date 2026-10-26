@@ -290,6 +290,25 @@ class FjalarViewModelTest {
     }
 
     @Test
+    fun onSelectLocale_updatesPreferencesAndUiState() = runTest {
+        val storage = InMemoryKeyValueStorage().apply {
+            putString(PersistentPreferencesAdapter.KEY_LOCALE, AppLocale.EN.name)
+        }
+        val (viewModel, _, vmScope) = createTestViewModel(storage = storage)
+        try {
+            assertEquals(AppLocale.EN, viewModel.uiState.value.appLocale)
+
+            viewModel.onSelectLocale(AppLocale.ID)
+            assertEquals(AppLocale.ID, viewModel.uiState.value.appLocale)
+
+            viewModel.onSelectLocale(AppLocale.EN)
+            assertEquals(AppLocale.EN, viewModel.uiState.value.appLocale)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
     fun ringingAlarmDetectionExtractsFirstRingingAlarm() = runTest {
         val alarm1 = manggaraiAlarm().copy(id = "1", state = AlarmState.ARMED_MONITORING)
         val alarm2 = manggaraiAlarm().copy(id = "2", state = AlarmState.RINGING)

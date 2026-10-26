@@ -67,4 +67,30 @@
     <string name="search_empty_body">Try searching by station name, line, or abbreviation.</string>
     <string name="search_recent_title">Transit Stations</string>
     <string name="search_clear">Clear search</string>
+
+    <!-- Bottom navigation tabs -->
+    <string name="nav_map">Map</string>
+    <string name="nav_alarms">Alarms</string>
+    <string name="nav_add">Add</string>
+
+    <!-- Delete confirmation dialog -->
+    <string name="dialog_delete_title">Delete Alarm?</string>
+    <string name="dialog_delete_message">Are you sure you want to delete \'%1$s\'?</string>
+    <string name="dialog_delete_confirm">Delete</string>
+    <string name="dialog_delete_cancel">Cancel</string>
+    <string name="editor_delete_alarm">Delete Alarm</string>
+
+    <!-- Map pin picker -->
+    <string name="picker_title">Select Destination Pin</string>
+    <string name="picker_confirm">Set Location</string>
+    <string name="picker_change_pin">Change Pin on Map</string>
+    <string name="picker_hint">Pan map and drag pin to destination</string>
+
+    <!-- Empty alarms list -->
+    <string name="alarms_empty_title">No Alarms Yet</string>
+    <string name="alarms_empty_body">Tap + Add to set your first wake-up alarm.</string>
+
+    <!-- Languages -->
+    <string name="lang_english">English (EN)</string>
+    <string name="lang_indonesian">Bahasa Indonesia (ID)</string>
 </resources>
