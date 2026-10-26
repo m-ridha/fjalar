@@ -59,6 +59,7 @@ fun AlarmsScreen(
     onNavigateToConfigure: (alarmId: String?) -> Unit,
     modifier: Modifier = Modifier,
     locale: AppLocale = LiquidGlassTheme.locale,
+    hasOperationFailure: Boolean = false,
 ) {
     val colors = LiquidGlassTheme.colors
     var alarmToDelete by remember { mutableStateOf<LocationAlarm?>(null) }
@@ -69,6 +70,13 @@ fun AlarmsScreen(
             .fillMaxSize()
             .background(colors.canvas),
     ) {
+        if (hasOperationFailure) {
+            Text(
+                text = FjalarStrings.get(FjalarStringKey.OPERATION_FAILED, locale),
+                color = colors.danger,
+                modifier = WindowInsetsLayoutHelper.hudTopPaddingModifier(),
+            )
+        }
         // Safe-area Top Header
         Row(
             modifier = WindowInsetsLayoutHelper
@@ -80,10 +88,11 @@ fun AlarmsScreen(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
             ) {
                 Text(
                     text = FjalarStrings.get(FjalarStringKey.SHEET_SAVED_TITLE, locale),
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = colors.textPrimary,
                 )

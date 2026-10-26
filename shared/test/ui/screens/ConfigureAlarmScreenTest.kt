@@ -272,4 +272,11 @@ class ConfigureAlarmScreenTest {
         assertEquals("Delete Alarm", enDelete)
         assertEquals("Hapus Alarm", idDelete)
     }
+    @Test
+    fun missingDestinationCannotBecomeSavedAlarm() {
+        kotlin.test.assertFailsWith<IllegalArgumentException> {
+            ConfigureAlarmDraft(label = "Choose location first").toLocationAlarm()
+        }
+    }
+
 }

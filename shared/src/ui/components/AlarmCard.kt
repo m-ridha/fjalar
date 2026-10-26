@@ -34,17 +34,11 @@ import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ScheduleType
-import com.muhammadridha.fjalar.resources.Res
-import com.muhammadridha.fjalar.resources.card_loud_and_vibrate
-import com.muhammadridha.fjalar.resources.card_one_time_trip
-import com.muhammadridha.fjalar.resources.card_skip_today
-import com.muhammadridha.fjalar.resources.card_skipped_today
-import com.muhammadridha.fjalar.resources.editor_loud_sound
-import com.muhammadridha.fjalar.resources.editor_strong_vibrate
+import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
+import com.muhammadridha.fjalar.ui.theme.fjalarString
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
-import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -65,7 +59,7 @@ fun AlarmCard(
         val daysStr = formatDaysOfWeek(alarm.schedule.daysOfWeekMask, locale)
         if (daysStr.isNotBlank()) "$startStr – $endStr • $daysStr" else "$startStr – $endStr"
     } else {
-        stringResource(Res.string.card_one_time_trip, formatDistance(alarm.radius.meters))
+        fjalarString(FjalarStringKey.CARD_ONE_TIME_TRIP, formatDistance(alarm.radius.meters))
     }
 
     Column(
@@ -171,11 +165,11 @@ fun AlarmCard(
             // Sound & Haptics badge
             val soundBadgeText = when {
                 alarm.soundConfig.soundEnabled && alarm.soundConfig.vibrateEnabled ->
-                    stringResource(Res.string.card_loud_and_vibrate)
+                    fjalarString(FjalarStringKey.CARD_LOUD_AND_VIBRATE)
                 alarm.soundConfig.soundEnabled ->
-                    stringResource(Res.string.editor_loud_sound)
+                    fjalarString(FjalarStringKey.EDITOR_LOUD_SOUND)
                 alarm.soundConfig.vibrateEnabled ->
-                    stringResource(Res.string.editor_strong_vibrate)
+                    fjalarString(FjalarStringKey.EDITOR_STRONG_VIBRATE)
                 else -> null
             }
 
@@ -194,7 +188,7 @@ fun AlarmCard(
             if (alarm.schedule.type == ScheduleType.SCHEDULED) {
                 if (alarm.state == AlarmState.COMPLETED_FOR_WINDOW) {
                     Text(
-                        text = stringResource(Res.string.card_skipped_today),
+                        text = fjalarString(FjalarStringKey.CARD_SKIPPED_TODAY),
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                         color = colors.textSecondary,
                         modifier = Modifier
@@ -203,7 +197,7 @@ fun AlarmCard(
                     )
                 } else if (alarm.isEnabled) {
                     Text(
-                        text = stringResource(Res.string.card_skip_today),
+                        text = fjalarString(FjalarStringKey.CARD_SKIP_TODAY),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.primary,

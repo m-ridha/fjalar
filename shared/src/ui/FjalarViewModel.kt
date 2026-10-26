@@ -49,11 +49,13 @@ data class FjalarUiState(
     val userLocation: GeoCoordinates? = null,
     val selectedCoordinates: GeoCoordinates? = null,
     val mapViewportCenter: GeoCoordinates? = null,
-    val mapViewportZoom: Double = 14.0,
+    val mapViewportZoom: Double = 2.0,
     val selectedRadius: TriggerRadius = TriggerRadius.DEFAULT,
     val viewportRequestId: Long = 0L,
     val activeDraft: ConfigureAlarmDraft? = null,
     val hasLocationPermission: Boolean = true,
+    val hasOperationFailure: Boolean = false,
+    val isOperationPending: Boolean = false,
 )
 
 /**
@@ -156,6 +158,11 @@ class FjalarViewModel(
                 isConfigureSheetVisible = true,
                 selectedAlarmForEdit = null,
                 initialAlarmLabel = place.name,
+                activeDraft = ConfigureAlarmDraft(
+                    label = place.name,
+                    coordinates = place.coordinates,
+                    addressLabel = place.detail,
+                ),
                 selectedCoordinates = place.coordinates,
                 selectedRadius = TriggerRadius.DEFAULT,
                 mapViewportCenter = place.coordinates,
@@ -239,10 +246,15 @@ class FjalarViewModel(
         }
     }
 
-    fun onDeleteAlarm(alarmId: String) {
+    fun onDeleteAlarm(alarmId: String, onSuccess: () -> Unit = {}) {
+        if (_uiState.value.isOperationPending) return
+        _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false) }
         scope.launch {
             val result = deleteAlarmPort?.deleteAlarm(alarmId)
-            if (result == null || result.isSuccess) {
+            _uiState.update {
+                it.copy(isOperationPending = false, hasOperationFailure = result?.isSuccess != true)
+            }
+            if (result?.isSuccess == true) {
                 if (_uiState.value.selectedAlarmForEdit?.id == alarmId) {
                     _uiState.update { current ->
                         current.copy(
@@ -255,6 +267,8 @@ class FjalarViewModel(
                     }
                     mapRendererPort?.clearOverlays()
                 }
+                _uiState.update { it.copy(activeDraft = null) }
+                onSuccess()
             }
         }
     }
@@ -321,20 +335,19 @@ class FjalarViewModel(
                     alarmId = alarmId,
                     coordinates = defaultCoordinates
                         ?: _uiState.value.selectedCoordinates
-                        ?: _uiState.value.userLocation
-                        ?: GeoCoordinates.DEFAULT_JAKARTA,
+                        ?: _uiState.value.userLocation,
                 )
         } else {
             ConfigureAlarmDraft(
                 coordinates = defaultCoordinates
                     ?: _uiState.value.selectedCoordinates
-                    ?: _uiState.value.userLocation
-                    ?: GeoCoordinates.DEFAULT_JAKARTA,
+                    ?: _uiState.value.userLocation,
             )
         }
         _uiState.update { current ->
             current.copy(
                 activeDraft = draft,
+                hasOperationFailure = false,
                 selectedAlarmForEdit = _uiState.value.alarms.firstOrNull { it.id == alarmId },
                 selectedCoordinates = draft.coordinates,
                 selectedRadius = TriggerRadius(draft.radiusMeters),
@@ -374,13 +387,18 @@ class FjalarViewModel(
         mapRendererPort?.showGeofence(coordinates, radius)
     }
 
-    fun onSaveDraftAlarm(draft: ConfigureAlarmDraft) {
+    fun onSaveDraftAlarm(draft: ConfigureAlarmDraft, onSuccess: () -> Unit = {}) {
         val existing = draft.alarmId?.let { id ->
             _uiState.value.alarms.firstOrNull { it.id == id }
         }
+        if (_uiState.value.isOperationPending) return
         val alarm = draft.toLocationAlarm(existing)
+        _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false) }
         scope.launch {
             val result = saveAlarmPort.saveAlarm(alarm)
+            _uiState.update {
+                it.copy(isOperationPending = false, hasOperationFailure = result.isFailure)
+            }
             if (result.isSuccess) {
                 _uiState.update { current ->
                     current.copy(
@@ -392,6 +410,7 @@ class FjalarViewModel(
                     )
                 }
                 mapRendererPort?.clearOverlays()
+                onSuccess()
             }
         }
     }
@@ -414,18 +433,19 @@ class FjalarViewModel(
 
     fun onRecenterMap() {
         val current = _uiState.value
-        val target = current.userLocation
+        val knownTarget = current.userLocation
             ?: current.selectedCoordinates
             ?: current.alarms.firstOrNull()?.coordinates
-            ?: GeoCoordinates.DEFAULT_JAKARTA
+        val target = knownTarget ?: GeoCoordinates(0.0, 0.0)
+        val zoom = if (knownTarget == null) 2.0 else 15.0
         _uiState.update { state ->
             state.copy(
                 mapViewportCenter = target,
-                mapViewportZoom = 15.0,
+                mapViewportZoom = zoom,
                 viewportRequestId = state.viewportRequestId + 1L,
             )
         }
-        mapRendererPort?.setViewport(target, zoom = 15.0)
+        mapRendererPort?.setViewport(target, zoom = zoom)
     }
 
     fun onUserLocationChanged(coordinates: GeoCoordinates) {
@@ -433,6 +453,12 @@ class FjalarViewModel(
             current.copy(
                 userLocation = coordinates,
                 mapViewportCenter = current.mapViewportCenter ?: coordinates,
+                mapViewportZoom = if (current.mapViewportCenter == null) 15.0 else current.mapViewportZoom,
+                viewportRequestId = if (current.mapViewportCenter == null) {
+                    current.viewportRequestId + 1L
+                } else {
+                    current.viewportRequestId
+                },
             )
         }
     }

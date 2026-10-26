@@ -95,4 +95,8 @@
     <!-- Languages -->
     <string name="lang_english">English (EN)</string>
     <string name="lang_indonesian">Bahasa Indonesia (ID)</string>
+    <string name="nav_back">← Kembali</string>
+    <string name="pinned_location">Titik Lokasi</string>
+    <string name="location_not_set">📍 Belum ditentukan</string>
+    <string name="operation_failed">Perubahan gagal disimpan. Silakan coba lagi.</string>
 </resources>

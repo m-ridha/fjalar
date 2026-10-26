@@ -36,6 +36,7 @@ fun AndroidMapLibreView(
     isDarkTheme: Boolean,
     onMapClick: (GeoCoordinates) -> Unit,
     onPinDrag: (GeoCoordinates) -> Unit,
+    onCameraCenterChanged: ((GeoCoordinates) -> Unit)? = null,
     viewportRequestId: Long = 0L,
     modifier: Modifier = Modifier,
 ) {
@@ -51,6 +52,7 @@ fun AndroidMapLibreView(
     var mapLibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
     var currentStyleUrl by remember { mutableStateOf<String?>(null) }
 
+    val currentOnCameraCenterChanged by rememberUpdatedState(onCameraCenterChanged)
     val currentOnMapClick by rememberUpdatedState(onMapClick)
     val currentOnPinDrag by rememberUpdatedState(onPinDrag)
 
@@ -158,6 +160,14 @@ fun AndroidMapLibreView(
         mapView.getMapAsync { map ->
             mapLibreMap = map
             adapter.attachMap(map)
+            map.addOnCameraIdleListener {
+                val target = map.cameraPosition.target
+                if (target != null) {
+                    with(AndroidMapRendererAdapter) {
+                        currentOnCameraCenterChanged?.invoke(target.toGeoCoordinates())
+                    }
+                }
+            }
 
             map.addOnMapClickListener { latLng ->
                 with(AndroidMapRendererAdapter) {

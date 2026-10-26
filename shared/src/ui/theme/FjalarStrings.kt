@@ -7,6 +7,11 @@ import com.muhammadridha.fjalar.domain.model.AppLocale
 val LocalFjalarLocale = LocalAppLocale
 
 enum class FjalarStringKey {
+    NAV_BACK,
+    PINNED_LOCATION,
+    LOCATION_NOT_SET,
+    OPERATION_FAILED,
+
     // App & Identity
     APP_NAME,
 
@@ -107,6 +112,11 @@ enum class FjalarStringKey {
 object FjalarStrings {
 
     private val englishCatalog: Map<FjalarStringKey, String> = mapOf(
+        FjalarStringKey.NAV_BACK to "← Back",
+        FjalarStringKey.PINNED_LOCATION to "Pinned Location",
+        FjalarStringKey.LOCATION_NOT_SET to "📍 Not set",
+        FjalarStringKey.OPERATION_FAILED to "Could not save changes. Please try again.",
+
         FjalarStringKey.APP_NAME to "Wake Me at",
 
         FjalarStringKey.HUD_SEARCH_PLACEHOLDER to "Search station or destination…",
@@ -191,6 +201,11 @@ object FjalarStrings {
     )
 
     private val indonesianCatalog: Map<FjalarStringKey, String> = mapOf(
+        FjalarStringKey.NAV_BACK to "← Kembali",
+        FjalarStringKey.PINNED_LOCATION to "Titik Lokasi",
+        FjalarStringKey.LOCATION_NOT_SET to "📍 Belum ditentukan",
+        FjalarStringKey.OPERATION_FAILED to "Perubahan gagal disimpan. Silakan coba lagi.",
+
         FjalarStringKey.APP_NAME to "Bangunkan Saya di",
 
         FjalarStringKey.HUD_SEARCH_PLACEHOLDER to "Cari stasiun atau tujuan…",

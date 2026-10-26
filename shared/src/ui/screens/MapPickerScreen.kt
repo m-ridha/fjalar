@@ -48,6 +48,7 @@ fun MapPickerScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     locale: AppLocale = LiquidGlassTheme.locale,
+    initialZoom: Double = 15.0,
 ) {
     val colors = LiquidGlassTheme.colors
     val isDarkTheme = LiquidGlassTheme.themeMode == ThemeMode.DARK ||
@@ -57,6 +58,8 @@ fun MapPickerScreen(
         mutableStateOf(initialCoordinates)
     }
 
+    var viewportRequestId by remember { mutableStateOf(0L) }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -65,21 +68,28 @@ fun MapPickerScreen(
         // Layer 1: 100% Viewport Edge-to-Edge Map
         PlatformMapView(
             center = currentCoordinates,
-            zoom = 15.0,
+            zoom = initialZoom,
             pinLocation = currentCoordinates,
             geofenceCenter = currentCoordinates,
             geofenceRadius = TriggerRadius(500),
             isDarkTheme = isDarkTheme,
-            onMapClick = { currentCoordinates = it },
-            onPinDrag = { currentCoordinates = it },
+            onMapClick = {
+                currentCoordinates = it
+                viewportRequestId++
+            },
+            onPinDrag = {
+                currentCoordinates = it
+                viewportRequestId++
+            },
+            onCameraCenterChanged = { currentCoordinates = it },
+            viewportRequestId = viewportRequestId,
             modifier = Modifier.fillMaxSize(),
         )
 
         // Layer 2: Dead-Center Crosshair Target Indicator
         Box(
             modifier = Modifier
-                .align(Alignment.Center)
-                .padding(bottom = 24.dp),
+                .align(Alignment.Center),
             contentAlignment = Alignment.Center,
         ) {
             Box(
@@ -118,7 +128,7 @@ fun MapPickerScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = if (locale == AppLocale.ID) "← Kembali" else "← Back",
+                    text = FjalarStrings.get(FjalarStringKey.NAV_BACK, locale),
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.SemiBold,
                         color = colors.textPrimary,

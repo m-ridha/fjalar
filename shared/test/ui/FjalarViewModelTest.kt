@@ -508,7 +508,7 @@ class FjalarViewModelTest {
     }
 
     @Test
-    fun onRecenterMap_fallsBackToDefaultCoordinatesWhenUserLocationNull() = runTest {
+    fun onRecenterMap_usesNeutralOverviewWhenUserLocationUnavailable() = runTest {
         val fakeMapRenderer = FakeMapRendererPort()
         val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
         try {
@@ -517,9 +517,9 @@ class FjalarViewModelTest {
 
             viewModel.onRecenterMap()
 
-            assertEquals(GeoCoordinates.DEFAULT_JAKARTA, viewModel.uiState.value.mapViewportCenter)
-            assertEquals(15.0, viewModel.uiState.value.mapViewportZoom)
-            assertEquals(GeoCoordinates.DEFAULT_JAKARTA to 15.0, fakeMapRenderer.lastViewport)
+            assertEquals(GeoCoordinates(0.0, 0.0), viewModel.uiState.value.mapViewportCenter)
+            assertEquals(2.0, viewModel.uiState.value.mapViewportZoom)
+            assertEquals(GeoCoordinates(0.0, 0.0) to 2.0, fakeMapRenderer.lastViewport)
         } finally {
             vmScope.cancel()
         }
@@ -670,13 +670,14 @@ class FjalarViewModelTest {
     fun onRecenterMap_incrementsViewportRequestId() = runTest {
         val (viewModel, _, vmScope) = createTestViewModel()
         try {
-            assertEquals(0L, viewModel.uiState.value.viewportRequestId)
-
-            viewModel.onRecenterMap()
+            viewModel.onUserLocationChanged(GeoCoordinates(51.5, -0.1))
             assertEquals(1L, viewModel.uiState.value.viewportRequestId)
 
             viewModel.onRecenterMap()
             assertEquals(2L, viewModel.uiState.value.viewportRequestId)
+
+            viewModel.onRecenterMap()
+            assertEquals(3L, viewModel.uiState.value.viewportRequestId)
         } finally {
             vmScope.cancel()
         }
@@ -857,4 +858,86 @@ class FjalarViewModelTest {
             vmScope.cancel()
         }
     }
+    @Test
+    fun recenterWithoutLocationUsesOverviewButDoesNotInventAlarmDestination() = runTest {
+        val renderer = FakeMapRendererPort()
+        val (vm, _, scope) = createTestViewModel(mapRendererPort = renderer)
+        try {
+            vm.onRecenterMap()
+            assertEquals(GeoCoordinates(0.0, 0.0), vm.uiState.value.mapViewportCenter)
+            assertEquals(GeoCoordinates(0.0, 0.0) to 2.0, renderer.lastViewport)
+            vm.onStartConfiguringAlarm(null)
+            assertNull(vm.uiState.value.activeDraft?.coordinates)
+        } finally { scope.cancel() }
+    }
+
+    @Test
+    fun selectingSearchResultCreatesNamedDraft() = runTest {
+        val (vm, _, scope) = createTestViewModel()
+        try {
+            val place = SearchResultPlace(
+                id = "london", name = "London", coordinates = GeoCoordinates(51.5, -0.1),
+                category = PlaceCategory.TRAIN_STATION,
+            )
+            vm.onSelectPlace(place)
+            assertEquals(place.name, vm.uiState.value.activeDraft?.label)
+            assertEquals(place.coordinates, vm.uiState.value.activeDraft?.coordinates)
+        } finally { scope.cancel() }
+    }
+
+    @Test
+    fun saveCompletionOnlyNavigatesAfterSuccessfulPersistence() = runTest {
+        val save = FakeSaveAlarmPort(shouldFail = true)
+        val (vm, _, scope) = createTestViewModel(savePort = save)
+        try {
+            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val draft = vm.uiState.value.activeDraft!!.copy(label = "London")
+            vm.onUpdateDraft(draft)
+            var completed = 0
+            vm.onSaveDraftAlarm(draft) { completed++ }
+            assertEquals(0, completed)
+            assertEquals(draft, vm.uiState.value.activeDraft)
+            assertTrue(vm.uiState.value.hasOperationFailure)
+            save.shouldFail = false
+            vm.onSaveDraftAlarm(draft) { completed++ }
+            assertEquals(1, completed)
+            assertNull(vm.uiState.value.activeDraft)
+            assertFalse(vm.uiState.value.hasOperationFailure)
+        } finally { scope.cancel() }
+    }
+
+    @Test
+    fun missingDeletePortDoesNotSignalSuccess() = runTest {
+        val (vm, _, scope) = createTestViewModel()
+        try {
+            var completed = false
+            vm.onDeleteAlarm("absent") { completed = true }
+            assertFalse(completed)
+        } finally { scope.cancel() }
+    }
+
+    @Test
+    fun pendingSavePreventsDuplicateAlarmWrites() = runTest {
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        var writes = 0
+        val port = object : SaveAlarmPort {
+            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> {
+                writes++
+                release.await()
+                return Result.success(Unit)
+            }
+        }
+        val (vm, _, scope) = createTestViewModel(savePort = port)
+        try {
+            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val draft = vm.uiState.value.activeDraft!!.copy(label = "London")
+            vm.onSaveDraftAlarm(draft)
+            assertTrue(vm.uiState.value.isOperationPending)
+            vm.onSaveDraftAlarm(draft)
+            assertEquals(1, writes)
+            release.complete(Unit)
+            assertFalse(vm.uiState.value.isOperationPending)
+        } finally { scope.cancel() }
+    }
+
 }

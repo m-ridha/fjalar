@@ -47,23 +47,13 @@ import com.muhammadridha.fjalar.domain.model.PlaceCategory
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.service.DistanceCalculator
 import com.muhammadridha.fjalar.domain.service.HaversineCalculator
-import com.muhammadridha.fjalar.resources.Res
-import com.muhammadridha.fjalar.resources.editor_cancel
-import com.muhammadridha.fjalar.resources.search_category_all
-import com.muhammadridha.fjalar.resources.search_category_metro
-import com.muhammadridha.fjalar.resources.search_category_train
-import com.muhammadridha.fjalar.resources.search_category_transit
-import com.muhammadridha.fjalar.resources.search_clear
-import com.muhammadridha.fjalar.resources.search_empty_body
-import com.muhammadridha.fjalar.resources.search_empty_title
-import com.muhammadridha.fjalar.resources.search_placeholder
-import com.muhammadridha.fjalar.resources.search_recent_title
+import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
+import com.muhammadridha.fjalar.ui.theme.fjalarString
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassColors
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
 import kotlin.math.roundToInt
-import org.jetbrains.compose.resources.stringResource
 
 internal fun categoryEmoji(category: PlaceCategory): String = when (category) {
     PlaceCategory.TRAIN_STATION -> "🚆"
@@ -121,14 +111,14 @@ fun SearchPlacesSheet(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(Res.string.search_recent_title),
+                text = fjalarString(FjalarStringKey.SEARCH_RECENT_TITLE),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = colors.textPrimary,
             )
 
             TextButton(onClick = onDismiss) {
                 Text(
-                    text = stringResource(Res.string.editor_cancel),
+                    text = fjalarString(FjalarStringKey.EDITOR_CANCEL),
                     color = colors.primary,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                 )
@@ -158,7 +148,7 @@ fun SearchPlacesSheet(
             ) {
                 if (query.isEmpty()) {
                     Text(
-                        text = stringResource(Res.string.search_placeholder),
+                        text = fjalarString(FjalarStringKey.SEARCH_PLACEHOLDER),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.textSecondary.copy(alpha = 0.6f),
                         maxLines = 1,
@@ -177,7 +167,7 @@ fun SearchPlacesSheet(
             }
 
             if (query.isNotBlank()) {
-                val clearDescription = stringResource(Res.string.search_clear)
+                val clearDescription = fjalarString(FjalarStringKey.SEARCH_CLEAR)
                 Box(
                     modifier = Modifier
                         .size(22.dp)
@@ -212,14 +202,14 @@ fun SearchPlacesSheet(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             CategoryChip(
-                label = stringResource(Res.string.search_category_all),
+                label = fjalarString(FjalarStringKey.SEARCH_CATEGORY_ALL),
                 selected = selectedCategory == null,
                 onClick = { onCategorySelect(null) },
                 colors = colors,
             )
 
             CategoryChip(
-                label = stringResource(Res.string.search_category_train),
+                label = fjalarString(FjalarStringKey.SEARCH_CATEGORY_TRAIN),
                 selected = selectedCategory == PlaceCategory.TRAIN_STATION,
                 onClick = {
                     onCategorySelect(
@@ -230,7 +220,7 @@ fun SearchPlacesSheet(
             )
 
             CategoryChip(
-                label = stringResource(Res.string.search_category_metro),
+                label = fjalarString(FjalarStringKey.SEARCH_CATEGORY_METRO),
                 selected = selectedCategory == PlaceCategory.METRO_STATION,
                 onClick = {
                     onCategorySelect(
@@ -241,7 +231,7 @@ fun SearchPlacesSheet(
             )
 
             CategoryChip(
-                label = stringResource(Res.string.search_category_transit),
+                label = fjalarString(FjalarStringKey.SEARCH_CATEGORY_TRANSIT),
                 selected = selectedCategory == PlaceCategory.TRANSIT_STOP,
                 onClick = {
                     onCategorySelect(
@@ -290,14 +280,14 @@ fun SearchPlacesSheet(
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = stringResource(Res.string.search_empty_title),
+                            text = fjalarString(FjalarStringKey.SEARCH_EMPTY_TITLE),
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = colors.textPrimary,
                             textAlign = TextAlign.Center,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = stringResource(Res.string.search_empty_body),
+                            text = fjalarString(FjalarStringKey.SEARCH_EMPTY_BODY),
                             style = MaterialTheme.typography.bodyMedium,
                             color = colors.textSecondary,
                             textAlign = TextAlign.Center,

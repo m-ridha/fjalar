@@ -84,7 +84,7 @@ data class ConfigureAlarmDraft(
 
     fun toLocationAlarm(existingAlarm: LocationAlarm? = null): LocationAlarm {
         val id = alarmId ?: existingAlarm?.id ?: "alarm-${Clock.System.now().toEpochMilliseconds()}"
-        val coords = coordinates ?: existingAlarm?.coordinates ?: GeoCoordinates.DEFAULT_JAKARTA
+        val coords = requireNotNull(coordinates ?: existingAlarm?.coordinates) { "Destination is required" }
         val finalSchedule = if (scheduleType == ScheduleType.SCHEDULED) {
             AlarmSchedule(
                 type = ScheduleType.SCHEDULED,
@@ -145,12 +145,15 @@ fun ConfigureAlarmScreen(
     onDelete: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
     locale: AppLocale = LiquidGlassTheme.locale,
+    isOperationPending: Boolean = false,
+    hasOperationFailure: Boolean = false,
 ) {
     val colors = LiquidGlassTheme.colors
 
     val isScheduleValid = draft.scheduleType != ScheduleType.SCHEDULED ||
         (draft.startMinuteOfDay != draft.endMinuteOfDay && draft.daysOfWeekMask != 0)
-    val isSaveEnabled = draft.label.isNotBlank() && isScheduleValid
+    val isSaveEnabled = draft.label.isNotBlank() && draft.coordinates != null &&
+        isScheduleValid && !isOperationPending
 
     var showDeleteDialog by remember { mutableStateOf(false) }
 
@@ -176,7 +179,7 @@ fun ConfigureAlarmScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = if (locale == AppLocale.ID) "← Kembali" else "← Back",
+                    text = FjalarStrings.get(FjalarStringKey.NAV_BACK, locale),
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.SemiBold,
                         color = colors.textPrimary,
@@ -187,6 +190,7 @@ fun ConfigureAlarmScreen(
             // Screen Title
             Text(
                 text = FjalarStrings.get(FjalarStringKey.EDITOR_TITLE, locale),
+                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = colors.textPrimary,
             )
@@ -222,6 +226,13 @@ fun ConfigureAlarmScreen(
                 .imePadding()
                 .padding(horizontal = 20.dp, vertical = 12.dp),
         ) {
+            if (hasOperationFailure) {
+                Text(
+                    text = FjalarStrings.get(FjalarStringKey.OPERATION_FAILED, locale),
+                    color = colors.danger,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            }
             // Label input field
             OutlinedTextField(
                 value = draft.label,
@@ -260,7 +271,7 @@ fun ConfigureAlarmScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = if (draft.addressLabel.isNullOrBlank()) {
-                                if (locale == AppLocale.ID) "Titik Lokasi" else "Pinned Location"
+                                FjalarStrings.get(FjalarStringKey.PINNED_LOCATION, locale)
                             } else {
                                 draft.addressLabel
                             },
@@ -274,7 +285,7 @@ fun ConfigureAlarmScreen(
                             val lon = (coords.longitude * 10000.0).roundToInt() / 10000.0
                             "📍 $lat, $lon"
                         } else {
-                            if (locale == AppLocale.ID) "📍 Belum ditentukan" else "📍 Not set"
+                            FjalarStrings.get(FjalarStringKey.LOCATION_NOT_SET, locale)
                         }
                         Text(
                             text = coordText,
@@ -293,7 +304,7 @@ fun ConfigureAlarmScreen(
                             .clickable(
                                 role = Role.Button,
                                 onClick = {
-                                    val target = draft.coordinates ?: GeoCoordinates.DEFAULT_JAKARTA
+                                    val target = draft.coordinates ?: GeoCoordinates(0.0, 0.0)
                                     onNavigateToPicker(target)
                                 },
                             )

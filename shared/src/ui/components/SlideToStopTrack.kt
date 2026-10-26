@@ -39,8 +39,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.muhammadridha.fjalar.resources.Res
-import com.muhammadridha.fjalar.resources.ringing_slide_to_stop
+import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
+import com.muhammadridha.fjalar.ui.theme.fjalarString
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
@@ -95,7 +95,7 @@ fun SlideToStopTrack(
     val trackPadding = 6.dp
 
     val offsetAnimatable = remember { Animatable(0f) }
-    val label = org.jetbrains.compose.resources.stringResource(Res.string.ringing_slide_to_stop)
+    val label = fjalarString(FjalarStringKey.RINGING_SLIDE_TO_STOP)
 
     BoxWithConstraints(
         modifier = modifier

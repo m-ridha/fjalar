@@ -15,8 +15,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -89,7 +96,10 @@ fun FjalarApp(
 
         val center = uiState.mapViewportCenter
             ?: uiState.userLocation
-            ?: GeoCoordinates.DEFAULT_JAKARTA
+            ?: uiState.selectedCoordinates
+            ?: GeoCoordinates(0.0, 0.0)
+
+        var permissionBannerDismissed by remember { mutableStateOf(false) }
 
         Box(
             modifier = modifier
@@ -136,11 +146,11 @@ fun FjalarApp(
                                 themeMode = uiState.themeMode,
                             )
 
-                            if (!uiState.hasLocationPermission) {
+                            if (!uiState.hasLocationPermission && !permissionBannerDismissed) {
                                 Spacer(modifier = Modifier.height(6.dp))
                                 LocationPermissionBanner(
                                     onRequestPermission = { onRequestPermission?.invoke() },
-                                    onDismiss = { viewModel.onPermissionResult(true) },
+                                    onDismiss = { permissionBannerDismissed = true },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 16.dp),
@@ -178,7 +188,10 @@ fun FjalarApp(
                                 results = uiState.searchResults,
                                 selectedCategory = uiState.selectedCategoryFilter,
                                 onCategorySelect = viewModel::onSelectCategoryFilter,
-                                onPlaceSelect = viewModel::onSelectPlace,
+                                onPlaceSelect = { place ->
+                                    viewModel.onSelectPlace(place)
+                                    navController.navigate(ConfigureRoute())
+                                },
                                 onDismiss = viewModel::onDismissSearch,
                                 isLoading = uiState.isSearching,
                                 userLocation = uiState.userLocation,
@@ -193,9 +206,10 @@ fun FjalarApp(
                 composable<AlarmsRoute> {
                     AlarmsScreen(
                         alarms = uiState.alarms,
+                        hasOperationFailure = uiState.hasOperationFailure,
                         onToggleAlarm = viewModel::onToggleAlarm,
                         onSkipToday = viewModel::onSkipToday,
-                        onDeleteAlarm = viewModel::onDeleteAlarm,
+                        onDeleteAlarm = { viewModel.onDeleteAlarm(it) },
                         onNavigateToConfigure = { alarmId ->
                             viewModel.onStartConfiguringAlarm(alarmId, defaultCoordinates = null)
                             navController.navigate(ConfigureRoute(alarmId))
@@ -207,6 +221,11 @@ fun FjalarApp(
                 // Screen 3: Configure Alarm Full-Screen Modal
                 composable<ConfigureRoute> { backStackEntry ->
                     val route = backStackEntry.toRoute<ConfigureRoute>()
+                    LaunchedEffect(backStackEntry) {
+                        if (viewModel.uiState.value.activeDraft == null) {
+                            viewModel.onStartConfiguringAlarm(route.alarmId)
+                        }
+                    }
                     val draft = uiState.activeDraft ?: run {
                         val existing = route.alarmId?.let { id ->
                             uiState.alarms.firstOrNull { it.id == id }
@@ -216,18 +235,22 @@ fun FjalarApp(
                         } else {
                             ConfigureAlarmDraft(
                                 coordinates = uiState.selectedCoordinates
-                                    ?: uiState.userLocation
-                                    ?: GeoCoordinates.DEFAULT_JAKARTA,
+                                    ?: uiState.userLocation,
                             )
                         }
                     }
 
                     ConfigureAlarmScreen(
                         draft = draft,
+                        isOperationPending = uiState.isOperationPending,
+                        hasOperationFailure = uiState.hasOperationFailure,
                         onDraftChange = viewModel::onUpdateDraft,
                         onSave = { savedDraft ->
-                            viewModel.onSaveDraftAlarm(savedDraft)
-                            navController.popBackStack()
+                            viewModel.onSaveDraftAlarm(savedDraft) {
+                                if (navController.currentBackStackEntry == backStackEntry) {
+                                    navController.popBackStack()
+                                }
+                            }
                         },
                         onBack = {
                             viewModel.onClearDraft()
@@ -242,8 +265,11 @@ fun FjalarApp(
                             )
                         },
                         onDelete = { id ->
-                            viewModel.onDeleteAlarm(id)
-                            navController.popBackStack()
+                            viewModel.onDeleteAlarm(id) {
+                                if (navController.currentBackStackEntry == backStackEntry) {
+                                    navController.popBackStack()
+                                }
+                            }
                         },
                         locale = uiState.appLocale,
                     )
@@ -254,6 +280,7 @@ fun FjalarApp(
                     val route = backStackEntry.toRoute<MapPickerRoute>()
                     MapPickerScreen(
                         initialCoordinates = GeoCoordinates(route.initialLat, route.initialLon),
+                        initialZoom = if (uiState.activeDraft?.coordinates == null) 2.0 else 15.0,
                         onConfirmCoordinates = { coords ->
                             viewModel.onDraftCoordinatesChanged(coords)
                             navController.popBackStack()
@@ -298,13 +325,25 @@ fun FjalarApp(
             // Topmost Safety Layer: Invariant 3 (Sleepy-Eyes Dismissal Safety)
             val ringingAlarm = uiState.activeRingingAlarm
             if (ringingAlarm != null) {
-                RingingAlertOverlay(
-                    alarm = ringingAlarm,
-                    onDismiss = viewModel::onDismissRingingAlarm,
-                    // shortcut: dedicated snooze port deferred to milestone 2; keep snooze inert to prevent single-tap dismissal (Invariant 3)
-                    onSnooze = {},
-                    modifier = Modifier.fillMaxSize(),
-                )
+                key(ringingAlarm.id) {
+                    // A modal window also blocks system back and existing confirmation dialogs.
+                    Dialog(
+                        onDismissRequest = {},
+                        properties = DialogProperties(
+                            dismissOnBackPress = false,
+                            dismissOnClickOutside = false,
+                            usePlatformDefaultWidth = false,
+                        ),
+                    ) {
+                        RingingAlertOverlay(
+                            alarm = ringingAlarm,
+                            onDismiss = viewModel::onDismissRingingAlarm,
+                            // Snooze remains inert until a dedicated use case is available.
+                            onSnooze = {},
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
             }
         }
     }

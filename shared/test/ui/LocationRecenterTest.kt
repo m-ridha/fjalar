@@ -195,7 +195,7 @@ class LocationRecenterTest {
     }
 
     @Test
-    fun onRecenterMap_fallsBackToDefaultCoordinatesWhenAllAreNull() = runTest {
+    fun onRecenterMap_usesNeutralOverviewWhenAllLocationsUnavailable() = runTest {
         val fakeRenderer = FakeMapRendererPort()
         val (viewModel, _, vmScope) = createTestViewModel(
             initialAlarms = emptyList(),
@@ -208,11 +208,24 @@ class LocationRecenterTest {
 
             viewModel.onRecenterMap()
 
-            assertEquals(GeoCoordinates.DEFAULT_JAKARTA, viewModel.uiState.value.mapViewportCenter)
-            assertEquals(15.0, viewModel.uiState.value.mapViewportZoom)
-            assertEquals(GeoCoordinates.DEFAULT_JAKARTA to 15.0, fakeRenderer.lastViewport)
+            assertEquals(GeoCoordinates(0.0, 0.0), viewModel.uiState.value.mapViewportCenter)
+            assertEquals(2.0, viewModel.uiState.value.mapViewportZoom)
+            assertEquals(GeoCoordinates(0.0, 0.0) to 2.0, fakeRenderer.lastViewport)
         } finally {
             vmScope.cancel()
         }
     }
+    @Test
+    fun firstLocationRequestsNativeCameraMoveButLaterFixesPreserveUserPanning() = runTest {
+        val (vm, _, scope) = createTestViewModel()
+        try {
+            vm.onUserLocationChanged(GeoCoordinates(51.5, -0.1))
+            assertEquals(1L, vm.uiState.value.viewportRequestId)
+            assertEquals(GeoCoordinates(51.5, -0.1), vm.uiState.value.mapViewportCenter)
+            vm.onUserLocationChanged(GeoCoordinates(51.6, -0.2))
+            assertEquals(1L, vm.uiState.value.viewportRequestId)
+            assertEquals(GeoCoordinates(51.5, -0.1), vm.uiState.value.mapViewportCenter)
+        } finally { scope.cancel() }
+    }
+
 }

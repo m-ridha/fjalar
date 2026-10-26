@@ -39,7 +39,12 @@ import platform.objc.sel_registerName
 private class FjalarMapKitDelegate(
     var isDarkTheme: Boolean,
     var onPinDrag: ((GeoCoordinates) -> Unit)?,
+    var onCameraCenterChanged: ((GeoCoordinates) -> Unit)?,
 ) : NSObject(), MKMapViewDelegateProtocol {
+
+    override fun mapView(mapView: MKMapView, regionDidChangeAnimated: Boolean) {
+        onCameraCenterChanged?.invoke(mapView.centerCoordinate.toGeoCoordinates())
+    }
 
     override fun mapView(mapView: MKMapView, rendererForOverlay: MKOverlayProtocol): MKOverlayRenderer {
         if (rendererForOverlay is MKCircle) {
@@ -120,12 +125,14 @@ fun IosMapKitView(
     isDarkTheme: Boolean,
     onMapClick: (GeoCoordinates) -> Unit,
     onPinDrag: (GeoCoordinates) -> Unit,
+    onCameraCenterChanged: ((GeoCoordinates) -> Unit)? = null,
     viewportRequestId: Long = 0L,
     modifier: Modifier = Modifier,
 ) {
     val adapter = remember { IosMapKitAdapter(isDarkTheme = isDarkTheme) }
     val mapView = remember { MKMapView() }
 
+    val currentOnCameraCenterChanged by rememberUpdatedState(onCameraCenterChanged)
     val currentOnMapClick by rememberUpdatedState(onMapClick)
     val currentOnPinDrag by rememberUpdatedState(onPinDrag)
 
@@ -133,6 +140,7 @@ fun IosMapKitView(
         FjalarMapKitDelegate(
             isDarkTheme = isDarkTheme,
             onPinDrag = { currentOnPinDrag(it) },
+            onCameraCenterChanged = { currentOnCameraCenterChanged?.invoke(it) },
         )
     }
     val tapHandler = remember(mapView) {

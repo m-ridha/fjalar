@@ -95,4 +95,8 @@
     <!-- Languages -->
     <string name="lang_english">English (EN)</string>
     <string name="lang_indonesian">Bahasa Indonesia (ID)</string>
+    <string name="nav_back">← Back</string>
+    <string name="pinned_location">Pinned Location</string>
+    <string name="location_not_set">📍 Not set</string>
+    <string name="operation_failed">Could not save changes. Please try again.</string>
 </resources>
