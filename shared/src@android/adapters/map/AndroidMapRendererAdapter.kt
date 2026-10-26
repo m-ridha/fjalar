@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.muhammadridha.fjalar.adapters.map
 
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
@@ -18,6 +20,24 @@ import org.maplibre.android.maps.MapLibreMap
  *
  * Coordinates map viewport updates, destination pin placement, and geofence radius circle overlays
  * using MapLibre GL for Android.
+ *
+ * ### Note on Deprecation Suppressions
+ * Upstream MapLibre Native marks [Marker], [MarkerOptions], [Polygon], and [PolygonOptions] as
+ * deprecated in Java in favor of the MapLibre Annotation Plugin (`SymbolManager` / `FillManager`)
+ * or GeoJSON runtime style layers (`GeoJsonSource` / `FillLayer`).
+ *
+ * This adapter intentionally uses MapLibre's built-in annotations API with `@file:Suppress("DEPRECATION")`
+ * for the following architectural reasons:
+ * 1. **Zero Extra Dependencies:** Avoids coupling to `android-plugin-annotation-v9` or extra heavy
+ *    plugin artifacts, preserving minimal binary size and clean dependency trees.
+ * 2. **Style-Reload Agnostic:** MapLibre annotations remain attached to the [MapLibreMap] canvas
+ *    across dynamic style URL reloads (e.g. toggling between light and dark Carto styles), whereas
+ *    runtime style layers and `SymbolManager` instances are tied to specific `Style` instances and
+ *    get destroyed/invalidated whenever `setStyleUri` triggers an asynchronous style reload.
+ * 3. **Decoupled from View Lifecycle:** Does not require a concrete `MapView` reference, allowing
+ *    the adapter to manage coordinates and overlays strictly through [MapLibreMap].
+ * 4. **Lightweight Scope:** The application only renders at most one destination pin and one geofence
+ *    circle, where the simplicity and stability of built-in annotations outweighs layer management.
  */
 class AndroidMapRendererAdapter(
     var isDarkTheme: Boolean = false,
