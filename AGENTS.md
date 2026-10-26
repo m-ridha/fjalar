@@ -8,7 +8,7 @@ Read the user's current instructions and inspect affected code before relying on
 - **UI/UX & Design Tokens:** [Product and UI Design: Fjalar (Wake Me at) v0.5](https://app.notion.com/p/Product-and-UI-Design-Fjalar-Wake-Me-at-4030ee070c2381008ebeddc2ab6c654e)
 - **Interactive Screens & Themes:** [Google Stitch Project 12482101652095184669](https://stitch.withgoogle.com/projects/12482101652095184669) (`Liquid Glass Transit` & `Liquid Glass Transit Dark Mode`)
 - **Approved 2D Vector App Icon:** [App Icon Design v1.1](https://app.notion.com/p/4040ee070c2381ea8359ef1f191029bf) (masters in `assets/icons/`)
-- **Origin Epic:** [Wake Me at (Location based alarm)](https://app.notion.com/p/Wake-Me-at-Location-based-alarm-4020ee070c2380d7a136ee85ffaf3e3e)
+- **Origin Epic:** [Wake Me at (Location-based alarm)](https://app.notion.com/p/Wake-Me-at-Location-based-alarm-4020ee070c2380d7a136ee85ffaf3e3e)
 - **Package & Namespace:** `com.muhammadridha.fjalar`
 - **Display Name:** "Wake Me at" (English) / "Bangunkan Saya di" (Bahasa Indonesia)
 
@@ -100,7 +100,7 @@ Read and strictly preserve these invariant behaviors:
 7. **iOS Background Execution Boundary:**
    - On Android, `AlarmManager.setExactAndAllowWhileIdle()` triggers a broadcast receiver with a `WakeLock` to invoke `syncSchedules()`.
    - On iOS, local notifications scheduled via `UNUserNotificationCenter` are strictly user-facing alerts; they do not afford background code execution to transition an alarm from `SCHEDULED_IDLE` to `ARMED_MONITORING` while the app is suspended without user interaction.
-   - Background refresh on iOS via `BGAppRefreshTask` is strictly best-effort: `earliestBeginDate` serves only as a lower bound. If background execution is delayed, the alarm remains in `SCHEDULED_IDLE` until the user foregrounds the application to trigger schedule synchronization.
+   - Background refresh on iOS via `BGAppRefreshTask` requires the `fetch` background mode (`UIBackgroundModes`) and the task identifier in `BGTaskSchedulerPermittedIdentifiers` in the app's Info.plist. It is strictly best-effort: `earliestBeginDate` serves only as a lower bound. If background execution is delayed, the alarm remains in `SCHEDULED_IDLE` until the user foregrounds the application to trigger schedule synchronization.
 
 ---
 
