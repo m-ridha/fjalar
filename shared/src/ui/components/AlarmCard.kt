@@ -25,6 +25,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,6 +37,7 @@ import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ScheduleType
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
+import com.muhammadridha.fjalar.ui.theme.FjalarStrings
 import com.muhammadridha.fjalar.ui.theme.fjalarString
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
@@ -52,6 +55,7 @@ fun AlarmCard(
     locale: AppLocale = LiquidGlassTheme.locale,
 ) {
     val colors = LiquidGlassTheme.colors
+    val deleteLabel = FjalarStrings.get(FjalarStringKey.EDITOR_DELETE_ALARM, locale)
 
     val scheduleSummary = if (alarm.schedule.type == ScheduleType.SCHEDULED) {
         val startStr = formatMinuteOfDay(alarm.schedule.startMinuteOfDay ?: 0)
@@ -106,7 +110,8 @@ fun AlarmCard(
                         modifier = Modifier
                             .size(36.dp)
                             .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                            .clickable(role = Role.Button) { onDelete(alarm) },
+                            .clickable(role = Role.Button) { onDelete(alarm) }
+                            .semantics { contentDescription = deleteLabel },
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
