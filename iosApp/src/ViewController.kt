@@ -1,5 +1,6 @@
 package com.muhammadridha.fjalar
 
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.window.ComposeUIViewController
 import com.muhammadridha.fjalar.di.FjalarIosContainer
 import com.muhammadridha.fjalar.ui.FjalarViewModel
@@ -21,27 +22,35 @@ fun ViewController(
         preferencesPort = container.preferences,
         syncSchedulesPort = container.syncSchedulesPort,
     ),
-): UIViewController {
-    // Reconcile schedules when ViewController opens
-    viewModel.syncSchedules()
+): UIViewController = ComposeUIViewController {
+    DisposableEffect(viewModel) {
+        viewModel.syncSchedules()
 
-    // Reconcile schedules when the application returns to the foreground from background
-    try {
-        NSNotificationCenter.defaultCenter.addObserverForName(
-            name = UIApplicationWillEnterForegroundNotification,
-            `object` = null,
-            queue = NSOperationQueue.mainQueue,
-        ) { _ ->
-            viewModel.syncSchedules()
+        val observer = try {
+            NSNotificationCenter.defaultCenter.addObserverForName(
+                name = UIApplicationWillEnterForegroundNotification,
+                `object` = null,
+                queue = NSOperationQueue.mainQueue,
+            ) { _ ->
+                viewModel.syncSchedules()
+            }
+        } catch (_: Throwable) {
+            null
         }
-    } catch (_: Throwable) {
-        // Defensive in headless test environments
+
+        onDispose {
+            if (observer != null) {
+                try {
+                    NSNotificationCenter.defaultCenter.removeObserver(observer)
+                } catch (_: Throwable) {
+                    // Defensive in headless test environments
+                }
+            }
+        }
     }
 
-    return ComposeUIViewController {
-        App(
-            container = container,
-            viewModel = viewModel,
-        )
-    }
+    App(
+        container = container,
+        viewModel = viewModel,
+    )
 }
