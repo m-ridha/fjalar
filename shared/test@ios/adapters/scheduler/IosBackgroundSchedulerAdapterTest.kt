@@ -1,8 +1,10 @@
 package com.muhammadridha.fjalar.adapters.scheduler
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class IosBackgroundSchedulerAdapterTest {
 
@@ -20,6 +22,7 @@ class IosBackgroundSchedulerAdapterTest {
         assertEquals("Commute alarm window is active", adapter.resolveNotificationBody("en-US"))
         assertEquals("Commute alarm window is active", adapter.resolveNotificationBody("en"))
         assertEquals("Commute alarm window is active", adapter.resolveNotificationBody("fr-FR"))
+        assertEquals("Commute alarm window is active", adapter.resolveNotificationBody("inh-RU"))
         assertEquals("Commute alarm window is active", adapter.resolveNotificationBody(""))
     }
 
@@ -29,6 +32,7 @@ class IosBackgroundSchedulerAdapterTest {
         assertEquals("Bangunkan Saya di", adapter.resolveNotificationTitle("id-ID"))
         assertEquals("Bangunkan Saya di", adapter.resolveNotificationTitle("in"))
         assertEquals("Wake Me at", adapter.resolveNotificationTitle("en-US"))
+        assertEquals("Wake Me at", adapter.resolveNotificationTitle("inh-RU"))
         assertEquals("Wake Me at", adapter.resolveNotificationTitle(""))
     }
 
@@ -45,5 +49,16 @@ class IosBackgroundSchedulerAdapterTest {
     fun resolveNotificationTitle_staticLocalizedTitleConstructor() = runTest {
         val adapter = IosBackgroundSchedulerAdapter(localizedTitle = "Fixed Title")
         assertEquals("Fixed Title", adapter.resolveNotificationTitle())
+    }
+
+    @Test
+    fun resolveNotificationTitle_propagatesCancellationException() = runTest {
+        val cancellingResolver = DefaultIosNotificationTitleResolver(
+            appNameResourceProvider = { throw CancellationException("Scope cancelled") }
+        )
+        val adapter = IosBackgroundSchedulerAdapter(titleResolver = cancellingResolver)
+        assertFailsWith<CancellationException> {
+            adapter.resolveNotificationTitle()
+        }
     }
 }

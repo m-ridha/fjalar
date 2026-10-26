@@ -118,7 +118,8 @@ class IosBackgroundSchedulerAdapter(
         } catch (_: Throwable) {
             ""
         }
-        return if (lang.startsWith("id") || lang.startsWith("in")) {
+        val primarySubtag = lang.split('-', '_').firstOrNull() ?: ""
+        return if (primarySubtag == "id" || primarySubtag == "in") {
             "Jendela alarm perjalanan aktif"
         } else {
             "Commute alarm window is active"

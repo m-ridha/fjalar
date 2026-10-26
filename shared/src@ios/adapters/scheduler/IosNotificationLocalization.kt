@@ -2,6 +2,7 @@ package com.muhammadridha.fjalar.adapters.scheduler
 
 import com.muhammadridha.fjalar.resources.Res
 import com.muhammadridha.fjalar.resources.app_name
+import kotlinx.coroutines.CancellationException
 import org.jetbrains.compose.resources.getString
 import platform.Foundation.NSBundle
 
@@ -19,8 +20,8 @@ open class DefaultIosNotificationTitleResolver(
 
     override suspend fun resolveTitle(preferredLanguage: String?): String {
         if (preferredLanguage != null) {
-            val lang = preferredLanguage.lowercase()
-            return if (lang.startsWith("id") || lang.startsWith("in")) {
+            val primarySubtag = preferredLanguage.lowercase().split('-', '_').firstOrNull() ?: ""
+            return if (primarySubtag == "id" || primarySubtag == "in") {
                 INDONESIAN_APP_NAME
             } else {
                 ENGLISH_APP_NAME
@@ -29,6 +30,8 @@ open class DefaultIosNotificationTitleResolver(
 
         return try {
             appNameResourceProvider()
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Throwable) {
             (NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleDisplayName") as? String)
                 ?: (NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleName") as? String)
