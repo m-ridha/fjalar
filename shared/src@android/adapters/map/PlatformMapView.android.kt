@@ -2,6 +2,7 @@ package com.muhammadridha.fjalar.ui.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.muhammadridha.fjalar.adapters.map.AndroidMapLibreView
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 
@@ -17,5 +18,15 @@ actual fun PlatformMapView(
     onPinDrag: (GeoCoordinates) -> Unit,
     modifier: Modifier,
 ) {
-    // PlatformMapView stub for Task 1; full MapLibre implementation in Task 2
+    AndroidMapLibreView(
+        center = center,
+        zoom = zoom,
+        pinLocation = pinLocation,
+        geofenceCenter = geofenceCenter,
+        geofenceRadius = geofenceRadius,
+        isDarkTheme = isDarkTheme,
+        onMapClick = onMapClick,
+        onPinDrag = onPinDrag,
+        modifier = modifier,
+    )
 }
