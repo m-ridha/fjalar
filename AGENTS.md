@@ -1,4 +1,4 @@
-# Agent Guide for Fjalar (Wake me up there)
+# Agent Guide for Fjalar (Wake me up there - Location-based alarm)
 
 ## Start here
 
