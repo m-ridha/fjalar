@@ -100,7 +100,7 @@ Read and strictly preserve these invariant behaviors:
 7. **iOS Background Execution Boundary:**
    - On Android, `AlarmManager.setExactAndAllowWhileIdle()` triggers a broadcast receiver with a `WakeLock` to invoke `syncSchedules()`.
    - On iOS, local notifications scheduled via `UNUserNotificationCenter` are strictly user-facing alerts; they do not afford background code execution to transition an alarm from `SCHEDULED_IDLE` to `ARMED_MONITORING` while the app is suspended without user interaction.
-   - Background refresh on iOS via `BGAppRefreshTask` requires the `fetch` background mode (`UIBackgroundModes`) and the task identifier in `BGTaskSchedulerPermittedIdentifiers` in the app's Info.plist. It is strictly best-effort: `earliestBeginDate` serves only as a lower bound. If background execution is delayed, the alarm remains in `SCHEDULED_IDLE` until the user foregrounds the application to trigger schedule synchronization.
+   - Background refresh on iOS via `BGAppRefreshTask` requires the `fetch` background mode (`UIBackgroundModes`) and the task identifier in `BGTaskSchedulerPermittedIdentifiers` in the app's Info.plist. It is strictly best-effort: `earliestBeginDate` serves only as a lower bound. If background execution is delayed or does not execute, the alarm remains in `SCHEDULED_IDLE` until schedule synchronization runs (either when the delayed background task executes or when the user foregrounds the application).
 
 ---
 
