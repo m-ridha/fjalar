@@ -6,6 +6,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import android.location.LocationListener
+import android.os.Looper
+import android.os.SystemClock
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -16,6 +19,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.tooling.preview.Preview
@@ -24,12 +28,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.SharedPreferencesKeyValueStorage
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
-import com.muhammadridha.fjalar.domain.service.AlarmService
+import com.muhammadridha.fjalar.adapters.location.isFreshLocationFix
 import com.muhammadridha.fjalar.ui.FjalarViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
 
 class MainActivity : ComponentActivity() {
+    private var currentLocationJob: Job? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         awakenScreenAndShowOverKeyguard()
         // Draw edge-to-edge behind system status and navigation bars; safe insets are handled via WindowInsetsLayoutHelper
@@ -78,10 +87,9 @@ class MainActivity : ComponentActivity() {
 
                 viewModel.onPermissionResult(locationGranted)
                 if (locationGranted) {
-                    queryAndDispatchLastKnownLocation(
+                    requestMapLocation(
                         context = this@MainActivity,
                         viewModel = viewModel,
-                        alarmService = container?.alarmService,
                         scope = scope,
                     )
                 }
@@ -103,12 +111,21 @@ class MainActivity : ComponentActivity() {
                     permissionLauncher.launch(requiredPermissions)
                 } else {
                     viewModel.onPermissionResult(true)
-                    queryAndDispatchLastKnownLocation(
+                    requestMapLocation(
                         context = this@MainActivity,
                         viewModel = viewModel,
-                        alarmService = container?.alarmService,
                         scope = scope,
                     )
+                }
+            }
+
+            DisposableEffect(viewModel) {
+                viewModel.requestCurrentLocation = {
+                    requestMapLocation(this@MainActivity, viewModel, scope)
+                }
+                onDispose {
+                    viewModel.requestCurrentLocation = null
+                    currentLocationJob?.cancel()
                 }
             }
 
@@ -140,40 +157,53 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun queryAndDispatchLastKnownLocation(
+    override fun onStop() {
+        currentLocationJob?.cancel()
+        super.onStop()
+    }
+
+    private fun requestMapLocation(
         context: Context,
         viewModel: FjalarViewModel,
-        alarmService: AlarmService?,
         scope: CoroutineScope,
     ) {
-        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return
-        val providers = listOf(
-            LocationManager.GPS_PROVIDER,
-            LocationManager.NETWORK_PROVIDER,
-            LocationManager.PASSIVE_PROVIDER,
-        )
-        var bestLocation: Location? = null
-        for (provider in providers) {
-            try {
-                if (locationManager.isProviderEnabled(provider)) {
-                    val loc = locationManager.getLastKnownLocation(provider)
-                    if (loc != null && (bestLocation == null || loc.time > bestLocation.time)) {
-                        bestLocation = loc
+        currentLocationJob?.cancel()
+        currentLocationJob = scope.launch {
+            val manager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+                ?: return@launch
+            // A bounded foreground request is exclusively for map positioning. Never evaluate
+            // cached or UI-requested fixes against an armed alarm.
+            val location = withTimeoutOrNull(15_000L) {
+                suspendCancellableCoroutine<Location> { continuation ->
+                    val listener = object : LocationListener {
+                        override fun onLocationChanged(location: Location) {
+                            val isFresh = isFreshLocationFix(
+                                location.elapsedRealtimeNanos / 1_000_000L,
+                                SystemClock.elapsedRealtime(),
+                            )
+                            if (!isFresh) return
+                            if (continuation.isActive) continuation.resume(location)
+                        }
+                        @Deprecated("Deprecated in Java")
+                        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                        override fun onProviderEnabled(provider: String) {}
+                        override fun onProviderDisabled(provider: String) {}
                     }
+                    for (provider in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)) {
+                        try {
+                            manager.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper())
+                        } catch (_: SecurityException) {
+                            // Permission may have been revoked while the screen was open.
+                        } catch (_: IllegalArgumentException) {
+                            // This device may not expose both providers.
+                        }
+                    }
+                    continuation.invokeOnCancellation { manager.removeUpdates(listener) }
+                    continuation.context[Job]?.invokeOnCompletion { manager.removeUpdates(listener) }
                 }
-            } catch (_: SecurityException) {
-                // Permission revoked or not granted
-            } catch (_: IllegalArgumentException) {
-                // Provider not supported
             }
-        }
-        bestLocation?.let { loc ->
-            val coordinates = GeoCoordinates(loc.latitude, loc.longitude)
-            viewModel.onUserLocationChanged(coordinates)
-            alarmService?.let { service ->
-                scope.launch {
-                    service.handleLocationUpdate(coordinates, loc.accuracy)
-                }
+            if (location != null) {
+                viewModel.onCurrentLocationReceived(GeoCoordinates(location.latitude, location.longitude))
             }
         }
     }
