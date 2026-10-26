@@ -16,14 +16,14 @@ fun Modifier.glassSurface(
     shape: Shape = RoundedCornerShape(16.dp),
     reducedTransparency: Boolean = colors.isReducedTransparency,
 ): Modifier {
-    val effectiveColors = if (reducedTransparency) colors.withReducedTransparency() else colors
+    val effectiveColors = colors.withReducedTransparency(reducedTransparency)
     val backgroundColor = effectiveColors.glassBackground(level)
     val rimBrush = Brush.linearGradient(
         colors = listOf(effectiveColors.rimHighlight, effectiveColors.borderSubtle),
         start = Offset.Zero,
         end = Offset.Infinite,
     )
-    val borderWidth = if (reducedTransparency || effectiveColors.isReducedTransparency) 1.5.dp else 1.dp
+    val borderWidth = if (effectiveColors.isReducedTransparency) 1.5.dp else 1.dp
     return this
         .background(color = backgroundColor, shape = shape)
         .border(width = borderWidth, brush = rimBrush, shape = shape)

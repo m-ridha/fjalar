@@ -189,6 +189,25 @@ class LiquidGlassThemeTest {
         assertNotNull(modifier)
     }
 
+    @Test
+    fun glassSurfaceModifierWithExplicitFalseOverrideUnderReducedThemeRestoresStandardPalette() {
+        val modifier = Modifier.glassSurface(
+            colors = ReducedTransparencyLightLiquidGlassColors,
+            level = GlassLevel.PILL,
+            shape = RoundedCornerShape(16.dp),
+            reducedTransparency = false,
+        )
+        assertNotNull(modifier)
+
+        val darkModifier = Modifier.glassSurface(
+            colors = ReducedTransparencyDarkLiquidGlassColors,
+            level = GlassLevel.PILL,
+            shape = RoundedCornerShape(16.dp),
+            reducedTransparency = false,
+        )
+        assertNotNull(darkModifier)
+    }
+
     private fun calculateContrastRatio(foreground: Color, background: Color): Double {
         val l1 = relativeLuminance(foreground)
         val l2 = relativeLuminance(background)

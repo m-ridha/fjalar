@@ -235,8 +235,8 @@ def main():
         # 2. Android Adaptive Foreground & Monochrome
         print("2. Generating Android adaptive foreground and monochrome icons (432x432 xxxhdpi)...")
         fg, mono = generate_android_adaptive_foreground(emblem)
-        fg_path = full_path("androidApp/res/drawable-nodpi/ic_launcher_foreground.png")
-        mono_path = full_path("androidApp/res/drawable-nodpi/ic_launcher_monochrome.png")
+        fg_path = full_path("androidApp/res/drawable-xxxhdpi/ic_launcher_foreground.png")
+        mono_path = full_path("androidApp/res/drawable-xxxhdpi/ic_launcher_monochrome.png")
         os.makedirs(os.path.dirname(fg_path), exist_ok=True)
         fg.save(fg_path, "PNG")
         mono.save(mono_path, "PNG")
