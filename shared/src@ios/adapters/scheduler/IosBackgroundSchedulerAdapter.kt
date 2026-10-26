@@ -1,6 +1,9 @@
 package com.muhammadridha.fjalar.adapters.scheduler
 
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
+import com.muhammadridha.fjalar.resources.Res
+import com.muhammadridha.fjalar.resources.app_name
+import org.jetbrains.compose.resources.getString
 import kotlin.time.Clock
 import kotlin.time.Instant
 import platform.Foundation.NSError
@@ -33,7 +36,22 @@ class IosBackgroundSchedulerAdapter(
     private val notificationCenter: UNUserNotificationCenter? = null,
     private val clock: Clock = Clock.System,
     private val onError: ((String, NSError) -> Unit)? = null,
+    private val titleResolver: IosNotificationTitleResolver = DefaultIosNotificationTitleResolver(),
 ) : AlarmSchedulerPort {
+
+    constructor(
+        notificationCenter: UNUserNotificationCenter? = null,
+        clock: Clock = Clock.System,
+        onError: ((String, NSError) -> Unit)? = null,
+        localizedTitle: String,
+    ) : this(
+        notificationCenter = notificationCenter,
+        clock = clock,
+        onError = onError,
+        titleResolver = object : IosNotificationTitleResolver {
+            override suspend fun resolveTitle(preferredLanguage: String?): String = localizedTitle
+        },
+    )
 
     private fun resolveNotificationCenter(): UNUserNotificationCenter? {
         if (notificationCenter != null) return notificationCenter
@@ -90,17 +108,8 @@ class IosBackgroundSchedulerAdapter(
         center.removePendingNotificationRequestsWithIdentifiers(listOf(identifier))
     }
 
-    internal fun resolveNotificationTitle(preferredLanguage: String? = null): String {
-        val lang = preferredLanguage?.lowercase() ?: try {
-            (NSLocale.preferredLanguages.firstOrNull() as? String)?.lowercase() ?: ""
-        } catch (_: Throwable) {
-            ""
-        }
-        return if (lang.startsWith("id") || lang.startsWith("in")) {
-            "Bangunkan saya di sana"
-        } else {
-            "Wake me up there"
-        }
+    internal suspend fun resolveNotificationTitle(preferredLanguage: String? = null): String {
+        return titleResolver.resolveTitle(preferredLanguage)
     }
 
     internal fun resolveNotificationBody(preferredLanguage: String? = null): String {
@@ -109,7 +118,8 @@ class IosBackgroundSchedulerAdapter(
         } catch (_: Throwable) {
             ""
         }
-        return if (lang.startsWith("id") || lang.startsWith("in")) {
+        val primarySubtag = lang.split('-', '_').firstOrNull() ?: ""
+        return if (primarySubtag == "id" || primarySubtag == "in") {
             "Jendela alarm perjalanan aktif"
         } else {
             "Commute alarm window is active"
