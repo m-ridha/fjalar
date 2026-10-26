@@ -174,10 +174,12 @@ fun App(
             searchPlacesPort = searchPlacesPort,
         )
     },
+    reducedTransparency: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     FjalarApp(
         viewModel = viewModel,
         modifier = modifier,
+        reducedTransparency = reducedTransparency,
     )
 }

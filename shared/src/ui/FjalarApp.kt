@@ -47,12 +47,14 @@ import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 fun FjalarApp(
     viewModel: FjalarViewModel,
     modifier: Modifier = Modifier,
+    reducedTransparency: Boolean = false,
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     LiquidGlassTheme(
         themeMode = uiState.themeMode,
         locale = uiState.appLocale,
+        reducedTransparency = reducedTransparency,
     ) {
         val colors = LiquidGlassTheme.colors
 

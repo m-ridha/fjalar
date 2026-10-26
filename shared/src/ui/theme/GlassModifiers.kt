@@ -14,26 +14,32 @@ fun Modifier.glassSurface(
     colors: LiquidGlassColors,
     level: GlassLevel,
     shape: Shape = RoundedCornerShape(16.dp),
+    reducedTransparency: Boolean = colors.isReducedTransparency,
 ): Modifier {
-    val backgroundColor = colors.glassBackground(level)
+    val effectiveColors = if (reducedTransparency) colors.withReducedTransparency() else colors
+    val backgroundColor = effectiveColors.glassBackground(level)
     val rimBrush = Brush.linearGradient(
-        colors = listOf(colors.rimHighlight, colors.borderSubtle),
+        colors = listOf(effectiveColors.rimHighlight, effectiveColors.borderSubtle),
         start = Offset.Zero,
         end = Offset.Infinite,
     )
+    val borderWidth = if (reducedTransparency || effectiveColors.isReducedTransparency) 1.5.dp else 1.dp
     return this
         .background(color = backgroundColor, shape = shape)
-        .border(width = 1.dp, brush = rimBrush, shape = shape)
+        .border(width = borderWidth, brush = rimBrush, shape = shape)
 }
 
 fun Modifier.glassSurface(
     level: GlassLevel,
     shape: Shape = RoundedCornerShape(16.dp),
+    reducedTransparency: Boolean? = null,
 ): Modifier = composed {
     val colors = LocalLiquidGlassColors.current
+    val isReduced = reducedTransparency ?: LocalReducedTransparency.current
     glassSurface(
         colors = colors,
         level = level,
         shape = shape,
+        reducedTransparency = isReduced,
     )
 }

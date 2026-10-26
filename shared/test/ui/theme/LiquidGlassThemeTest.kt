@@ -5,6 +5,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.muhammadridha.fjalar.domain.model.ThemeMode
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -97,6 +100,75 @@ class LiquidGlassThemeTest {
     }
 
     @Test
+    fun reducedTransparencyLightModeReplacesFrostedSurfacesWith92PercentOpaqueTint() {
+        val reduced = LightLiquidGlassColors.withReducedTransparency()
+
+        assertFalse(reduced.isDark)
+        val expectedSurface = Color(0xFFF4F3F8).copy(alpha = 0.92f)
+        assertEquals(expectedSurface, reduced.glassPill)
+        assertEquals(expectedSurface, reduced.glassSheet)
+        assertEquals(expectedSurface, reduced.glassModal)
+        assertEquals(0.92f, reduced.glassPill.alpha, 0.01f)
+        assertEquals(ReducedTransparencyLightLiquidGlassColors, reduced)
+
+        // Ensure withReducedTransparency(false) reverts to original
+        assertEquals(LightLiquidGlassColors, reduced.withReducedTransparency(false))
+    }
+
+    @Test
+    fun reducedTransparencyDarkModeReplacesFrostedSurfacesWith92PercentOpaqueTint() {
+        val reduced = DarkLiquidGlassColors.withReducedTransparency()
+
+        assertTrue(reduced.isDark)
+        val expectedSurface = Color(0xFF191B22).copy(alpha = 0.92f)
+        assertEquals(expectedSurface, reduced.glassPill)
+        assertEquals(expectedSurface, reduced.glassSheet)
+        assertEquals(expectedSurface, reduced.glassModal)
+        assertEquals(0.92f, reduced.glassPill.alpha, 0.01f)
+        assertEquals(ReducedTransparencyDarkLiquidGlassColors, reduced)
+
+        // Ensure withReducedTransparency(false) reverts to original
+        assertEquals(DarkLiquidGlassColors, reduced.withReducedTransparency(false))
+    }
+
+    @Test
+    fun reducedTransparencyMeetsWcagAaContrastRequirements() {
+        val light = LightLiquidGlassColors.withReducedTransparency()
+        val lightRatio = calculateContrastRatio(light.textPrimary, Color(0xFFF4F3F8))
+        assertTrue(
+            lightRatio >= 4.5,
+            "Light mode textPrimary contrast ratio $lightRatio must be >= 4.5:1 (WCAG AA)"
+        )
+
+        val dark = DarkLiquidGlassColors.withReducedTransparency()
+        val darkRatio = calculateContrastRatio(dark.textPrimary, Color(0xFF191B22))
+        assertTrue(
+            darkRatio >= 4.5,
+            "Dark mode textPrimary contrast ratio $darkRatio must be >= 4.5:1 (WCAG AA)"
+        )
+    }
+
+    @Test
+    fun themeResolutionRespectsReducedTransparency() {
+        assertEquals(
+            ReducedTransparencyLightLiquidGlassColors,
+            resolveLiquidGlassColors(themeMode = ThemeMode.LIGHT, systemInDark = false, reducedTransparency = true)
+        )
+        assertEquals(
+            ReducedTransparencyDarkLiquidGlassColors,
+            resolveLiquidGlassColors(themeMode = ThemeMode.DARK, systemInDark = false, reducedTransparency = true)
+        )
+        assertEquals(
+            ReducedTransparencyDarkLiquidGlassColors,
+            resolveLiquidGlassColors(themeMode = ThemeMode.SYSTEM, systemInDark = true, reducedTransparency = true)
+        )
+        assertEquals(
+            ReducedTransparencyLightLiquidGlassColors,
+            resolveLiquidGlassColors(themeMode = ThemeMode.SYSTEM, systemInDark = false, reducedTransparency = true)
+        )
+    }
+
+    @Test
     fun glassSurfaceModifierProducesValidModifier() {
         val modifier = Modifier.glassSurface(
             colors = LightLiquidGlassColors,
@@ -104,5 +176,39 @@ class LiquidGlassThemeTest {
             shape = RoundedCornerShape(16.dp)
         )
         assertNotNull(modifier)
+    }
+
+    @Test
+    fun glassSurfaceModifierWithReducedTransparencyProducesValidModifier() {
+        val modifier = Modifier.glassSurface(
+            colors = LightLiquidGlassColors,
+            level = GlassLevel.PILL,
+            shape = RoundedCornerShape(16.dp),
+            reducedTransparency = true,
+        )
+        assertNotNull(modifier)
+    }
+
+    private fun calculateContrastRatio(foreground: Color, background: Color): Double {
+        val l1 = relativeLuminance(foreground)
+        val l2 = relativeLuminance(background)
+        val lighter = max(l1, l2)
+        val darker = min(l1, l2)
+        return (lighter + 0.05) / (darker + 0.05)
+    }
+
+    private fun relativeLuminance(color: Color): Double {
+        fun channelLuminance(c: Float): Double {
+            val d = c.toDouble()
+            return if (d <= 0.04045) {
+                d / 12.92
+            } else {
+                ((d + 0.055) / 1.055).pow(2.4)
+            }
+        }
+        val r = channelLuminance(color.red)
+        val g = channelLuminance(color.green)
+        val b = channelLuminance(color.blue)
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
     }
 }
