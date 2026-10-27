@@ -214,6 +214,33 @@ class FjalarViewModelTest {
     }
 
     @Test
+    fun failedStopIsRetryableAndSuccessWaitsForServiceState() = runTest {
+        val alarm = manggaraiAlarm().copy(state = AlarmState.RINGING)
+        val observe = FakeObserveAlarmsPort(listOf(alarm))
+        var calls = 0
+        val port = object : DismissAlarmPort {
+            override suspend fun dismissAlarm(alarmId: String): Result<Unit> {
+                calls++
+                return if (calls <= 2) Result.failure(IllegalStateException("stop failed"))
+                else Result.success(Unit)
+            }
+        }
+        val (vm, _, scope) = createTestViewModel(observePort = observe, dismissPort = port)
+        try {
+            vm.onDismissRingingAlarm(alarm.id)
+            assertEquals(1L, vm.uiState.value.ringingOperationFailureId)
+            assertEquals(alarm, vm.uiState.value.activeRingingAlarm)
+            vm.onDismissRingingAlarm(alarm.id)
+            assertEquals(2L, vm.uiState.value.ringingOperationFailureId)
+            vm.onDismissRingingAlarm(alarm.id)
+            assertFalse(vm.uiState.value.hasOperationFailure)
+            assertEquals(alarm, vm.uiState.value.activeRingingAlarm)
+            observe.flow.value = listOf(alarm.copy(state = AlarmState.COMPLETED_FOR_WINDOW))
+            assertNull(vm.uiState.value.activeRingingAlarm)
+        } finally { scope.cancel() }
+    }
+
+    @Test
     fun initialStateLoadsAlarmsAndPreferences() = runTest {
         val initialAlarm = manggaraiAlarm()
         val observePort = FakeObserveAlarmsPort(listOf(initialAlarm))

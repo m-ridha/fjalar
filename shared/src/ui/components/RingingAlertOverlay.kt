@@ -24,6 +24,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,7 +33,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,7 +55,12 @@ fun RingingAlertOverlay(
     distanceMeters: Int? = null,
     isOperationPending: Boolean = false,
     hasOperationFailure: Boolean = false,
+    operationFailureId: Long = 0L,
 ) {
+    val slideState = remember(alarm.id) { SlideToStopState() }
+    LaunchedEffect(operationFailureId, hasOperationFailure, isOperationPending) {
+        if (hasOperationFailure && !isOperationPending) slideState.resetAfterFailure()
+    }
     val colors = LiquidGlassTheme.colors
     val transition = rememberInfiniteTransition()
 
@@ -75,14 +81,7 @@ fun RingingAlertOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .glassSurface(level = GlassLevel.MODAL, shape = RoundedCornerShape(0.dp))
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        awaitPointerEvent().changes.forEach { it.consume() }
-                    }
-                }
-            },
+            .glassSurface(level = GlassLevel.MODAL, shape = RoundedCornerShape(0.dp)),
     ) {
         Column(
             modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier.fillMaxSize())
@@ -200,7 +199,9 @@ fun RingingAlertOverlay(
 
             // Bottom "Slide to Stop Alarm" track (sleepy-eyes dismissal safety)
             SlideToStopTrack(
-                onStopAlarm = { if (!isOperationPending) onDismiss(alarm.id) },
+                onStopAlarm = { onDismiss(alarm.id) },
+                state = slideState,
+                enabled = !isOperationPending,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),

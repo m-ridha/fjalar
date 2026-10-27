@@ -60,6 +60,7 @@ data class FjalarUiState(
     val hasLocationPermission: Boolean = true,
     val hasOperationFailure: Boolean = false,
     val isOperationPending: Boolean = false,
+    val ringingOperationFailureId: Long = 0L,
 )
 
 /**
@@ -306,7 +307,12 @@ class FjalarViewModel(
         scope.launch {
             try {
                 val result = operation()
-                _uiState.update { it.copy(hasOperationFailure = result.isFailure) }
+                _uiState.update {
+                    it.copy(
+                        hasOperationFailure = result.isFailure,
+                        ringingOperationFailureId = it.ringingOperationFailureId + if (result.isFailure) 1 else 0,
+                    )
+                }
             } finally {
                 _uiState.update { it.copy(isOperationPending = false) }
             }
