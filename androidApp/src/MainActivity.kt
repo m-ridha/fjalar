@@ -19,9 +19,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -40,6 +43,7 @@ import com.muhammadridha.fjalar.adapters.location.isFreshLocationFix
 import com.muhammadridha.fjalar.ui.FjalarViewModel
 import com.muhammadridha.fjalar.ui.components.BackgroundLocationPermissionDialog
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
+import com.muhammadridha.fjalar.ui.theme.resolveLiquidGlassColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -88,6 +92,17 @@ class MainActivity : ComponentActivity() {
             }
 
             val permissionUiState by viewModel.uiState.collectAsState()
+            val isDarkTheme = resolveLiquidGlassColors(
+                themeMode = permissionUiState.themeMode,
+                systemInDark = isSystemInDarkTheme(),
+            ).isDark
+            SideEffect {
+                // System bars must follow the app override as well as the device theme.
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !isDarkTheme
+                    isAppearanceLightNavigationBars = !isDarkTheme
+                }
+            }
             var showBackgroundRationale by remember { mutableStateOf(false) }
             val requiredPermissions = remember {
                 foregroundPermissions(Build.VERSION.SDK_INT)
