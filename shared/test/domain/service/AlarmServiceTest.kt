@@ -13,6 +13,8 @@ import com.muhammadridha.fjalar.fakes.FakeClock
 import com.muhammadridha.fjalar.fakes.FakeLocationTracker
 import com.muhammadridha.fjalar.fakes.InMemoryAlarmRepository
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.first
+import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
@@ -42,6 +44,67 @@ class AlarmServiceTest {
         schedule = schedule,
         state = state,
     )
+
+    private suspend fun assertFailedWriteKeepsRingingOwner(
+        operation: suspend (AlarmService) -> Result<Unit>,
+    ) {
+        val originalFailure = IllegalStateException("initial storage write failed")
+        var failedWrites = 0
+        val failingRepository = object : AlarmRepositoryPort by repository {
+            var failWrites = false
+
+            override suspend fun upsertAlarm(alarm: LocationAlarm) {
+                if (failWrites) {
+                    failedWrites++
+                    if (failedWrites == 1) throw originalFailure
+                    throw IllegalStateException("rollback storage write also failed")
+                }
+                repository.upsertAlarm(alarm)
+            }
+        }
+        val testedService = AlarmService(
+            failingRepository, tracker, scheduler, ringer, ScheduleEvaluator(JAKARTA), clock,
+        )
+        clock.now = com.muhammadridha.fjalar.domain.jakarta(2026, 10, 26, 8)
+        val owner = createSampleAlarm(
+            id = "a", state = AlarmState.RINGING,
+            schedule = com.muhammadridha.fjalar.domain.WEEKDAY_COMMUTE,
+        )
+        testedService.saveAlarm(owner).getOrThrow()
+        testedService.saveAlarm(owner.copy(id = "b")).getOrThrow()
+        failingRepository.failWrites = true
+
+        val result = operation(testedService)
+
+        assertTrue(result.isFailure)
+        kotlin.test.assertSame(originalFailure, result.exceptionOrNull())
+        val displayedOwner = testedService.observeAlarms().first()
+            .filter { it.state == AlarmState.RINGING }.minByOrNull { it.id }
+        kotlin.test.assertEquals("a", displayedOwner?.id)
+        kotlin.test.assertEquals(setOf(displayedOwner!!.id), ringer.ringingIds)
+        kotlin.test.assertEquals(owner, repository.getAlarm("a"))
+        assertNull(scheduler.wakeups["a"])
+    }
+
+    @Test
+    fun failedDismissStorageWriteRestoresDisplayedAudibleOwner() = runTest {
+        assertFailedWriteKeepsRingingOwner { it.dismissAlarm("a") }
+    }
+
+    @Test
+    fun failedSnoozeAndRollbackStorageWritesRestoreDisplayedAudibleOwner() = runTest {
+        assertFailedWriteKeepsRingingOwner { it.snoozeAlarm("a") }
+    }
+
+    @Test
+    fun failedDisableStorageWriteRestoresDisplayedAudibleOwner() = runTest {
+        assertFailedWriteKeepsRingingOwner { it.toggleAlarm("a", false) }
+    }
+
+    @Test
+    fun failedSkipStorageWriteRestoresDisplayedAudibleOwner() = runTest {
+        assertFailedWriteKeepsRingingOwner { it.skipToday("a") }
+    }
 
     @Test
     fun snoozePersistsDeadlineAndRingsWithoutFix() = runTest {

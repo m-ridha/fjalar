@@ -22,6 +22,8 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -80,13 +82,11 @@ class AlarmService(
             } catch (error: Throwable) {
                 // No successful Snooze is published on failure. Restore the ringing
                 // record and reconcile playback/wakeups so the same action can retry.
-                repository.upsertAlarm(old)
-                try {
-                    scheduler.cancelWakeup(alarmId)
-                    applySideEffects(now)
-                } catch (recoveryError: Throwable) {
-                    error.addSuppressed(recoveryError)
-                }
+                recoverAfterFailure(error) { repository.upsertAlarm(old) }
+                recoverAfterFailure(error) { scheduler.cancelWakeup(alarmId) }
+                // A failed rollback write or cancellation must not prevent playback
+                // reconciliation, nor replace the original operation failure.
+                recoverAfterFailure(error) { applySideEffects(now) }
                 throw error
             }
         }
@@ -144,16 +144,37 @@ class AlarmService(
 
     private suspend fun persist(old: LocationAlarm?, new: LocationAlarm) {
         if (old == new) return
-        if (old?.state == RINGING && new.state != RINGING) {
-            ringer.stopRinging(old.id)
-            if (ringingOwnerId == old.id) ringingOwnerId = null
+        if (old?.state != RINGING || new.state == RINGING) {
+            repository.upsertAlarm(new)
+            return
         }
-        repository.upsertAlarm(new)
+
+        // Snapshot the displayed owner before stopping. Recovery must not depend
+        // on another storage read or a successful rollback write.
+        val previousOwner = repository.getAlarms()
+            .filter { it.state == RINGING }
+            .minByOrNull { it.id }
+        ringer.stopRinging(old.id)
+        if (ringingOwnerId == old.id) ringingOwnerId = null
+        try {
+            repository.upsertAlarm(new)
+        } catch (error: Throwable) {
+            recoverAfterFailure(error) { reconcileRingingOwner(previousOwner) }
+            throw error
+        }
     }
 
-    private suspend fun applySideEffects(now: Instant, alreadyScheduledId: String? = null) {
-        val alarms = repository.getAlarms()
-        val owner = alarms.filter { it.state == RINGING }.minByOrNull { it.id }
+    private suspend fun recoverAfterFailure(error: Throwable, recovery: suspend () -> Unit) {
+        withContext(NonCancellable) {
+            try {
+                recovery()
+            } catch (recoveryError: Throwable) {
+                if (recoveryError !== error) error.addSuppressed(recoveryError)
+            }
+        }
+    }
+
+    private suspend fun reconcileRingingOwner(owner: LocationAlarm?) {
         if (ringingOwnerId != owner?.id) {
             ringingOwnerId?.let { ringer.stopRinging(it) }
             ringingOwnerId = null
@@ -162,6 +183,12 @@ class AlarmService(
                 ringingOwnerId = owner.id
             }
         }
+    }
+
+    private suspend fun applySideEffects(now: Instant, alreadyScheduledId: String? = null) {
+        val alarms = repository.getAlarms()
+        val owner = alarms.filter { it.state == RINGING }.minByOrNull { it.id }
+        reconcileRingingOwner(owner)
         // shortcut: fixed interval; adaptive polling by distance-to-target (PRD L4) comes with the location adapters.
         if (alarms.any { it.state == ARMED_MONITORING }) tracker.startTracking(TRACKING_INTERVAL_MILLIS)
         else tracker.stopTracking()
