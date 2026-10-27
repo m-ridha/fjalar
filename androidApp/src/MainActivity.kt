@@ -138,9 +138,11 @@ class MainActivity : ComponentActivity() {
             val permissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestMultiplePermissions(),
             ) {
-                hasCompletedForegroundPermissionRequest = true
+                val foregroundGranted = hasForegroundLocationPermission()
+                // A one-time grant can expire; only denials should retain the settings-recovery marker.
+                hasCompletedForegroundPermissionRequest = !foregroundGranted
                 refreshLocationPermissionState(viewModel)
-                if (hasForegroundLocationPermission()) {
+                if (foregroundGranted) {
                     requestMapLocation(this@MainActivity, viewModel, scope)
                     showBackgroundRationale = locationPermissionStep() != LocationPermissionStep.GRANTED
                 }
