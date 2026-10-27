@@ -49,6 +49,15 @@ import kotlin.coroutines.resume
 
 class MainActivity : ComponentActivity() {
     private var currentLocationJob: Job? = null
+    private val permissionPreferences by lazy {
+        getSharedPreferences("location_permission_requests", Context.MODE_PRIVATE)
+    }
+    private var hasCompletedForegroundPermissionRequest: Boolean
+        get() = permissionPreferences.getBoolean("foreground_request_completed", false)
+        set(value) {
+            permissionPreferences.edit().putBoolean("foreground_request_completed", value).apply()
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         awakenScreenAndShowOverKeyguard()
         // Draw edge-to-edge behind system status and navigation bars; safe insets are handled via WindowInsetsLayoutHelper
@@ -93,7 +102,7 @@ class MainActivity : ComponentActivity() {
                     requestMapLocation(this@MainActivity, viewModel, scope)
                 }
             }
-            val backgroundSettingsLauncher = rememberLauncherForActivityResult(
+            val applicationSettingsLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.StartActivityForResult(),
             ) {
                 refreshLocationPermissionState(viewModel)
@@ -104,17 +113,28 @@ class MainActivity : ComponentActivity() {
             val permissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestMultiplePermissions(),
             ) {
+                hasCompletedForegroundPermissionRequest = true
                 refreshLocationPermissionState(viewModel)
                 if (hasForegroundLocationPermission()) {
                     requestMapLocation(this@MainActivity, viewModel, scope)
                     showBackgroundRationale = locationPermissionStep() != LocationPermissionStep.GRANTED
                 }
             }
+            val requestForegroundPermission = {
+                if (isForegroundLocationPermanentlyDenied()) {
+                    applicationSettingsLauncher.launch(applicationDetailsSettingsIntent())
+                } else {
+                    permissionLauncher.launch(requiredPermissions)
+                }
+            }
 
             LaunchedEffect(Unit) {
                 refreshLocationPermissionState(viewModel)
                 if (!hasForegroundLocationPermission()) {
-                    permissionLauncher.launch(requiredPermissions)
+                    // Settings recovery is user initiated through the permission banner.
+                    if (!isForegroundLocationPermanentlyDenied()) {
+                        requestForegroundPermission()
+                    }
                 } else {
                     requestMapLocation(this@MainActivity, viewModel, scope)
                 }
@@ -142,7 +162,7 @@ class MainActivity : ComponentActivity() {
                 viewModel = viewModel,
                 onRequestPermission = {
                     when (locationPermissionStep()) {
-                        LocationPermissionStep.FOREGROUND -> permissionLauncher.launch(requiredPermissions)
+                        LocationPermissionStep.FOREGROUND -> requestForegroundPermission()
                         LocationPermissionStep.BACKGROUND_RUNTIME,
                         LocationPermissionStep.BACKGROUND_SETTINGS -> showBackgroundRationale = true
                         LocationPermissionStep.GRANTED -> refreshLocationPermissionState(viewModel)
@@ -166,15 +186,12 @@ class MainActivity : ComponentActivity() {
                         onGrant = {
                             showBackgroundRationale = false
                             when (locationPermissionStep()) {
-                                LocationPermissionStep.FOREGROUND -> permissionLauncher.launch(requiredPermissions)
+                                LocationPermissionStep.FOREGROUND -> requestForegroundPermission()
                                 LocationPermissionStep.BACKGROUND_RUNTIME -> backgroundPermissionLauncher.launch(
                                     Manifest.permission.ACCESS_BACKGROUND_LOCATION,
                                 )
-                                LocationPermissionStep.BACKGROUND_SETTINGS -> backgroundSettingsLauncher.launch(
-                                    Intent(
-                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                        Uri.fromParts("package", packageName, null),
-                                    ),
+                                LocationPermissionStep.BACKGROUND_SETTINGS -> applicationSettingsLauncher.launch(
+                                    applicationDetailsSettingsIntent(),
                                 )
                                 LocationPermissionStep.GRANTED -> refreshLocationPermissionState(viewModel)
                             }
@@ -191,6 +208,18 @@ class MainActivity : ComponentActivity() {
 
     private fun hasPermission(permission: String): Boolean =
         ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+
+    private fun isForegroundLocationPermanentlyDenied(): Boolean = shouldOpenForegroundLocationSettings(
+        foregroundGranted = hasForegroundLocationPermission(),
+        requestCompleted = hasCompletedForegroundPermissionRequest,
+        fineLocationRationale = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION),
+        coarseLocationRationale = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_COARSE_LOCATION),
+    )
+
+    private fun applicationDetailsSettingsIntent(): Intent = Intent(
+        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        Uri.fromParts("package", packageName, null),
+    )
 
     private fun locationPermissionStep(): LocationPermissionStep = nextLocationPermissionStep(
         apiLevel = Build.VERSION.SDK_INT,

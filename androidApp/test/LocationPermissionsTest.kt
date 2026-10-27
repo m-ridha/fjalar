@@ -61,4 +61,54 @@ class LocationPermissionsTest {
         assertFalse(Manifest.permission.POST_NOTIFICATIONS in foregroundPermissions(32))
         assertTrue(Manifest.permission.POST_NOTIFICATIONS in foregroundPermissions(33))
     }
+
+    @Test
+    fun firstForegroundRequestDoesNotOpenSettingsWhenNeitherRationaleIsShown() {
+        assertFalse(
+            shouldOpenForegroundLocationSettings(
+                foregroundGranted = false,
+                requestCompleted = false,
+                fineLocationRationale = false,
+                coarseLocationRationale = false,
+            ),
+        )
+    }
+
+    @Test
+    fun completedRequestWithNeitherRationaleOpensSettingsForMissingForegroundAccess() {
+        assertTrue(
+            shouldOpenForegroundLocationSettings(
+                foregroundGranted = false,
+                requestCompleted = true,
+                fineLocationRationale = false,
+                coarseLocationRationale = false,
+            ),
+        )
+    }
+
+    @Test
+    fun eitherLocationRationaleKeepsTheNormalPermissionRequestAvailable() {
+        for ((fineRationale, coarseRationale) in listOf(true to false, false to true, true to true)) {
+            assertFalse(
+                shouldOpenForegroundLocationSettings(
+                    foregroundGranted = false,
+                    requestCompleted = true,
+                    fineLocationRationale = fineRationale,
+                    coarseLocationRationale = coarseRationale,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun grantedForegroundAccessDoesNotOpenSettingsAfterACompletedRequest() {
+        assertFalse(
+            shouldOpenForegroundLocationSettings(
+                foregroundGranted = true,
+                requestCompleted = true,
+                fineLocationRationale = false,
+                coarseLocationRationale = false,
+            ),
+        )
+    }
 }

@@ -28,3 +28,10 @@ internal fun foregroundPermissions(apiLevel: Int): Array<String> = buildList {
         add(Manifest.permission.POST_NOTIFICATIONS)
     }
 }.toTypedArray()
+
+internal fun shouldOpenForegroundLocationSettings(
+    foregroundGranted: Boolean,
+    requestCompleted: Boolean,
+    fineLocationRationale: Boolean,
+    coarseLocationRationale: Boolean,
+): Boolean = !foregroundGranted && requestCompleted && !fineLocationRationale && !coarseLocationRationale
