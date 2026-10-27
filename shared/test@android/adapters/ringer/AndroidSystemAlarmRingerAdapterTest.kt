@@ -24,6 +24,7 @@ class AndroidSystemAlarmRingerAdapterTest {
             val alarmLabel: String,
         )
 
+        var audioFailure: Exception? = null
         var audioStarted: Boolean = false
         var lastAudioVolume: Float? = null
         var audioStoppedCount: Int = 0
@@ -37,6 +38,7 @@ class AndroidSystemAlarmRingerAdapterTest {
         val notificationsCancelled = mutableListOf<Int>()
 
         override fun startAudio(volume: Float) {
+            audioFailure?.let { throw it }
             audioStarted = true
             lastAudioVolume = volume
         }
@@ -98,6 +100,21 @@ class AndroidSystemAlarmRingerAdapterTest {
                 volume = volume,
             ),
         )
+    }
+
+    @Test
+    fun audioFailure_stillStartsVibrationAndNotification() = runTest {
+        val gateway = FakeRingerPlatformGateway().apply {
+            audioFailure = IllegalStateException("Unavailable player")
+        }
+        val failures = mutableListOf<Exception>()
+        val adapter = AndroidSystemAlarmRingerAdapter(gateway = gateway, reportFailure = { _, error -> failures.add(error) })
+
+        adapter.startRinging(createAlarm())
+
+        assertTrue(gateway.vibrationStarted)
+        assertEquals(1, gateway.notificationsPosted.size)
+        assertEquals(1, failures.size)
     }
 
     @Test
@@ -241,5 +258,91 @@ class AndroidSystemAlarmRingerAdapterTest {
         assertTrue(fakeGateway.vibrationStarted)
         assertEquals(0, fakeGateway.audioStoppedCount)
         assertEquals(0, fakeGateway.vibrationStoppedCount)
+    }
+}
+
+class AlarmAudioPlaybackTest {
+    private class Player(val fails: Boolean = false) : AlarmAudioPlayer {
+        var releases = 0
+        val pauses = mutableListOf<Boolean>()
+        var error: (() -> Unit)? = null
+        override fun start(source: String, volume: Float, onError: () -> Unit) {
+            error = onError
+            if (fails) throw IllegalStateException("Unplayable URI")
+        }
+        override fun setPaused(paused: Boolean) { pauses.add(paused) }
+        override fun release() { releases++ }
+    }
+
+    @Test
+    fun failedPreparation_releasesPartialPlayerAndTriesFallback() {
+        val first = Player(fails = true)
+        val fallback = Player()
+        val players = ArrayDeque(listOf(first, fallback))
+        val failures = mutableListOf<Exception>()
+        val playback = AlarmAudioPlayback({ players.removeFirst() }, { _, error -> failures.add(error) })
+        playback.start(listOf("invalid", "installed-fallback"), 0.7f)
+        assertEquals(1, first.releases)
+        assertEquals(0, fallback.releases)
+        assertEquals(1, failures.size)
+        playback.stop()
+        assertEquals(1, fallback.releases)
+    }
+
+    @Test
+    fun asynchronousError_triesFallbackOnceAndIgnoresOldPlayerCallbacks() {
+        val first = Player()
+        val fallback = Player()
+        val players = ArrayDeque(listOf(first, fallback))
+        val playback = AlarmAudioPlayback({ players.removeFirst() }, { _, _ -> })
+        playback.start(listOf("alarm", "fallback"), 1f)
+        first.error!!()
+        first.error!!()
+        assertEquals(1, first.releases)
+        assertEquals(0, fallback.releases)
+        fallback.error!!()
+        assertEquals(1, fallback.releases)
+        assertTrue(players.isEmpty())
+    }
+
+    @Test
+    fun initializationFailure_isReportedAndBounded() {
+        var attempts = 0
+        var failures = 0
+        val playback = AlarmAudioPlayback({ attempts++; error("No player") }, { _, _ -> failures++ })
+        playback.start(listOf("alarm", "fallback"), 1f)
+        assertEquals(2, attempts)
+        assertEquals(3, failures)
+    }
+
+    @Test
+    fun transientFocusChange_pausesAndResumesWithoutReplacingPlayer() {
+        val player = Player()
+        val playback = AlarmAudioPlayback({ player }, { _, _ -> })
+        playback.start(listOf("alarm"), 1f)
+        playback.setPaused(true)
+        playback.setPaused(false)
+        assertEquals(listOf(true, false), player.pauses)
+        assertEquals(0, player.releases)
+        playback.stop()
+        playback.setPaused(false)
+        assertEquals(listOf(true, false), player.pauses)
+    }
+
+    @Test
+    fun replacementAndStop_releaseOwnersAndIgnoreStaleErrors() {
+        val first = Player()
+        val replacement = Player()
+        val players = ArrayDeque(listOf(first, replacement))
+        val playback = AlarmAudioPlayback({ players.removeFirst() }, { _, _ -> })
+        playback.start(listOf("alarm"), 1f)
+        playback.start(listOf("alarm"), 1f)
+        first.error!!()
+        assertEquals(1, first.releases)
+        assertEquals(0, replacement.releases)
+        playback.stop()
+        replacement.error!!()
+        playback.stop()
+        assertEquals(1, replacement.releases)
     }
 }
