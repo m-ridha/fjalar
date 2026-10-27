@@ -55,6 +55,7 @@ data class FjalarUiState(
     val selectedRadius: TriggerRadius = TriggerRadius.DEFAULT,
     val viewportRequestId: Long = 0L,
     val activeDraft: ConfigureAlarmDraft? = null,
+    // Access required by the platform for background alarm monitoring.
     val hasLocationPermission: Boolean = true,
     val hasOperationFailure: Boolean = false,
     val isOperationPending: Boolean = false,

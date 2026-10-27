@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
+import android.net.Uri
+import android.provider.Settings
 import android.location.LocationManager
 import android.location.LocationListener
 import android.os.Looper
@@ -20,16 +22,24 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.SharedPreferencesKeyValueStorage
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.adapters.location.isFreshLocationFix
 import com.muhammadridha.fjalar.ui.FjalarViewModel
+import com.muhammadridha.fjalar.ui.components.BackgroundLocationPermissionDialog
+import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -68,62 +78,60 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            val permissionUiState by viewModel.uiState.collectAsState()
+            var showBackgroundRationale by remember { mutableStateOf(false) }
             val requiredPermissions = remember {
-                buildList {
-                    add(Manifest.permission.ACCESS_FINE_LOCATION)
-                    add(Manifest.permission.ACCESS_COARSE_LOCATION)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        add(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                }.toTypedArray()
+                foregroundPermissions(Build.VERSION.SDK_INT)
             }
 
+            // Android 10 offers "Allow all the time" in a separate runtime request.
+            val backgroundPermissionLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission(),
+            ) {
+                refreshLocationPermissionState(viewModel)
+                if (hasForegroundLocationPermission()) {
+                    requestMapLocation(this@MainActivity, viewModel, scope)
+                }
+            }
+            val backgroundSettingsLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.StartActivityForResult(),
+            ) {
+                refreshLocationPermissionState(viewModel)
+                if (hasForegroundLocationPermission()) {
+                    requestMapLocation(this@MainActivity, viewModel, scope)
+                }
+            }
             val permissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestMultiplePermissions(),
-            ) { permissionsMap ->
-                val fineGranted = permissionsMap[Manifest.permission.ACCESS_FINE_LOCATION] == true
-                val coarseGranted = permissionsMap[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-                val locationGranted = fineGranted || coarseGranted
-
-                viewModel.onPermissionResult(locationGranted)
-                if (locationGranted) {
-                    requestMapLocation(
-                        context = this@MainActivity,
-                        viewModel = viewModel,
-                        scope = scope,
-                    )
+            ) {
+                refreshLocationPermissionState(viewModel)
+                if (hasForegroundLocationPermission()) {
+                    requestMapLocation(this@MainActivity, viewModel, scope)
+                    showBackgroundRationale = locationPermissionStep() != LocationPermissionStep.GRANTED
                 }
             }
 
             LaunchedEffect(Unit) {
-                val fineCheck = ContextCompat.checkSelfPermission(
-                    this@MainActivity,
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                ) == PackageManager.PERMISSION_GRANTED
-                val coarseCheck = ContextCompat.checkSelfPermission(
-                    this@MainActivity,
-                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                ) == PackageManager.PERMISSION_GRANTED
-                val alreadyGranted = fineCheck || coarseCheck
-
-                if (!alreadyGranted) {
-                    viewModel.onPermissionResult(false)
+                refreshLocationPermissionState(viewModel)
+                if (!hasForegroundLocationPermission()) {
                     permissionLauncher.launch(requiredPermissions)
                 } else {
-                    viewModel.onPermissionResult(true)
-                    requestMapLocation(
-                        context = this@MainActivity,
-                        viewModel = viewModel,
-                        scope = scope,
-                    )
+                    requestMapLocation(this@MainActivity, viewModel, scope)
                 }
             }
 
             DisposableEffect(viewModel) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME) {
+                        refreshLocationPermissionState(viewModel)
+                    }
+                }
+                lifecycle.addObserver(observer)
                 viewModel.requestCurrentLocation = {
                     requestMapLocation(this@MainActivity, viewModel, scope)
                 }
                 onDispose {
+                    lifecycle.removeObserver(observer)
                     viewModel.requestCurrentLocation = null
                     currentLocationJob?.cancel()
                 }
@@ -133,9 +141,71 @@ class MainActivity : ComponentActivity() {
                 container = container,
                 viewModel = viewModel,
                 onRequestPermission = {
-                    permissionLauncher.launch(requiredPermissions)
+                    when (locationPermissionStep()) {
+                        LocationPermissionStep.FOREGROUND -> permissionLauncher.launch(requiredPermissions)
+                        LocationPermissionStep.BACKGROUND_RUNTIME,
+                        LocationPermissionStep.BACKGROUND_SETTINGS -> showBackgroundRationale = true
+                        LocationPermissionStep.GRANTED -> refreshLocationPermissionState(viewModel)
+                    }
                 },
             )
+
+            // An educational dialog must never cover the active wake-up alarm.
+            if (showBackgroundRationale && permissionUiState.activeRingingAlarm == null) {
+                LiquidGlassTheme(
+                    themeMode = permissionUiState.themeMode,
+                    locale = permissionUiState.appLocale,
+                ) {
+                    BackgroundLocationPermissionDialog(
+                        settingsOptionLabel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            packageManager.backgroundPermissionOptionLabel.toString()
+                        } else {
+                            null
+                        },
+                        onDismiss = { showBackgroundRationale = false },
+                        onGrant = {
+                            showBackgroundRationale = false
+                            when (locationPermissionStep()) {
+                                LocationPermissionStep.FOREGROUND -> permissionLauncher.launch(requiredPermissions)
+                                LocationPermissionStep.BACKGROUND_RUNTIME -> backgroundPermissionLauncher.launch(
+                                    Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+                                )
+                                LocationPermissionStep.BACKGROUND_SETTINGS -> backgroundSettingsLauncher.launch(
+                                    Intent(
+                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        Uri.fromParts("package", packageName, null),
+                                    ),
+                                )
+                                LocationPermissionStep.GRANTED -> refreshLocationPermissionState(viewModel)
+                            }
+                        },
+                    )
+                }
+            }
+        }
+    }
+
+    private fun hasForegroundLocationPermission(): Boolean =
+        hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) ||
+            hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+
+    private fun hasPermission(permission: String): Boolean =
+        ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+
+    private fun locationPermissionStep(): LocationPermissionStep = nextLocationPermissionStep(
+        apiLevel = Build.VERSION.SDK_INT,
+        foregroundGranted = hasForegroundLocationPermission(),
+        backgroundGranted = hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+    )
+
+    private fun refreshLocationPermissionState(viewModel: FjalarViewModel) {
+        val granted = locationPermissionStep() == LocationPermissionStep.GRANTED
+        val previouslyGranted = viewModel.uiState.value.hasLocationPermission
+        // The alarm permission banner stays visible until both foreground and
+        // background access are ready. Map requests need only foreground access.
+        viewModel.onPermissionResult(granted)
+        if (granted && !previouslyGranted) {
+            viewModel.syncSchedules()
         }
     }
 

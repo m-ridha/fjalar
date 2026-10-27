@@ -58,6 +58,8 @@
     <string name="perm_location_body">Fjalar checks your GPS distance in the background only while an alarm is armed so it can wake you up even when your screen is locked. Your location never leaves your phone.</string>
     <string name="perm_location_grant">Grant Permission</string>
     <string name="perm_location_dismiss">Dismiss</string>
+    <string name="perm_background_settings_body">In app settings, open Permissions &gt; Location and select %s. You can skip this step and keep using the map, but scheduled alarms need background location.</string>
+    <string name="perm_background_settings_action">Open Settings</string>
 
     <!-- Search modal & station catalog -->
     <string name="search_placeholder">Search stations, stops, or places...</string>

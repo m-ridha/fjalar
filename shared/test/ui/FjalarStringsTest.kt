@@ -19,6 +19,18 @@ class FjalarStringsTest {
     }
 
     @Test
+    fun backgroundPermissionInstructionsPreserveTheSystemSettingsLabel() {
+        val label = "Allow all the time %s"
+        for (locale in AppLocale.entries) {
+            val instructions = FjalarStrings.get(FjalarStringKey.PERM_BACKGROUND_SETTINGS_BODY, locale, label)
+            assertTrue(instructions.contains(label))
+            assertTrue(instructions.contains(if (locale == AppLocale.EN) "Permissions > Location" else "Izin > Lokasi"))
+        }
+        assertEquals("Open Settings", FjalarStrings.get(FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION, AppLocale.EN))
+        assertEquals("Buka Setelan", FjalarStrings.get(FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION, AppLocale.ID))
+    }
+
+    @Test
     fun get_returnsEnglishAndIndonesianStringsAccurately() {
         val enTitle = FjalarStrings.get(FjalarStringKey.EDITOR_TITLE, AppLocale.EN)
         val idTitle = FjalarStrings.get(FjalarStringKey.EDITOR_TITLE, AppLocale.ID)
