@@ -15,6 +15,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -31,8 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -43,6 +44,8 @@ import com.muhammadridha.fjalar.adapters.location.isFreshLocationFix
 import com.muhammadridha.fjalar.ui.FjalarViewModel
 import com.muhammadridha.fjalar.ui.components.BackgroundLocationPermissionDialog
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
+import com.muhammadridha.fjalar.ui.theme.LightLiquidGlassColors
+import com.muhammadridha.fjalar.ui.theme.DarkLiquidGlassColors
 import com.muhammadridha.fjalar.ui.theme.resolveLiquidGlassColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -97,11 +100,18 @@ class MainActivity : ComponentActivity() {
                 systemInDark = isSystemInDarkTheme(),
             ).isDark
             SideEffect {
-                // System bars must follow the app override as well as the device theme.
-                WindowCompat.getInsetsController(window, window.decorView).apply {
-                    isAppearanceLightStatusBars = !isDarkTheme
-                    isAppearanceLightNavigationBars = !isDarkTheme
-                }
+                // Update icons and the pre-29 navigation scrim together. Newer versions
+                // retain transparent gesture navigation and platform contrast protection.
+                enableEdgeToEdge(
+                    statusBarStyle = SystemBarStyle.auto(
+                        android.graphics.Color.TRANSPARENT,
+                        android.graphics.Color.TRANSPARENT,
+                    ) { isDarkTheme },
+                    navigationBarStyle = SystemBarStyle.auto(
+                        LightLiquidGlassColors.canvas.toArgb(),
+                        DarkLiquidGlassColors.canvas.toArgb(),
+                    ) { isDarkTheme },
+                )
             }
             var showBackgroundRationale by remember { mutableStateOf(false) }
             val requiredPermissions = remember {
