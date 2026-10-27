@@ -2,6 +2,7 @@ package com.muhammadridha.fjalar.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +25,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,17 +36,12 @@ import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ScheduleType
-import com.muhammadridha.fjalar.resources.Res
-import com.muhammadridha.fjalar.resources.card_loud_and_vibrate
-import com.muhammadridha.fjalar.resources.card_one_time_trip
-import com.muhammadridha.fjalar.resources.card_skip_today
-import com.muhammadridha.fjalar.resources.card_skipped_today
-import com.muhammadridha.fjalar.resources.editor_loud_sound
-import com.muhammadridha.fjalar.resources.editor_strong_vibrate
+import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
+import com.muhammadridha.fjalar.ui.theme.FjalarStrings
+import com.muhammadridha.fjalar.ui.theme.fjalarString
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
-import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -52,9 +51,11 @@ fun AlarmCard(
     onEdit: (alarm: LocationAlarm) -> Unit,
     modifier: Modifier = Modifier,
     onSkipToday: (id: String) -> Unit = {},
+    onDelete: ((alarm: LocationAlarm) -> Unit)? = null,
     locale: AppLocale = LiquidGlassTheme.locale,
 ) {
     val colors = LiquidGlassTheme.colors
+    val deleteLabel = FjalarStrings.get(FjalarStringKey.EDITOR_DELETE_ALARM, locale)
 
     val scheduleSummary = if (alarm.schedule.type == ScheduleType.SCHEDULED) {
         val startStr = formatMinuteOfDay(alarm.schedule.startMinuteOfDay ?: 0)
@@ -62,7 +63,7 @@ fun AlarmCard(
         val daysStr = formatDaysOfWeek(alarm.schedule.daysOfWeekMask, locale)
         if (daysStr.isNotBlank()) "$startStr – $endStr • $daysStr" else "$startStr – $endStr"
     } else {
-        stringResource(Res.string.card_one_time_trip, formatDistance(alarm.radius.meters))
+        fjalarString(FjalarStringKey.CARD_ONE_TIME_TRIP, formatDistance(alarm.radius.meters))
     }
 
     Column(
@@ -100,16 +101,37 @@ fun AlarmCard(
                 }
             }
 
-            Switch(
-                checked = alarm.isEnabled,
-                onCheckedChange = { checked -> onToggle(alarm.id, checked) },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = colors.primary,
-                    checkedTrackColor = colors.primary.copy(alpha = 0.4f),
-                    uncheckedThumbColor = colors.textSecondary.copy(alpha = 0.7f),
-                    uncheckedTrackColor = colors.textSecondary.copy(alpha = 0.2f),
-                ),
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (onDelete != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                            .clickable(role = Role.Button) { onDelete(alarm) }
+                            .semantics { contentDescription = deleteLabel },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "🗑️",
+                            fontSize = 14.sp,
+                        )
+                    }
+                }
+
+                Switch(
+                    checked = alarm.isEnabled,
+                    onCheckedChange = { checked -> onToggle(alarm.id, checked) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = colors.primary,
+                        checkedTrackColor = colors.primary.copy(alpha = 0.4f),
+                        uncheckedThumbColor = colors.textSecondary.copy(alpha = 0.7f),
+                        uncheckedTrackColor = colors.textSecondary.copy(alpha = 0.2f),
+                    ),
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -148,11 +170,11 @@ fun AlarmCard(
             // Sound & Haptics badge
             val soundBadgeText = when {
                 alarm.soundConfig.soundEnabled && alarm.soundConfig.vibrateEnabled ->
-                    stringResource(Res.string.card_loud_and_vibrate)
+                    fjalarString(FjalarStringKey.CARD_LOUD_AND_VIBRATE)
                 alarm.soundConfig.soundEnabled ->
-                    stringResource(Res.string.editor_loud_sound)
+                    fjalarString(FjalarStringKey.EDITOR_LOUD_SOUND)
                 alarm.soundConfig.vibrateEnabled ->
-                    stringResource(Res.string.editor_strong_vibrate)
+                    fjalarString(FjalarStringKey.EDITOR_STRONG_VIBRATE)
                 else -> null
             }
 
@@ -171,7 +193,7 @@ fun AlarmCard(
             if (alarm.schedule.type == ScheduleType.SCHEDULED) {
                 if (alarm.state == AlarmState.COMPLETED_FOR_WINDOW) {
                     Text(
-                        text = stringResource(Res.string.card_skipped_today),
+                        text = fjalarString(FjalarStringKey.CARD_SKIPPED_TODAY),
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                         color = colors.textSecondary,
                         modifier = Modifier
@@ -180,7 +202,7 @@ fun AlarmCard(
                     )
                 } else if (alarm.isEnabled) {
                     Text(
-                        text = stringResource(Res.string.card_skip_today),
+                        text = fjalarString(FjalarStringKey.CARD_SKIP_TODAY),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.primary,

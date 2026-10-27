@@ -56,6 +56,10 @@
     <!-- Permissions modal -->
     <string name="perm_location_title">Izinkan Lokasi Latar Belakang untuk Alarm Tujuan</string>
     <string name="perm_location_body">Fjalar memeriksa jarak GPS di latar belakang hanya saat alarm aktif agar dapat membangunkan Anda meski layar terkunci. Lokasi Anda tidak pernah dikirim keluar dari ponsel ini.</string>
+    <string name="perm_location_grant">Izinkan Akses</string>
+    <string name="perm_location_dismiss">Abaikan</string>
+    <string name="perm_background_settings_body">Di setelan aplikasi, buka Izin &gt; Lokasi lalu pilih %s. Anda dapat melewati langkah ini dan tetap menggunakan peta, tetapi alarm terjadwal memerlukan lokasi latar belakang.</string>
+    <string name="perm_background_settings_action">Buka Setelan</string>
 
     <!-- Search modal & station catalog -->
     <string name="search_placeholder">Cari stasiun, halte, atau tempat...</string>
@@ -67,4 +71,34 @@
     <string name="search_empty_body">Coba cari berdasarkan nama stasiun, jalur, atau singkatan.</string>
     <string name="search_recent_title">Stasiun Transit</string>
     <string name="search_clear">Hapus pencarian</string>
+
+    <!-- Bottom navigation tabs -->
+    <string name="nav_map">Peta</string>
+    <string name="nav_alarms">Alarm</string>
+    <string name="nav_add">Tambah</string>
+
+    <!-- Delete confirmation dialog -->
+    <string name="dialog_delete_title">Hapus Alarm?</string>
+    <string name="dialog_delete_message">Apakah Anda yakin ingin menghapus \'%1$s\'?</string>
+    <string name="dialog_delete_confirm">Hapus</string>
+    <string name="dialog_delete_cancel">Batal</string>
+    <string name="editor_delete_alarm">Hapus Alarm</string>
+
+    <!-- Map pin picker -->
+    <string name="picker_title">Pilih Titik Tujuan</string>
+    <string name="picker_confirm">Tetapkan Lokasi</string>
+    <string name="picker_change_pin">Ubah Titik di Peta</string>
+    <string name="picker_hint">Geser peta untuk menempatkan bidik silang</string>
+
+    <!-- Empty alarms list -->
+    <string name="alarms_empty_title">Belum Ada Alarm</string>
+    <string name="alarms_empty_body">Ketuk + Tambah untuk menyetel alarm bangun pertama Anda.</string>
+
+    <!-- Languages -->
+    <string name="lang_english">English (EN)</string>
+    <string name="lang_indonesian">Bahasa Indonesia (ID)</string>
+    <string name="nav_back">← Kembali</string>
+    <string name="pinned_location">Titik Lokasi</string>
+    <string name="location_not_set">📍 Belum ditentukan</string>
+    <string name="operation_failed">Perubahan gagal disimpan. Silakan coba lagi.</string>
 </resources>

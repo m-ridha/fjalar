@@ -12,6 +12,7 @@ dependencies:
   - $compose.hotReload.runtimeApi
   - $libs.androidx.lifecycle.viewmodel.compose
   - $libs.androidx.lifecycle.runtime.compose
+  - $libs.androidx.navigation.compose
   - $libs.kotlinx.coroutines.core
   - $libs.kotlinx.datetime
 
@@ -23,6 +24,9 @@ dependencies@android:
   - $libs.maplibre.android.sdk
 
 settings:
+  kotlin:
+    serialization:
+      format: json
   compose:
     enabled: true
     resources:

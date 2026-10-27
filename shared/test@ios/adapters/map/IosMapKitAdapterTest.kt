@@ -7,6 +7,7 @@ import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import platform.MapKit.MKMapView
+import platform.CoreGraphics.CGRectMake
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -16,6 +17,25 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalForeignApi::class)
 class IosMapKitAdapterTest {
+
+    @Test
+    fun initialViewportIsAppliedBeforeTheMapEntersAWindow() {
+        val adapter = IosMapKitAdapter(isDarkTheme = false)
+        val mapView = MKMapView()
+        adapter.attachMap(mapView)
+
+        val destination = GeoCoordinates(-6.2088, 106.8456)
+        adapter.setViewport(destination, 15.0)
+        mapView.setFrame(CGRectMake(0.0, 0.0, 390.0, 844.0))
+        mapView.layoutIfNeeded()
+
+        mapView.region.useContents {
+            assertEquals(destination.latitude, center.latitude, 0.001)
+            assertEquals(destination.longitude, center.longitude, 0.001)
+            assertTrue(span.latitudeDelta < 0.1, "Initial camera must show the destination neighborhood")
+        }
+        adapter.detachMap()
+    }
 
     @Test
     fun coordinateConversion_preservesValidCoordinates() {

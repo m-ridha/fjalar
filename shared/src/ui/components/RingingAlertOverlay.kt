@@ -8,6 +8,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,14 +38,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
-import com.muhammadridha.fjalar.resources.Res
-import com.muhammadridha.fjalar.resources.ringing_headline
-import com.muhammadridha.fjalar.resources.ringing_in_zone_badge
-import com.muhammadridha.fjalar.resources.ringing_snooze_action
+import com.muhammadridha.fjalar.ui.WindowInsetsLayoutHelper
+import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
+import com.muhammadridha.fjalar.ui.theme.fjalarString
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun RingingAlertOverlay(
@@ -80,11 +80,11 @@ fun RingingAlertOverlay(
                         awaitPointerEvent().changes.forEach { it.consume() }
                     }
                 }
-            }
-            .padding(horizontal = 24.dp, vertical = 32.dp),
+            },
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier.fillMaxSize())
+                .padding(horizontal = 24.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -93,7 +93,7 @@ fun RingingAlertOverlay(
             // Main Alert Content & Concentric Radar Pulse
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
             ) {
                 // Radar Pulse Area
                 Box(
@@ -140,7 +140,7 @@ fun RingingAlertOverlay(
 
                 // In-Zone Distance Pill Badge
                 Text(
-                    text = stringResource(Res.string.ringing_in_zone_badge, distanceText),
+                    text = fjalarString(FjalarStringKey.RINGING_IN_ZONE_BADGE, distanceText),
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontFeatureSettings = "tnum",
@@ -155,7 +155,7 @@ fun RingingAlertOverlay(
 
                 // Wake-Up Headline
                 Text(
-                    text = stringResource(Res.string.ringing_headline, alarm.label),
+                    text = fjalarString(FjalarStringKey.RINGING_HEADLINE, alarm.label),
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.ExtraBold,
                     ),
@@ -175,7 +175,7 @@ fun RingingAlertOverlay(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = stringResource(Res.string.ringing_snooze_action),
+                        text = fjalarString(FjalarStringKey.RINGING_SNOOZE_ACTION),
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.SemiBold,
                             fontFeatureSettings = "tnum",

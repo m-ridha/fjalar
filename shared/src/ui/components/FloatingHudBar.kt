@@ -11,52 +11,126 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.ThemeMode
-import com.muhammadridha.fjalar.resources.Res
-import com.muhammadridha.fjalar.resources.hud_locale_label
-import com.muhammadridha.fjalar.resources.hud_recenter_location
-import com.muhammadridha.fjalar.resources.hud_search_placeholder
-import com.muhammadridha.fjalar.resources.hud_theme_switch_dark
-import com.muhammadridha.fjalar.resources.hud_theme_switch_light
+import com.muhammadridha.fjalar.ui.WindowInsetsLayoutHelper
+import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
+import com.muhammadridha.fjalar.ui.theme.fjalarString
 import com.muhammadridha.fjalar.ui.theme.glassSurface
-import org.jetbrains.compose.resources.stringResource
+
+@Composable
+fun LanguageDropdown(
+    selectedLocale: AppLocale,
+    onSelectLocale: (AppLocale) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val colors = LiquidGlassTheme.colors
+    val localeContentDesc = fjalarString(FjalarStringKey.HUD_LOCALE_LABEL)
+
+    Box(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .height(44.dp)
+                .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                .clickable(
+                    role = Role.Button,
+                    onClick = { expanded = true },
+                )
+                .semantics {
+                    contentDescription = localeContentDesc
+                    role = Role.Button
+                }
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "🌐 ${selectedLocale.name} ▾",
+                style = MaterialTheme.typography.labelMedium,
+                color = colors.textPrimary,
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = fjalarString(FjalarStringKey.LANG_ENGLISH),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (selectedLocale == AppLocale.EN) FontWeight.Bold else FontWeight.Normal,
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    onSelectLocale(AppLocale.EN)
+                },
+            )
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = fjalarString(FjalarStringKey.LANG_INDONESIAN),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (selectedLocale == AppLocale.ID) FontWeight.Bold else FontWeight.Normal,
+                    )
+                },
+                onClick = {
+                    expanded = false
+                    onSelectLocale(AppLocale.ID)
+                },
+            )
+        }
+    }
+}
 
 @Composable
 fun FloatingHudBar(
     onSearchClick: () -> Unit,
-    onToggleLocale: () -> Unit,
+    onToggleLocale: () -> Unit = {},
     onToggleTheme: () -> Unit,
     onRecenter: () -> Unit,
     modifier: Modifier = Modifier,
     locale: AppLocale = LiquidGlassTheme.locale,
     themeMode: ThemeMode = LiquidGlassTheme.themeMode,
+    onSelectLocale: ((AppLocale) -> Unit)? = null,
 ) {
     val colors = LiquidGlassTheme.colors
     val isDark = colors.isDark
 
-    val themeContentDesc = stringResource(
-        if (isDark) Res.string.hud_theme_switch_light else Res.string.hud_theme_switch_dark
+    val themeContentDesc = fjalarString(
+        if (isDark) FjalarStringKey.HUD_THEME_SWITCH_LIGHT else FjalarStringKey.HUD_THEME_SWITCH_DARK
     )
-    val localeContentDesc = stringResource(Res.string.hud_locale_label)
-    val searchPlaceholder = stringResource(Res.string.hud_search_placeholder)
+    val searchPlaceholder = fjalarString(FjalarStringKey.HUD_SEARCH_PLACEHOLDER)
+    val recenterDescription = fjalarString(FjalarStringKey.HUD_RECENTER_LOCATION)
+    val handleSelectLocale = onSelectLocale ?: { loc ->
+        if (loc != locale) onToggleLocale()
+    }
 
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = WindowInsetsLayoutHelper.hudTopPaddingModifier(modifier).fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -88,28 +162,11 @@ fun FloatingHudBar(
             )
         }
 
-        // Locale Pill (🌐 EN / 🌐 ID)
-        Box(
-            modifier = Modifier
-                .height(44.dp)
-                .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                .clickable(
-                    role = Role.Button,
-                    onClick = onToggleLocale,
-                )
-                .semantics {
-                    contentDescription = localeContentDesc
-                    role = Role.Button
-                }
-                .padding(horizontal = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = if (locale == AppLocale.EN) "🌐 EN" else "🌐 ID",
-                style = MaterialTheme.typography.labelMedium,
-                color = colors.textPrimary,
-            )
-        }
+        // Locale Dropdown (🌐 EN ▾ / 🌐 ID ▾)
+        LanguageDropdown(
+            selectedLocale = locale,
+            onSelectLocale = handleSelectLocale,
+        )
 
         // Theme Toggle Button (☀️ / 🌙)
         Box(
@@ -133,7 +190,6 @@ fun FloatingHudBar(
         }
 
         // Recenter GPS Button (◎)
-        val recenterDescription = stringResource(Res.string.hud_recenter_location)
         Box(
             modifier = Modifier
                 .size(44.dp)

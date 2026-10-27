@@ -16,6 +16,7 @@ actual fun PlatformMapView(
     isDarkTheme: Boolean,
     onMapClick: (GeoCoordinates) -> Unit,
     onPinDrag: (GeoCoordinates) -> Unit,
+    onCameraCenterChanged: ((GeoCoordinates) -> Unit)?,
     viewportRequestId: Long,
     modifier: Modifier,
 ) {
@@ -28,6 +29,7 @@ actual fun PlatformMapView(
         isDarkTheme = isDarkTheme,
         onMapClick = onMapClick,
         onPinDrag = onPinDrag,
+        onCameraCenterChanged = onCameraCenterChanged,
         viewportRequestId = viewportRequestId,
         modifier = modifier,
     )

@@ -17,6 +17,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
+import com.muhammadridha.fjalar.adapters.location.isFreshLocationFix
 import androidx.core.content.ContextCompat
 import com.muhammadridha.fjalar.adapters.location.AndroidFusedLocationAdapter
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
@@ -239,6 +241,13 @@ class FjalarLocationService : Service() {
     }
 
     private fun handleFix(location: Location) {
+        if (!isTracking) return
+        val isFresh = isFreshLocationFix(
+            location.elapsedRealtimeNanos / 1_000_000L,
+            SystemClock.elapsedRealtime(),
+        )
+        if (!isFresh) return
+
         val coordinates = GeoCoordinates(
             latitude = location.latitude,
             longitude = location.longitude,

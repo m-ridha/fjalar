@@ -10,6 +10,7 @@ import com.muhammadridha.fjalar.domain.model.PlaceCategory
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
+import com.muhammadridha.fjalar.domain.ports.inbound.DeleteAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
@@ -19,6 +20,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
 import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
+import com.muhammadridha.fjalar.ui.screens.ConfigureAlarmDraft
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -27,6 +29,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.random.Random
+import kotlin.time.Clock
 
 /**
  * Observable UI state representation for the entire Fjalar application.
@@ -47,9 +51,14 @@ data class FjalarUiState(
     val userLocation: GeoCoordinates? = null,
     val selectedCoordinates: GeoCoordinates? = null,
     val mapViewportCenter: GeoCoordinates? = null,
-    val mapViewportZoom: Double = 14.0,
+    val mapViewportZoom: Double = 2.0,
     val selectedRadius: TriggerRadius = TriggerRadius.DEFAULT,
     val viewportRequestId: Long = 0L,
+    val activeDraft: ConfigureAlarmDraft? = null,
+    // Access required by the platform for background alarm monitoring.
+    val hasLocationPermission: Boolean = true,
+    val hasOperationFailure: Boolean = false,
+    val isOperationPending: Boolean = false,
 )
 
 /**
@@ -66,10 +75,12 @@ class FjalarViewModel(
     private val syncSchedulesPort: SyncSchedulesPort? = null,
     private val mapRendererPort: MapRendererPort? = null,
     private val searchPlacesPort: SearchPlacesPort? = null,
+    private val deleteAlarmPort: DeleteAlarmPort? = null,
     coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
 
     internal val scope: CoroutineScope = coroutineScope ?: viewModelScope
+    private var draftRevision: Long = 0L
 
     private val _uiState = MutableStateFlow(FjalarUiState())
     val uiState: StateFlow<FjalarUiState> = _uiState.asStateFlow()
@@ -144,13 +155,23 @@ class FjalarViewModel(
         }
     }
 
+    private fun newDraftIdentity(): String =
+        "alarm-${Clock.System.now().toEpochMilliseconds()}-${Random.nextLong().toString(16)}"
+
     fun onSelectPlace(place: SearchResultPlace) {
+        draftRevision++
         _uiState.update { current ->
             current.copy(
                 isSearchSheetVisible = false,
                 isConfigureSheetVisible = true,
                 selectedAlarmForEdit = null,
                 initialAlarmLabel = place.name,
+                activeDraft = ConfigureAlarmDraft(
+                    alarmId = newDraftIdentity(),
+                    label = place.name,
+                    coordinates = place.coordinates,
+                    addressLabel = place.detail,
+                ),
                 selectedCoordinates = place.coordinates,
                 selectedRadius = TriggerRadius.DEFAULT,
                 mapViewportCenter = place.coordinates,
@@ -198,6 +219,12 @@ class FjalarViewModel(
         }
     }
 
+    fun onSelectLocale(locale: AppLocale) {
+        scope.launch {
+            preferencesPort.setLocale(locale)
+        }
+    }
+
     fun onToggleAlarm(alarmId: String, enabled: Boolean) {
         scope.launch {
             toggleAlarmPort.toggleAlarm(alarmId, enabled)
@@ -224,6 +251,38 @@ class FjalarViewModel(
                     )
                 }
                 mapRendererPort?.clearOverlays()
+            }
+        }
+    }
+
+    fun onDeleteAlarm(alarmId: String, onSuccess: () -> Unit = {}) {
+        if (_uiState.value.isOperationPending) return
+        val operationDraftRevision = draftRevision
+        _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false) }
+        scope.launch {
+            val result = deleteAlarmPort?.deleteAlarm(alarmId)
+            val ownsDraft = operationDraftRevision == draftRevision
+            _uiState.update {
+                it.copy(
+                    isOperationPending = false,
+                    hasOperationFailure = ownsDraft && result?.isSuccess != true,
+                )
+            }
+            if (result?.isSuccess == true && ownsDraft) {
+                if (_uiState.value.selectedAlarmForEdit?.id == alarmId) {
+                    _uiState.update { current ->
+                        current.copy(
+                            isConfigureSheetVisible = false,
+                            selectedAlarmForEdit = null,
+                            initialAlarmLabel = null,
+                            selectedCoordinates = null,
+                            selectedRadius = TriggerRadius.DEFAULT,
+                        )
+                    }
+                    mapRendererPort?.clearOverlays()
+                }
+                _uiState.update { it.copy(activeDraft = null, hasOperationFailure = false) }
+                onSuccess()
             }
         }
     }
@@ -282,6 +341,105 @@ class FjalarViewModel(
         mapRendererPort?.clearOverlays()
     }
 
+    fun onStartConfiguringAlarm(alarmId: String?, defaultCoordinates: GeoCoordinates? = null) {
+        draftRevision++
+        val draft = if (alarmId != null) {
+            val alarm = _uiState.value.alarms.firstOrNull { it.id == alarmId }
+            alarm?.let { ConfigureAlarmDraft.fromAlarm(it) }
+                ?: ConfigureAlarmDraft(
+                    alarmId = alarmId,
+                    coordinates = defaultCoordinates
+                        ?: _uiState.value.selectedCoordinates
+                        ?: _uiState.value.userLocation,
+                )
+        } else {
+            ConfigureAlarmDraft(
+                alarmId = newDraftIdentity(),
+                coordinates = defaultCoordinates
+                    ?: _uiState.value.selectedCoordinates
+                    ?: _uiState.value.userLocation,
+            )
+        }
+        _uiState.update { current ->
+            current.copy(
+                activeDraft = draft,
+                hasOperationFailure = false,
+                selectedAlarmForEdit = _uiState.value.alarms.firstOrNull { it.id == alarmId },
+                selectedCoordinates = draft.coordinates,
+                selectedRadius = TriggerRadius(draft.radiusMeters),
+            )
+        }
+        draft.coordinates?.let { coords ->
+            mapRendererPort?.placePin(coords)
+            mapRendererPort?.showGeofence(coords, TriggerRadius(draft.radiusMeters))
+        }
+    }
+
+    fun onUpdateDraft(draft: ConfigureAlarmDraft) {
+        draftRevision++
+        _uiState.update { current ->
+            current.copy(
+                activeDraft = draft,
+                selectedCoordinates = draft.coordinates,
+                selectedRadius = TriggerRadius(draft.radiusMeters),
+            )
+        }
+        draft.coordinates?.let { coords ->
+            mapRendererPort?.placePin(coords)
+            mapRendererPort?.showGeofence(coords, TriggerRadius(draft.radiusMeters))
+        }
+    }
+
+    fun onDraftCoordinatesChanged(coordinates: GeoCoordinates) {
+        draftRevision++
+        _uiState.update { current ->
+            val updatedDraft = current.activeDraft?.withNewCoordinates(coordinates)
+                ?: ConfigureAlarmDraft(alarmId = newDraftIdentity(), coordinates = coordinates)
+            current.copy(
+                activeDraft = updatedDraft,
+                selectedCoordinates = coordinates,
+            )
+        }
+        val radius = _uiState.value.activeDraft?.let { TriggerRadius(it.radiusMeters) } ?: TriggerRadius.DEFAULT
+        mapRendererPort?.placePin(coordinates)
+        mapRendererPort?.showGeofence(coordinates, radius)
+    }
+
+    fun onSaveDraftAlarm(draft: ConfigureAlarmDraft, onSuccess: () -> Unit = {}) {
+        val existing = draft.alarmId?.let { id ->
+            _uiState.value.alarms.firstOrNull { it.id == id }
+        }
+        if (_uiState.value.isOperationPending) return
+        val alarm = draft.toLocationAlarm(existing)
+        val operationDraftRevision = draftRevision
+        _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false) }
+        scope.launch {
+            val result = saveAlarmPort.saveAlarm(alarm)
+            val ownsDraft = operationDraftRevision == draftRevision
+            _uiState.update {
+                it.copy(isOperationPending = false, hasOperationFailure = ownsDraft && result.isFailure)
+            }
+            if (result.isSuccess && ownsDraft) {
+                _uiState.update { current ->
+                    current.copy(
+                        activeDraft = null,
+                        selectedAlarmForEdit = null,
+                        initialAlarmLabel = null,
+                        selectedCoordinates = null,
+                        selectedRadius = TriggerRadius.DEFAULT,
+                    )
+                }
+                mapRendererPort?.clearOverlays()
+                onSuccess()
+            }
+        }
+    }
+
+    fun onClearDraft() {
+        draftRevision++
+        _uiState.update { it.copy(activeDraft = null, hasOperationFailure = false) }
+    }
+
     /**
      * Re-synchronizes all saved alarms against current time to re-arm commute windows
      * and transition states. Invoked during foreground application entry and system events.
@@ -290,22 +448,53 @@ class FjalarViewModel(
         syncSchedulesPort?.syncSchedules()
     }
 
+    fun onPermissionResult(granted: Boolean) {
+        _uiState.update { it.copy(hasLocationPermission = granted) }
+    }
+
+    // Platform foreground UI request; does not start the alarm tracking port.
+    var requestCurrentLocation: (() -> Unit)? = null
+
     fun onRecenterMap() {
-        val target = _uiState.value.userLocation
-            ?: _uiState.value.selectedCoordinates
-            ?: GeoCoordinates.DEFAULT_JAKARTA
-        _uiState.update { current ->
-            current.copy(
+        requestCurrentLocation?.invoke()
+        recenterOnKnownLocation()
+    }
+
+    fun onCurrentLocationReceived(coordinates: GeoCoordinates) {
+        onUserLocationChanged(coordinates)
+        recenterOnKnownLocation()
+    }
+
+    private fun recenterOnKnownLocation() {
+        val current = _uiState.value
+        val knownTarget = current.userLocation
+            ?: current.selectedCoordinates
+            ?: current.alarms.firstOrNull()?.coordinates
+        val target = knownTarget ?: GeoCoordinates(0.0, 0.0)
+        val zoom = if (knownTarget == null) 2.0 else 15.0
+        _uiState.update { state ->
+            state.copy(
                 mapViewportCenter = target,
-                mapViewportZoom = 15.0,
-                viewportRequestId = current.viewportRequestId + 1L,
+                mapViewportZoom = zoom,
+                viewportRequestId = state.viewportRequestId + 1L,
             )
         }
-        mapRendererPort?.setViewport(target, zoom = 15.0)
+        mapRendererPort?.setViewport(target, zoom = zoom)
     }
 
     fun onUserLocationChanged(coordinates: GeoCoordinates) {
-        _uiState.update { it.copy(userLocation = coordinates) }
+        _uiState.update { current ->
+            current.copy(
+                userLocation = coordinates,
+                mapViewportCenter = current.mapViewportCenter ?: coordinates,
+                mapViewportZoom = if (current.mapViewportCenter == null) 15.0 else current.mapViewportZoom,
+                viewportRequestId = if (current.mapViewportCenter == null) {
+                    current.viewportRequestId + 1L
+                } else {
+                    current.viewportRequestId
+                },
+            )
+        }
     }
 
     fun onMapClicked(coordinates: GeoCoordinates) {

@@ -21,13 +21,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ScheduleType
-import com.muhammadridha.fjalar.resources.Res
-import com.muhammadridha.fjalar.resources.status_armed_one_time
-import com.muhammadridha.fjalar.resources.status_armed_scheduled
+import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
+import com.muhammadridha.fjalar.ui.theme.fjalarString
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ArmedStatusPill(
@@ -42,9 +40,9 @@ fun ArmedStatusPill(
     val statusText = if (alarm.schedule.type == ScheduleType.SCHEDULED) {
         val startStr = formatMinuteOfDay(alarm.schedule.startMinuteOfDay ?: 0)
         val endStr = formatMinuteOfDay(alarm.schedule.endMinuteOfDay ?: 0)
-        stringResource(Res.string.status_armed_scheduled, alarm.label, formattedDistance, startStr, endStr)
+        fjalarString(FjalarStringKey.STATUS_ARMED_SCHEDULED, alarm.label, formattedDistance, startStr, endStr)
     } else {
-        stringResource(Res.string.status_armed_one_time, alarm.label, formattedDistance)
+        fjalarString(FjalarStringKey.STATUS_ARMED_ONE_TIME, alarm.label, formattedDistance)
     }
 
     Row(

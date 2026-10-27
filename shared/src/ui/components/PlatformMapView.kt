@@ -15,6 +15,7 @@ expect fun PlatformMapView(
     isDarkTheme: Boolean,
     onMapClick: (GeoCoordinates) -> Unit,
     onPinDrag: (GeoCoordinates) -> Unit,
+    onCameraCenterChanged: ((GeoCoordinates) -> Unit)? = null,
     viewportRequestId: Long = 0L,
     modifier: Modifier = Modifier,
 )

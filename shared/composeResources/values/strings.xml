@@ -56,6 +56,10 @@
     <!-- Permissions modal -->
     <string name="perm_location_title">Allow Background Location for Wake-Up Alarms</string>
     <string name="perm_location_body">Fjalar checks your GPS distance in the background only while an alarm is armed so it can wake you up even when your screen is locked. Your location never leaves your phone.</string>
+    <string name="perm_location_grant">Grant Permission</string>
+    <string name="perm_location_dismiss">Dismiss</string>
+    <string name="perm_background_settings_body">In app settings, open Permissions &gt; Location and select %s. You can skip this step and keep using the map, but scheduled alarms need background location.</string>
+    <string name="perm_background_settings_action">Open Settings</string>
 
     <!-- Search modal & station catalog -->
     <string name="search_placeholder">Search stations, stops, or places...</string>
@@ -67,4 +71,34 @@
     <string name="search_empty_body">Try searching by station name, line, or abbreviation.</string>
     <string name="search_recent_title">Transit Stations</string>
     <string name="search_clear">Clear search</string>
+
+    <!-- Bottom navigation tabs -->
+    <string name="nav_map">Map</string>
+    <string name="nav_alarms">Alarms</string>
+    <string name="nav_add">Add</string>
+
+    <!-- Delete confirmation dialog -->
+    <string name="dialog_delete_title">Delete Alarm?</string>
+    <string name="dialog_delete_message">Are you sure you want to delete \'%1$s\'?</string>
+    <string name="dialog_delete_confirm">Delete</string>
+    <string name="dialog_delete_cancel">Cancel</string>
+    <string name="editor_delete_alarm">Delete Alarm</string>
+
+    <!-- Map pin picker -->
+    <string name="picker_title">Select Destination Pin</string>
+    <string name="picker_confirm">Set Location</string>
+    <string name="picker_change_pin">Change Pin on Map</string>
+    <string name="picker_hint">Pan map to position the crosshair</string>
+
+    <!-- Empty alarms list -->
+    <string name="alarms_empty_title">No Alarms Yet</string>
+    <string name="alarms_empty_body">Tap + Add to set your first wake-up alarm.</string>
+
+    <!-- Languages -->
+    <string name="lang_english">English (EN)</string>
+    <string name="lang_indonesian">Bahasa Indonesia (ID)</string>
+    <string name="nav_back">← Back</string>
+    <string name="pinned_location">Pinned Location</string>
+    <string name="location_not_set">📍 Not set</string>
+    <string name="operation_failed">Could not save changes. Please try again.</string>
 </resources>
