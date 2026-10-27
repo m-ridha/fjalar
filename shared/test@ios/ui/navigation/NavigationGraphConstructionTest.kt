@@ -1,6 +1,6 @@
 package com.muhammadridha.fjalar.ui.navigation
 
-import androidx.core.bundle.Bundle
+import androidx.savedstate.savedState
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavGraphNavigator
 import androidx.navigation.NavigatorProvider
@@ -31,8 +31,8 @@ class NavigationGraphConstructionTest {
     }
 
     @Test
-    fun coordinateArgumentsSurviveBundleStorageAtFullPrecision() {
-        val arguments = Bundle()
+    fun coordinateArgumentsSurviveSavedStateStorageAtFullPrecision() {
+        val arguments = savedState()
         assertNull(CoordinateNavType[arguments, "missing"])
         CoordinateNavType.put(arguments, "initialLat", -6.2088123456)
         CoordinateNavType.put(arguments, "initialLon", 179.999999999)
