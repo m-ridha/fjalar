@@ -160,7 +160,7 @@ fun AndroidMapLibreView(
         mapView.getMapAsync { map ->
             mapLibreMap = map
             adapter.attachMap(map)
-            map.addOnCameraIdleListener {
+            map.addOnCameraMoveListener {
                 val target = map.cameraPosition.target
                 if (target != null) {
                     with(AndroidMapRendererAdapter) {
