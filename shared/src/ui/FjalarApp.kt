@@ -5,6 +5,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -27,8 +29,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -79,7 +79,6 @@ fun FjalarApp(
     onRequestPermission: (() -> Unit)? = null,
     navController: NavHostController = rememberNavController(),
 ) {
-    val density = LocalDensity.current
     var dockHeight by remember { mutableStateOf(100.dp) }
     val uiState by viewModel.uiState.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -149,7 +148,9 @@ fun FjalarApp(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .align(Alignment.TopCenter)
-                                .then(WindowInsetsLayoutHelper.safeDrawingPaddingModifier()),
+                                .then(WindowInsetsLayoutHelper.safeDrawingPaddingModifier())
+                                .padding(bottom = dockHeight)
+                                .verticalScroll(rememberScrollState()),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             FloatingHudBar(
@@ -348,9 +349,8 @@ fun FjalarApp(
                         )
                         navController.navigate(ConfigureRoute())
                     },
-                    modifier = Modifier.align(Alignment.BottomCenter).onSizeChanged { size ->
-                        dockHeight = with(density) { size.height.toDp() }
-                    },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    onDockHeightChanged = { dockHeight = it },
                 )
             }
 

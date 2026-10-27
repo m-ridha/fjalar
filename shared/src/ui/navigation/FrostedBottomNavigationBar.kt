@@ -21,6 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -65,7 +68,9 @@ fun FrostedBottomNavigationBar(
     onNavigateToAlarms: () -> Unit,
     onAddAlarmClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onDockHeightChanged: (Dp) -> Unit = {},
 ) {
+    val density = LocalDensity.current
     val colors = LiquidGlassTheme.colors
     val activeTab = resolveActiveTab(currentRoute)
 
@@ -77,6 +82,11 @@ fun FrostedBottomNavigationBar(
         modifier = modifier
             .fillMaxWidth()
             .then(WindowInsetsLayoutHelper.navigationBottomPaddingModifier())
+            // Measure only the dock and its margins inside the safe rectangle.
+            // Screens already consume system/fold insets and must not reserve them twice.
+            .onSizeChanged { size ->
+                onDockHeightChanged(with(density) { size.height.toDp() })
+            }
             .padding(horizontal = 24.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
