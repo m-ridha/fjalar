@@ -862,73 +862,86 @@ class FjalarViewModelTest {
     @Test
     fun recenterWithoutLocationUsesOverviewButDoesNotInventAlarmDestination() = runTest {
         val renderer = FakeMapRendererPort()
-        val (vm, _, scope) = createTestViewModel(mapRendererPort = renderer)
+        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = renderer)
         try {
-            vm.onRecenterMap()
-            assertEquals(GeoCoordinates(0.0, 0.0), vm.uiState.value.mapViewportCenter)
+            viewModel.onRecenterMap()
+            assertEquals(GeoCoordinates(0.0, 0.0), viewModel.uiState.value.mapViewportCenter)
             assertEquals(GeoCoordinates(0.0, 0.0) to 2.0, renderer.lastViewport)
-            vm.onStartConfiguringAlarm(null)
-            assertNull(vm.uiState.value.activeDraft?.coordinates)
-        } finally { scope.cancel() }
+            viewModel.onStartConfiguringAlarm(null)
+            val draft = assertNotNull(viewModel.uiState.value.activeDraft)
+            assertNull(draft.coordinates)
+        } finally {
+            vmScope.cancel()
+        }
     }
 
     @Test
     fun selectingSearchResultCreatesNamedDraft() = runTest {
-        val (vm, _, scope) = createTestViewModel()
+        val (viewModel, _, vmScope) = createTestViewModel()
         try {
             val place = SearchResultPlace(
-                id = "london", name = "London", coordinates = GeoCoordinates(51.5, -0.1),
+                id = "london",
+                name = "London",
+                coordinates = GeoCoordinates(51.5, -0.1),
                 category = PlaceCategory.TRAIN_STATION,
             )
-            vm.onSelectPlace(place)
-            assertEquals(place.name, vm.uiState.value.activeDraft?.label)
-            assertEquals(place.coordinates, vm.uiState.value.activeDraft?.coordinates)
-        } finally { scope.cancel() }
+            viewModel.onSelectPlace(place)
+            assertEquals(place.name, viewModel.uiState.value.activeDraft?.label)
+            assertEquals(place.coordinates, viewModel.uiState.value.activeDraft?.coordinates)
+        } finally {
+            vmScope.cancel()
+        }
     }
 
     @Test
     fun leavingFailedEditorClearsItsFailure() = runTest {
-        val (vm, _, scope) = createTestViewModel(savePort = FakeSaveAlarmPort(shouldFail = true))
+        val (viewModel, _, vmScope) = createTestViewModel(savePort = FakeSaveAlarmPort(shouldFail = true))
         try {
-            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
-            val draft = vm.uiState.value.activeDraft!!.copy(label = "London")
-            vm.onUpdateDraft(draft)
-            vm.onSaveDraftAlarm(draft) {}
-            assertTrue(vm.uiState.value.hasOperationFailure)
-            vm.onClearDraft()
-            assertFalse(vm.uiState.value.hasOperationFailure)
-        } finally { scope.cancel() }
+            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val draft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
+            viewModel.onUpdateDraft(draft)
+            viewModel.onSaveDraftAlarm(draft) {}
+            assertTrue(viewModel.uiState.value.hasOperationFailure)
+            viewModel.onClearDraft()
+            assertFalse(viewModel.uiState.value.hasOperationFailure)
+        } finally {
+            vmScope.cancel()
+        }
     }
 
     @Test
     fun saveCompletionOnlyNavigatesAfterSuccessfulPersistence() = runTest {
         val save = FakeSaveAlarmPort(shouldFail = true)
-        val (vm, _, scope) = createTestViewModel(savePort = save)
+        val (viewModel, _, vmScope) = createTestViewModel(savePort = save)
         try {
-            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
-            val draft = vm.uiState.value.activeDraft!!.copy(label = "London")
-            vm.onUpdateDraft(draft)
+            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val draft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
+            viewModel.onUpdateDraft(draft)
             var completed = 0
-            vm.onSaveDraftAlarm(draft) { completed++ }
+            viewModel.onSaveDraftAlarm(draft) { completed++ }
             assertEquals(0, completed)
-            assertEquals(draft, vm.uiState.value.activeDraft)
-            assertTrue(vm.uiState.value.hasOperationFailure)
+            assertEquals(draft, viewModel.uiState.value.activeDraft)
+            assertTrue(viewModel.uiState.value.hasOperationFailure)
             save.shouldFail = false
-            vm.onSaveDraftAlarm(draft) { completed++ }
+            viewModel.onSaveDraftAlarm(draft) { completed++ }
             assertEquals(1, completed)
-            assertNull(vm.uiState.value.activeDraft)
-            assertFalse(vm.uiState.value.hasOperationFailure)
-        } finally { scope.cancel() }
+            assertNull(viewModel.uiState.value.activeDraft)
+            assertFalse(viewModel.uiState.value.hasOperationFailure)
+        } finally {
+            vmScope.cancel()
+        }
     }
 
     @Test
     fun missingDeletePortDoesNotSignalSuccess() = runTest {
-        val (vm, _, scope) = createTestViewModel()
+        val (viewModel, _, vmScope) = createTestViewModel()
         try {
             var completed = false
-            vm.onDeleteAlarm("absent") { completed = true }
+            viewModel.onDeleteAlarm("absent") { completed = true }
             assertFalse(completed)
-        } finally { scope.cancel() }
+        } finally {
+            vmScope.cancel()
+        }
     }
 
     @Test
@@ -942,17 +955,19 @@ class FjalarViewModelTest {
                 return Result.success(Unit)
             }
         }
-        val (vm, _, scope) = createTestViewModel(savePort = port)
+        val (viewModel, _, vmScope) = createTestViewModel(savePort = port)
         try {
-            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
-            val draft = vm.uiState.value.activeDraft!!.copy(label = "London")
-            vm.onSaveDraftAlarm(draft)
-            assertTrue(vm.uiState.value.isOperationPending)
-            vm.onSaveDraftAlarm(draft)
+            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val draft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
+            viewModel.onSaveDraftAlarm(draft)
+            assertTrue(viewModel.uiState.value.isOperationPending)
+            viewModel.onSaveDraftAlarm(draft)
             assertEquals(1, writes)
             release.complete(Unit)
-            assertFalse(vm.uiState.value.isOperationPending)
-        } finally { scope.cancel() }
+            assertFalse(viewModel.uiState.value.isOperationPending)
+        } finally {
+            vmScope.cancel()
+        }
     }
 
     @Test
@@ -965,22 +980,22 @@ class FjalarViewModelTest {
             }
         }
         val renderer = FakeMapRendererPort()
-        val (vm, _, scope) = createTestViewModel(savePort = port, mapRendererPort = renderer)
+        val (viewModel, _, vmScope) = createTestViewModel(savePort = port, mapRendererPort = renderer)
         try {
-            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
-            val originalDraft = vm.uiState.value.activeDraft!!.copy(label = "London")
-            vm.onUpdateDraft(originalDraft)
-            vm.onSaveDraftAlarm(originalDraft)
-            vm.onClearDraft()
-            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
-            val newerDraft = vm.uiState.value.activeDraft!!.copy(label = "London")
-            vm.onUpdateDraft(newerDraft)
+            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val originalDraft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
+            viewModel.onUpdateDraft(originalDraft)
+            viewModel.onSaveDraftAlarm(originalDraft)
+            viewModel.onClearDraft()
+            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val newerDraft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
+            viewModel.onUpdateDraft(newerDraft)
             release.complete(Unit)
-            assertEquals(newerDraft, vm.uiState.value.activeDraft)
-            assertEquals(GeoCoordinates(51.5, -0.1), vm.uiState.value.selectedCoordinates)
+            assertEquals(newerDraft, viewModel.uiState.value.activeDraft)
+            assertEquals(GeoCoordinates(51.5, -0.1), viewModel.uiState.value.selectedCoordinates)
             assertFalse(renderer.overlaysCleared)
         } finally {
-            scope.cancel()
+            vmScope.cancel()
         }
     }
 
@@ -993,17 +1008,17 @@ class FjalarViewModelTest {
                 return Result.success(Unit)
             }
         }
-        val (vm, _, scope) = createTestViewModel(deleteAlarmPort = port)
+        val (viewModel, _, vmScope) = createTestViewModel(deleteAlarmPort = port)
         try {
-            vm.onDeleteAlarm("old-alarm")
-            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
-            val newerDraft = vm.uiState.value.activeDraft!!.copy(label = "London")
-            vm.onUpdateDraft(newerDraft)
+            viewModel.onDeleteAlarm("old-alarm")
+            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val newerDraft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
+            viewModel.onUpdateDraft(newerDraft)
             release.complete(Unit)
-            assertEquals(newerDraft, vm.uiState.value.activeDraft)
-            assertEquals(GeoCoordinates(51.5, -0.1), vm.uiState.value.selectedCoordinates)
+            assertEquals(newerDraft, viewModel.uiState.value.activeDraft)
+            assertEquals(GeoCoordinates(51.5, -0.1), viewModel.uiState.value.selectedCoordinates)
         } finally {
-            scope.cancel()
+            vmScope.cancel()
         }
     }
 
@@ -1018,21 +1033,23 @@ class FjalarViewModelTest {
                 return Result.success(Unit)
             }
         }
-        val (vm, _, scope) = createTestViewModel(savePort = port)
+        val (viewModel, _, vmScope) = createTestViewModel(savePort = port)
         try {
-            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
-            val submitted = vm.uiState.value.activeDraft!!.copy(label = "London")
+            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val submitted = viewModel.uiState.value.activeDraft!!.copy(label = "London")
             assertNotNull(submitted.alarmId)
-            vm.onUpdateDraft(submitted)
-            vm.onSaveDraftAlarm(submitted)
-            vm.onUpdateDraft(submitted.copy(label = "London Bridge"))
+            viewModel.onUpdateDraft(submitted)
+            viewModel.onSaveDraftAlarm(submitted)
+            viewModel.onUpdateDraft(submitted.copy(label = "London Bridge"))
             release.complete(Unit)
-            val revised = vm.uiState.value.activeDraft!!
-            vm.onSaveDraftAlarm(revised)
+            val revised = viewModel.uiState.value.activeDraft!!
+            viewModel.onSaveDraftAlarm(revised)
             assertEquals(2, writes.size)
             assertEquals(writes.first().id, writes.last().id)
             assertEquals("London Bridge", writes.last().label)
-        } finally { scope.cancel() }
+        } finally {
+            vmScope.cancel()
+        }
     }
 
     @Test
@@ -1044,21 +1061,21 @@ class FjalarViewModelTest {
                 return Result.success(Unit)
             }
         }
-        val (vm, _, scope) = createTestViewModel(savePort = port)
+        val (viewModel, _, vmScope) = createTestViewModel(savePort = port)
         try {
-            vm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
-            val submittedDraft = vm.uiState.value.activeDraft!!.copy(label = "London")
-            vm.onUpdateDraft(submittedDraft)
-            vm.onSaveDraftAlarm(submittedDraft)
+            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val submittedDraft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
+            viewModel.onUpdateDraft(submittedDraft)
+            viewModel.onSaveDraftAlarm(submittedDraft)
             val editedDraft = submittedDraft.copy(label = "London Bridge", radiusMeters = 1000)
-            vm.onUpdateDraft(editedDraft)
-            vm.onDraftCoordinatesChanged(GeoCoordinates(51.505, -0.09))
+            viewModel.onUpdateDraft(editedDraft)
+            viewModel.onDraftCoordinatesChanged(GeoCoordinates(51.505, -0.09))
             release.complete(Unit)
-            assertEquals("London Bridge", vm.uiState.value.activeDraft?.label)
-            assertEquals(1000, vm.uiState.value.activeDraft?.radiusMeters)
-            assertEquals(GeoCoordinates(51.505, -0.09), vm.uiState.value.activeDraft?.coordinates)
+            assertEquals("London Bridge", viewModel.uiState.value.activeDraft?.label)
+            assertEquals(1000, viewModel.uiState.value.activeDraft?.radiusMeters)
+            assertEquals(GeoCoordinates(51.505, -0.09), viewModel.uiState.value.activeDraft?.coordinates)
         } finally {
-            scope.cancel()
+            vmScope.cancel()
         }
     }
 

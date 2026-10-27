@@ -39,6 +39,7 @@ import androidx.navigation.toRoute
 import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.ThemeMode
+import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.ui.components.ArmedStatusPill
 import com.muhammadridha.fjalar.ui.components.FloatingHudBar
 import com.muhammadridha.fjalar.ui.components.LocationPermissionBanner
@@ -83,6 +84,15 @@ fun FjalarApp(
     val uiState by viewModel.uiState.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    // System back can pop Configure without invoking its toolbar callback. Clear
+    // abandoned editor state when a top-level destination becomes current again.
+    // Returning from the picker keeps Configure current and preserves its draft.
+    LaunchedEffect(navBackStackEntry) {
+        if (isBottomBarVisible(currentRoute) && viewModel.uiState.value.activeDraft != null) {
+            viewModel.onClearDraft()
+        }
+    }
 
     LiquidGlassTheme(
         themeMode = uiState.themeMode,
@@ -249,6 +259,11 @@ fun FjalarApp(
                         }
                     }
 
+                    val handleBack: () -> Unit = {
+                        viewModel.onClearDraft()
+                        navController.popBackStack()
+                    }
+
                     ConfigureAlarmScreen(
                         draft = draft,
                         persistedAlarm = draft.deletionTarget(uiState.alarms),
@@ -262,10 +277,7 @@ fun FjalarApp(
                                 }
                             }
                         },
-                        onBack = {
-                            viewModel.onClearDraft()
-                            navController.popBackStack()
-                        },
+                        onBack = handleBack,
                         onNavigateToPicker = { coords ->
                             if (!viewModel.uiState.value.isOperationPending) {
                                 navController.navigate(
@@ -293,6 +305,9 @@ fun FjalarApp(
                     MapPickerScreen(
                         initialCoordinates = GeoCoordinates(route.initialLat, route.initialLon),
                         initialZoom = if (uiState.activeDraft?.coordinates == null) 2.0 else 15.0,
+                        geofenceRadius = uiState.activeDraft
+                            ?.let { TriggerRadius(it.radiusMeters) }
+                            ?: TriggerRadius.DEFAULT,
                         onConfirmCoordinates = { coords ->
                             viewModel.onDraftCoordinatesChanged(coords)
                             navController.popBackStack()
@@ -326,7 +341,7 @@ fun FjalarApp(
                     onAddAlarmClick = {
                         viewModel.onStartConfiguringAlarm(
                             alarmId = null,
-                            defaultCoordinates = uiState.userLocation ?: uiState.selectedCoordinates,
+                            defaultCoordinates = uiState.selectedCoordinates ?: uiState.userLocation,
                         )
                         navController.navigate(ConfigureRoute())
                     },

@@ -49,6 +49,7 @@ fun MapPickerScreen(
     modifier: Modifier = Modifier,
     locale: AppLocale = LiquidGlassTheme.locale,
     initialZoom: Double = 15.0,
+    geofenceRadius: TriggerRadius = TriggerRadius.DEFAULT,
 ) {
     val colors = LiquidGlassTheme.colors
     val isDarkTheme = LiquidGlassTheme.themeMode == ThemeMode.DARK ||
@@ -72,7 +73,7 @@ fun MapPickerScreen(
             // tappable/draggable pin would disagree with the crosshair after a gesture.
             pinLocation = null,
             geofenceCenter = currentCoordinates,
-            geofenceRadius = TriggerRadius(500),
+            geofenceRadius = geofenceRadius,
             isDarkTheme = isDarkTheme,
             onMapClick = {},
             onPinDrag = {},

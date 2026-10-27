@@ -7,17 +7,13 @@ import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
-import com.muhammadridha.fjalar.ui.components.DeleteAlarmConfirmationDialog
 import com.muhammadridha.fjalar.ui.components.formatDeleteMessage
-import com.muhammadridha.fjalar.ui.screens.AlarmsScreen
 import com.muhammadridha.fjalar.ui.screens.calculateActiveCount
 import com.muhammadridha.fjalar.ui.screens.formatActiveCountBadge
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
 import com.muhammadridha.fjalar.ui.theme.FjalarStrings
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 class AlarmsScreenTest {
 
@@ -93,23 +89,4 @@ class AlarmsScreenTest {
         assertEquals("Batal", idCancel)
     }
 
-    @Test
-    fun deleteConfirmationFlow_triggersExpectedCallbacks() {
-        var confirmedAlarmId: String? = null
-        var dismissed = false
-
-        val alarm = createTestAlarm(id = "target-alarm-99")
-
-        val onConfirm: (String) -> Unit = { id -> confirmedAlarmId = id }
-        val onDismiss: () -> Unit = { dismissed = true }
-
-        // Simulate confirmation
-        onConfirm(alarm.id)
-        assertEquals("target-alarm-99", confirmedAlarmId)
-        assertFalse(dismissed)
-
-        // Simulate dismissal
-        onDismiss()
-        assertTrue(dismissed)
-    }
 }
