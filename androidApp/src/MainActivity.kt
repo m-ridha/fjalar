@@ -184,18 +184,20 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            App(
-                container = container,
-                viewModel = viewModel,
-                onRequestPermission = {
-                    when (locationPermissionStep()) {
-                        LocationPermissionStep.FOREGROUND -> requestForegroundPermission()
-                        LocationPermissionStep.BACKGROUND_RUNTIME,
-                        LocationPermissionStep.BACKGROUND_SETTINGS -> showBackgroundRationale = true
-                        LocationPermissionStep.GRANTED -> refreshLocationPermissionState(viewModel)
-                    }
-                },
-            )
+            FoldAwareControls(this@MainActivity) {
+                App(
+                    container = container,
+                    viewModel = viewModel,
+                    onRequestPermission = {
+                        when (locationPermissionStep()) {
+                            LocationPermissionStep.FOREGROUND -> requestForegroundPermission()
+                            LocationPermissionStep.BACKGROUND_RUNTIME,
+                            LocationPermissionStep.BACKGROUND_SETTINGS -> showBackgroundRationale = true
+                            LocationPermissionStep.GRANTED -> refreshLocationPermissionState(viewModel)
+                        }
+                    },
+                )
+            }
 
             // An educational dialog must never cover the active wake-up alarm.
             if (showBackgroundRationale && permissionUiState.activeRingingAlarm == null) {

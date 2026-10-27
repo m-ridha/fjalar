@@ -5,6 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -138,6 +142,7 @@ data class ConfigureAlarmDraft(
 
 private val RADIUS_PRESETS = listOf(300, 500, 1000, 2000, 3000)
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ConfigureAlarmScreen(
     draft: ConfigureAlarmDraft,
@@ -164,7 +169,8 @@ fun ConfigureAlarmScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(colors.canvas),
+            .background(colors.canvas)
+            .then(WindowInsetsLayoutHelper.horizontalSafeDrawingPaddingModifier()),
     ) {
         // Safe Top Bar
         Row(
@@ -177,6 +183,7 @@ fun ConfigureAlarmScreen(
             // Back Button
             Row(
                 modifier = Modifier
+                    .heightIn(min = 48.dp)
                     .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                     .clickable(role = Role.Button, onClick = onBack)
                     .padding(horizontal = 14.dp, vertical = 6.dp),
@@ -226,6 +233,7 @@ fun ConfigureAlarmScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .then(WindowInsetsLayoutHelper.navigationBottomPaddingModifier())
                 .verticalScroll(rememberScrollState())
                 .imePadding()
                 .padding(horizontal = 20.dp, vertical = 12.dp),
@@ -353,7 +361,7 @@ fun ConfigureAlarmScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             // Preset Pills
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -362,6 +370,8 @@ fun ConfigureAlarmScreen(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .widthIn(min = 64.dp)
+                            .heightIn(min = 48.dp)
                             .clip(CircleShape)
                             .background(if (isSelected) colors.primary else colors.glassPill)
                             .clickable(role = Role.Button) {
@@ -471,9 +481,10 @@ fun ConfigureAlarmScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     EditorTimeStepper(
                         label = FjalarStrings.get(
@@ -484,7 +495,7 @@ fun ConfigureAlarmScreen(
                         minuteOfDay = draft.startMinuteOfDay,
                         onChange = { onDraftChange(draft.copy(startMinuteOfDay = it)) },
                         locale = locale,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).widthIn(min = 152.dp),
                     )
                     EditorTimeStepper(
                         label = FjalarStrings.get(
@@ -495,16 +506,17 @@ fun ConfigureAlarmScreen(
                         minuteOfDay = draft.endMinuteOfDay,
                         onChange = { onDraftChange(draft.copy(endMinuteOfDay = it)) },
                         locale = locale,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).widthIn(min = 152.dp),
                     )
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // 7 Day-of-week chips
-                Row(
+                // Day chips wrap on narrow panes and at larger text sizes.
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     val dayLabels = dayChipLabels(locale)
                     for (i in 0..6) {
@@ -513,6 +525,8 @@ fun ConfigureAlarmScreen(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
+                                .widthIn(min = 48.dp)
+                                .heightIn(min = 48.dp)
                                 .clip(CircleShape)
                                 .background(if (isDayActive) colors.primary else colors.glassPill)
                                 .clickable(role = Role.Button) {
@@ -661,7 +675,7 @@ private fun EditorTimeStepper(
                     .clip(RoundedCornerShape(8.dp))
                     .background(colors.primary.copy(alpha = 0.12f))
                     .clickable(role = Role.Button) { onChange((minuteOfDay - 15 + 1440) % 1440) }
-                    .defaultMinSize(minWidth = 48.dp, minHeight = 44.dp)
+                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -676,7 +690,7 @@ private fun EditorTimeStepper(
                     .clip(RoundedCornerShape(8.dp))
                     .background(colors.primary.copy(alpha = 0.12f))
                     .clickable(role = Role.Button) { onChange((minuteOfDay + 15) % 1440) }
-                    .defaultMinSize(minWidth = 48.dp, minHeight = 44.dp)
+                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {

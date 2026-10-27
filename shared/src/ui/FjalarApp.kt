@@ -148,7 +148,8 @@ fun FjalarApp(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .align(Alignment.TopCenter),
+                                .align(Alignment.TopCenter)
+                                .then(WindowInsetsLayoutHelper.safeDrawingPaddingModifier()),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             FloatingHudBar(
@@ -169,6 +170,7 @@ fun FjalarApp(
                                     onDismiss = { permissionBannerDismissed = true },
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .then(WindowInsetsLayoutHelper.horizontalSafeDrawingPaddingModifier())
                                         .padding(horizontal = 16.dp),
                                 )
                             }
@@ -184,7 +186,8 @@ fun FjalarApp(
                                         )
                                         navController.navigate(ConfigureRoute(activeAlarm.id))
                                     },
-                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    modifier = WindowInsetsLayoutHelper.horizontalSafeDrawingPaddingModifier()
+                                        .padding(horizontal = 16.dp),
                                 )
                             }
                         }
@@ -212,7 +215,7 @@ fun FjalarApp(
                                 isLoading = uiState.isSearching,
                                 userLocation = uiState.userLocation,
                                 locale = uiState.appLocale,
-                                modifier = WindowInsetsLayoutHelper.sheetBottomPaddingModifier()
+                                modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier()
                                     .imePadding()
                                     .padding(bottom = 100.dp),
                             )

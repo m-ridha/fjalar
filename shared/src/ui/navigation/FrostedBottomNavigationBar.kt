@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -83,7 +84,7 @@ fun FrostedBottomNavigationBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .heightIn(min = 64.dp)
                 .glassSurface(
                     level = GlassLevel.SHEET,
                     shape = RoundedCornerShape(24.dp),
@@ -158,6 +159,7 @@ private fun NavTabItem(
 
     Column(
         modifier = modifier
+            .heightIn(min = 48.dp)
             .clickable(
                 role = Role.Tab,
                 interactionSource = remember { MutableInteractionSource() },
@@ -183,7 +185,6 @@ private fun NavTabItem(
             color = accentColor,
             fontSize = 12.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            maxLines = 1,
         )
     }
 }

@@ -2,6 +2,7 @@ package com.muhammadridha.fjalar.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -87,6 +88,7 @@ fun SearchPlacesSheet(
                 level = GlassLevel.MODAL,
                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             )
+            .verticalScroll(rememberScrollState())
             .padding(top = 10.dp, bottom = 16.dp),
     ) {
         // Top Grab Handle
@@ -112,6 +114,7 @@ fun SearchPlacesSheet(
         ) {
             Text(
                 text = fjalarString(FjalarStringKey.SEARCH_RECENT_TITLE),
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = colors.textPrimary,
             )
@@ -170,7 +173,7 @@ fun SearchPlacesSheet(
                 val clearDescription = fjalarString(FjalarStringKey.SEARCH_CLEAR)
                 Box(
                     modifier = Modifier
-                        .size(22.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .clickable(
                             role = Role.Button,

@@ -1,5 +1,7 @@
 package com.muhammadridha.fjalar.ui.components
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +31,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
+import com.muhammadridha.fjalar.ui.WindowInsetsLayoutHelper
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
 import com.muhammadridha.fjalar.ui.theme.FjalarStrings
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
@@ -53,6 +56,8 @@ fun DeleteAlarmConfirmationDialog(
     val cancelText = FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_CANCEL, locale)
     val confirmText = FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_CONFIRM, locale)
 
+    val safeArea = WindowInsetsLayoutHelper.safeDrawingPaddingModifier()
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -65,6 +70,7 @@ fun DeleteAlarmConfirmationDialog(
                     indication = null,
                     onClick = onDismiss,
                 )
+                .then(safeArea)
                 .padding(24.dp),
             contentAlignment = Alignment.Center,
         ) {
@@ -80,6 +86,7 @@ fun DeleteAlarmConfirmationDialog(
                         indication = null,
                         onClick = {}, // Prevent closing dialog when clicking inside card
                     )
+                    .verticalScroll(rememberScrollState())
                     .padding(24.dp),
             ) {
                 Text(

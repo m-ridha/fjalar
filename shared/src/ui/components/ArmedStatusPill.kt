@@ -3,6 +3,7 @@ package com.muhammadridha.fjalar.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -47,6 +48,7 @@ fun ArmedStatusPill(
 
     Row(
         modifier = modifier
+            .heightIn(min = 48.dp)
             .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),

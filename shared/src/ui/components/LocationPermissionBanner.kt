@@ -4,6 +4,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -36,6 +39,7 @@ import com.muhammadridha.fjalar.ui.theme.glassSurface
  * is required for geofenced transit wakeups, providing an action button to trigger
  * the OS permission launcher and a dismiss option.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LocationPermissionBanner(
     onRequestPermission: () -> Unit,
@@ -82,13 +86,14 @@ fun LocationPermissionBanner(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(
                 modifier = Modifier
+                    .heightIn(min = 48.dp)
                     .clickable(
                         role = Role.Button,
                         onClick = onDismiss,
@@ -107,10 +112,9 @@ fun LocationPermissionBanner(
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
-
             Box(
                 modifier = Modifier
+                    .heightIn(min = 48.dp)
                     .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                     .clickable(
                         role = Role.Button,

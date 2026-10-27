@@ -108,7 +108,7 @@ fun AlarmCard(
                 if (onDelete != null) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(48.dp)
                             .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                             .clickable(role = Role.Button) { onDelete(alarm) }
                             .semantics { contentDescription = deleteLabel },

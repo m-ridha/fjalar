@@ -1,5 +1,7 @@
 package com.muhammadridha.fjalar.ui.screens
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -70,7 +72,8 @@ fun AlarmsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(colors.canvas),
+            .background(colors.canvas)
+            .then(WindowInsetsLayoutHelper.safeDrawingPaddingModifier()),
     ) {
         if (hasOperationFailure) {
             Text(
@@ -139,7 +142,8 @@ fun AlarmsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(horizontal = 24.dp),
+                    .padding(start = 24.dp, end = 24.dp, bottom = bottomDockClearance)
+                    .verticalScroll(rememberScrollState()),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(

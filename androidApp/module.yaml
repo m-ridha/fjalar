@@ -3,6 +3,7 @@ product: android/app
 dependencies:
   - //shared
   - $libs.androidx.activity.compose
+  - $libs.androidx.window
   - $compose.preview
   - $compose.uiTooling
 

@@ -3,6 +3,10 @@ package com.muhammadridha.fjalar.ui.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,7 +56,7 @@ fun LanguageDropdown(
     Box(modifier = modifier) {
         Box(
             modifier = Modifier
-                .height(44.dp)
+                .heightIn(min = 48.dp)
                 .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                 .clickable(
                     role = Role.Button,
@@ -106,6 +110,7 @@ fun LanguageDropdown(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FloatingHudBar(
     onSearchClick: () -> Unit,
@@ -129,16 +134,17 @@ fun FloatingHudBar(
         if (loc != locale) onToggleLocale()
     }
 
-    Row(
+    FlowRow(
         modifier = WindowInsetsLayoutHelper.hudTopPaddingModifier(modifier).fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // Search Pill
         Row(
             modifier = Modifier
                 .weight(1f)
-                .height(44.dp)
+                .widthIn(min = 160.dp)
+                .heightIn(min = 48.dp)
                 .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                 .clickable(
                     role = Role.Button,
@@ -171,7 +177,7 @@ fun FloatingHudBar(
         // Theme Toggle Button (☀️ / 🌙)
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(48.dp)
                 .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                 .clickable(
                     role = Role.Button,
@@ -192,7 +198,7 @@ fun FloatingHudBar(
         // Recenter GPS Button (◎)
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(48.dp)
                 .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                 .clickable(
                     role = Role.Button,

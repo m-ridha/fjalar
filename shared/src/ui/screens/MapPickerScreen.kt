@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -119,6 +119,7 @@ fun MapPickerScreen(
             // Back Button
             Row(
                 modifier = Modifier
+                    .heightIn(min = 48.dp)
                     .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                     .clickable(role = Role.Button, onClick = onBack)
                     .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -167,7 +168,7 @@ fun MapPickerScreen(
                 shape = CircleShape,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
+                    .heightIn(min = 52.dp),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
             ) {
                 Text(
