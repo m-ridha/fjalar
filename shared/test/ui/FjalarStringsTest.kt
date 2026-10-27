@@ -10,6 +10,12 @@ import kotlin.test.assertTrue
 class FjalarStringsTest {
 
     @Test
+    fun snoozeCopyPromisesOnlyTwoMinutes() {
+        assertEquals("Snooze (+2 min)", FjalarStrings.get(FjalarStringKey.RINGING_SNOOZE_ACTION, AppLocale.EN))
+        assertEquals("Tunda (+2 mnt)", FjalarStrings.get(FjalarStringKey.RINGING_SNOOZE_ACTION, AppLocale.ID))
+    }
+
+    @Test
     fun argumentPlaceholderTextRemainsLiteral() {
         for (locale in AppLocale.entries) {
             val label = "Station %s %2\$s %d"

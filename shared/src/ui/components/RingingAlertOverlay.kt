@@ -52,6 +52,8 @@ fun RingingAlertOverlay(
     onSnooze: (id: String) -> Unit,
     modifier: Modifier = Modifier,
     distanceMeters: Int? = null,
+    isOperationPending: Boolean = false,
+    hasOperationFailure: Boolean = false,
 ) {
     val colors = LiquidGlassTheme.colors
     val transition = rememberInfiniteTransition()
@@ -166,11 +168,22 @@ fun RingingAlertOverlay(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                if (isOperationPending) {
+                    androidx.compose.material3.CircularProgressIndicator()
+                }
+                if (hasOperationFailure) {
+                    Text(
+                        text = fjalarString(FjalarStringKey.RINGING_OPERATION_FAILED),
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+
                 // Snooze Button
                 Box(
                     modifier = Modifier
                         .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                        .clickable(role = Role.Button) { onSnooze(alarm.id) }
+                        .clickable(enabled = !isOperationPending, role = Role.Button) { onSnooze(alarm.id) }
                         .padding(horizontal = 20.dp, vertical = 10.dp),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -187,7 +200,7 @@ fun RingingAlertOverlay(
 
             // Bottom "Slide to Stop Alarm" track (sleepy-eyes dismissal safety)
             SlideToStopTrack(
-                onStopAlarm = { onDismiss(alarm.id) },
+                onStopAlarm = { if (!isOperationPending) onDismiss(alarm.id) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),

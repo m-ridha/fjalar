@@ -44,6 +44,71 @@ class AlarmServiceTest {
     )
 
     @Test
+    fun snoozePersistsDeadlineAndRingsWithoutFix() = runTest {
+        val alarm = createSampleAlarm(state = AlarmState.RINGING)
+        service.saveAlarm(alarm).getOrThrow()
+        val deadline = clock.now() + kotlin.time.Duration.parse("2m")
+        service.snoozeAlarm(alarm.id).getOrThrow()
+        kotlin.test.assertEquals(AlarmState.SNOOZED, repository.getAlarm(alarm.id)!!.state)
+        kotlin.test.assertEquals(deadline, repository.getAlarm(alarm.id)!!.snoozedUntil)
+        kotlin.test.assertEquals(deadline, scheduler.wakeups[alarm.id])
+        assertFalse(tracker.isTracking)
+        assertTrue(service.handleLocationUpdate(alarm.coordinates, 1f).isEmpty())
+        clock.now = deadline
+        service.syncSchedules()
+        kotlin.test.assertEquals(AlarmState.RINGING, repository.getAlarm(alarm.id)!!.state)
+        kotlin.test.assertEquals(alarm.radius, repository.getAlarm(alarm.id)!!.radius)
+    }
+
+    @Test
+    fun failedSnoozeStopLeavesRingingForRetry() = runTest {
+        val alarm = createSampleAlarm(state = AlarmState.RINGING)
+        service.saveAlarm(alarm).getOrThrow()
+        ringer.shouldFailOnStop = true
+        assertTrue(service.snoozeAlarm(alarm.id).isFailure)
+        kotlin.test.assertEquals(AlarmState.RINGING, repository.getAlarm(alarm.id)!!.state)
+    }
+
+    @Test
+    fun simultaneousAlarmsHaveOneDeterministicOwner() = runTest {
+        service.saveAlarm(createSampleAlarm(id = "b", state = AlarmState.ARMED_MONITORING)).getOrThrow()
+        service.saveAlarm(createSampleAlarm(id = "a", state = AlarmState.ARMED_MONITORING)).getOrThrow()
+        kotlin.test.assertEquals(2, service.handleLocationUpdate(GeoCoordinates(-6.2, 106.8), 1f).size)
+        kotlin.test.assertEquals(setOf("a"), ringer.ringingIds)
+        service.dismissAlarm("a").getOrThrow()
+        kotlin.test.assertEquals(setOf("b"), ringer.ringingIds)
+    }
+
+    @Test
+    fun failedSnoozeSchedulingLeavesRingingAndAudible() = runTest {
+        val alarm = createSampleAlarm(state = AlarmState.RINGING)
+        service.saveAlarm(alarm).getOrThrow()
+        scheduler.shouldFailOnSchedule = true
+        assertTrue(service.snoozeAlarm(alarm.id).isFailure)
+        kotlin.test.assertEquals(alarm, repository.getAlarm(alarm.id))
+        kotlin.test.assertEquals(setOf(alarm.id), ringer.ringingIds)
+    }
+
+    @Test
+    fun snoozeOwnerHandsPlaybackToPendingAlarm() = runTest {
+        service.saveAlarm(createSampleAlarm(id = "a", state = AlarmState.RINGING)).getOrThrow()
+        service.saveAlarm(createSampleAlarm(id = "b", state = AlarmState.RINGING)).getOrThrow()
+        service.snoozeAlarm("a").getOrThrow()
+        kotlin.test.assertEquals(setOf("b"), ringer.ringingIds)
+        kotlin.test.assertEquals(AlarmState.RINGING, repository.getAlarm("b")!!.state)
+    }
+
+    @Test
+    fun recreatedServiceCanStopExistingPlaybackWhenSnoozing() = runTest {
+        val alarm = createSampleAlarm(state = AlarmState.RINGING)
+        service.saveAlarm(alarm).getOrThrow()
+        val recreated = AlarmService(repository, tracker, scheduler, ringer, ScheduleEvaluator(JAKARTA), clock)
+        recreated.snoozeAlarm(alarm.id).getOrThrow()
+        assertTrue(ringer.ringingIds.isEmpty())
+        kotlin.test.assertEquals(AlarmState.SNOOZED, repository.getAlarm(alarm.id)!!.state)
+    }
+
+    @Test
     fun convertedCompletedAlarmKeepsWakeupUntilSuppressionEnds() = runTest {
         val end = Instant.fromEpochMilliseconds(clock.now().toEpochMilliseconds() + 60_000L)
         val old = createSampleAlarm(schedule = AlarmSchedule(

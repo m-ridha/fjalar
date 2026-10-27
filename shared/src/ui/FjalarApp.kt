@@ -370,8 +370,9 @@ fun FjalarApp(
                         RingingAlertOverlay(
                             alarm = ringingAlarm,
                             onDismiss = viewModel::onDismissRingingAlarm,
-                            // Snooze remains inert until a dedicated use case is available.
-                            onSnooze = {},
+                            onSnooze = viewModel::onSnoozeRingingAlarm,
+                            isOperationPending = uiState.isOperationPending,
+                            hasOperationFailure = uiState.hasOperationFailure,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }

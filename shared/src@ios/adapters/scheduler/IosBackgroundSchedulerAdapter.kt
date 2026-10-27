@@ -4,6 +4,12 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.resources.Res
 import com.muhammadridha.fjalar.resources.app_name
 import org.jetbrains.compose.resources.getString
+import com.muhammadridha.fjalar.domain.model.LocationAlarm
+import com.muhammadridha.fjalar.resources.snooze_notification_body
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import platform.UserNotifications.UNNotificationSound
 import kotlin.time.Clock
 import kotlin.time.Instant
 import platform.Foundation.NSError
@@ -72,19 +78,30 @@ class IosBackgroundSchedulerAdapter(
     }
 
     override suspend fun scheduleWakeup(alarmId: String, at: Instant) {
-        val center = resolveNotificationCenter() ?: return
+        scheduleNotification(alarmId, at, null)
+    }
+
+    override suspend fun scheduleSnoozeWakeup(alarm: LocationAlarm, at: Instant) {
+        scheduleNotification(alarm.id, at, alarm)
+    }
+
+    private suspend fun scheduleNotification(alarmId: String, at: Instant, snoozedAlarm: LocationAlarm?) {
+        val center = checkNotNull(resolveNotificationCenter()) { "Notification center unavailable" }
         requestAuthorization()
         val now = clock.now()
-        val delaySeconds = (at - now).inWholeSeconds.coerceAtLeast(1)
+        val delaySeconds = (at - now).inWholeMilliseconds.coerceAtLeast(1000) / 1000.0
 
         val content = UNMutableNotificationContent().apply {
             setTitle(resolveNotificationTitle())
-            setBody(resolveNotificationBody())
-            setUserInfo(mapOf("alarmId" to alarmId, "type" to NOTIFICATION_TYPE_COMMUTE_WINDOW))
+            setBody(if (snoozedAlarm == null) resolveNotificationBody() else getString(Res.string.snooze_notification_body))
+            if (snoozedAlarm?.soundConfig?.soundEnabled == true) {
+                setSound(UNNotificationSound.defaultSound)
+            }
+            setUserInfo(mapOf("alarmId" to alarmId, "type" to if (snoozedAlarm == null) NOTIFICATION_TYPE_COMMUTE_WINDOW else NOTIFICATION_TYPE_SNOOZE))
         }
 
         val trigger = UNTimeIntervalNotificationTrigger.triggerWithTimeInterval(
-            timeInterval = delaySeconds.toDouble(),
+            timeInterval = delaySeconds,
             repeats = false,
         )
 
@@ -94,10 +111,14 @@ class IosBackgroundSchedulerAdapter(
             trigger = trigger,
         )
 
-        center.addNotificationRequest(request) { error ->
-            if (error != null) {
-                // Defensive degradation if local notification scheduling fails
-                onError?.invoke(alarmId, error)
+        suspendCancellableCoroutine<Unit> { continuation ->
+            center.addNotificationRequest(request) { error ->
+                if (error != null) {
+                    onError?.invoke(alarmId, error)
+                    continuation.resumeWithException(IllegalStateException(error.localizedDescription))
+                } else {
+                    continuation.resume(Unit)
+                }
             }
         }
     }
@@ -127,6 +148,7 @@ class IosBackgroundSchedulerAdapter(
     }
 
     companion object {
+        const val NOTIFICATION_TYPE_SNOOZE = "com.muhammadridha.fjalar.SNOOZE"
         const val NOTIFICATION_TYPE_COMMUTE_WINDOW = "com.muhammadridha.fjalar.COMMUTE_WINDOW"
 
         fun notificationIdentifier(alarmId: String): String =

@@ -45,7 +45,7 @@
     <!-- Ringing wake-up screen -->
     <string name="ringing_in_zone_badge">DALAM ZONA • %1$s dari titik tujuan</string>
     <string name="ringing_headline">Bangun! Mendekati %1$s</string>
-    <string name="ringing_snooze_action">Tunda (+2 mnt / 250m)</string>
+    <string name="ringing_snooze_action">Tunda (+2 mnt)</string>
     <string name="ringing_slide_to_stop">Geser untuk Matikan Alarm</string>
 
     <!-- System notifications & background telemetry -->
@@ -101,4 +101,6 @@
     <string name="pinned_location">Titik Lokasi</string>
     <string name="location_not_set">📍 Belum ditentukan</string>
     <string name="operation_failed">Perubahan gagal disimpan. Silakan coba lagi.</string>
+    <string name="ringing_operation_failed">Alarm gagal dihentikan. Silakan coba lagi.</string>
+    <string name="snooze_notification_body">Waktu tunda selesai. Buka aplikasi untuk menghentikan alarm.</string>
 </resources>

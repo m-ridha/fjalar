@@ -152,6 +152,7 @@ class FjalarViewModelTest {
         syncSchedulesPort: SyncSchedulesPort? = null,
         mapRendererPort: MapRendererPort? = null,
         searchPlacesPort: SearchPlacesPort? = null,
+        snoozePort: com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort? = null,
         storage: InMemoryKeyValueStorage = InMemoryKeyValueStorage(),
     ): Triple<FjalarViewModel, PersistentPreferencesAdapter, CoroutineScope> {
         val testDispatcher = UnconfinedTestDispatcher(testScheduler)
@@ -169,8 +170,47 @@ class FjalarViewModelTest {
             searchPlacesPort = searchPlacesPort,
             deleteAlarmPort = deleteAlarmPort,
             coroutineScope = vmScope,
+            snoozeAlarmPort = snoozePort,
         )
         return Triple(viewModel, preferencesPort, vmScope)
+    }
+
+    @Test
+    fun ringingOwnerUsesSameIdOrderingAsPlaybackAndAdvances() = runTest {
+        val a = manggaraiAlarm().copy(id = "a", state = AlarmState.RINGING)
+        val b = a.copy(id = "b")
+        val observe = FakeObserveAlarmsPort(listOf(b, a))
+        val (vm, _, scope) = createTestViewModel(observePort = observe)
+        try {
+            assertEquals("a", vm.uiState.value.activeRingingAlarm?.id)
+            observe.flow.value = listOf(b, a.copy(state = AlarmState.SNOOZED))
+            assertEquals("b", vm.uiState.value.activeRingingAlarm?.id)
+        } finally { scope.cancel() }
+    }
+
+    @Test
+    fun snoozeShowsPendingThenFailureAndAllowsRetry() = runTest {
+        val completion = kotlinx.coroutines.CompletableDeferred<Result<Unit>>()
+        var calls = 0
+        val port = object : com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort {
+            override suspend fun snoozeAlarm(alarmId: String): Result<Unit> {
+                calls++
+                return if (calls == 1) completion.await() else Result.success(Unit)
+            }
+        }
+        val (vm, _, scope) = createTestViewModel(snoozePort = port)
+        try {
+            vm.onSnoozeRingingAlarm("a")
+            assertTrue(vm.uiState.value.isOperationPending)
+            vm.onSnoozeRingingAlarm("a")
+            assertEquals(1, calls)
+            completion.complete(Result.failure(IllegalStateException("stop failed")))
+            assertTrue(vm.uiState.value.hasOperationFailure)
+            assertFalse(vm.uiState.value.isOperationPending)
+            vm.onSnoozeRingingAlarm("a")
+            assertEquals(2, calls)
+            assertFalse(vm.uiState.value.hasOperationFailure)
+        } finally { scope.cancel() }
     }
 
     @Test

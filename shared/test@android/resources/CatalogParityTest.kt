@@ -128,6 +128,14 @@ class CatalogParityTest {
     }
 
     @Test
+    fun snoozeCopyPromisesOnlyTwoMinutes() {
+        val (en, id, inCat) = loadCatalogs()
+        assertEquals("Snooze (+2 min)", en.getValue("ringing_snooze_action").value)
+        assertEquals("Tunda (+2 mnt)", id.getValue("ringing_snooze_action").value)
+        assertEquals("Tunda (+2 mnt)", inCat.getValue("ringing_snooze_action").value)
+    }
+
+    @Test
     fun allRequiredKeysPresentInAllCatalogs() {
         val (en, id, inCat) = loadCatalogs()
         for (key in requiredKeys) {

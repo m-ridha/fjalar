@@ -92,6 +92,7 @@ fun createDefaultViewModel(
         saveAlarmPort = effectiveAlarmService,
         toggleAlarmPort = effectiveAlarmService,
         dismissAlarmPort = effectiveAlarmService,
+        snoozeAlarmPort = effectiveAlarmService,
         skipTodayPort = effectiveAlarmService,
         preferencesPort = preferences,
         syncSchedulesPort = effectiveSyncSchedulesPort,

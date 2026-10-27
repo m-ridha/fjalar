@@ -59,10 +59,12 @@ class FakeAlarmRinger : AlarmRingerPort {
 }
 
 class FakeAlarmScheduler : AlarmSchedulerPort {
+    var shouldFailOnSchedule = false
     val wakeups = mutableMapOf<String, Instant>()
     val cancelledWakeups = mutableSetOf<String>()
 
     override suspend fun scheduleWakeup(alarmId: String, at: Instant) {
+        check(!shouldFailOnSchedule) { "Simulated scheduling failure" }
         wakeups[alarmId] = at
         cancelledWakeups -= alarmId
     }

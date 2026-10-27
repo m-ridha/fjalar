@@ -29,6 +29,18 @@ import kotlin.time.Instant
 class PersistentStorageTest {
 
     @Test
+    fun snoozeMetadataRoundTripsAndOldRecordsRemainReadable() {
+        val old = com.muhammadridha.fjalar.domain.manggaraiAlarm()
+        assertEquals(old, LocationAlarmJsonCodec.fromJson(LocationAlarmJsonCodec.toJson(old)))
+        val snoozed = old.copy(
+            state = AlarmState.SNOOZED,
+            snoozedUntil = Instant.parse("2026-10-26T02:29:00Z"),
+            suppressedUntil = Instant.parse("2026-10-26T02:30:00Z"),
+        )
+        assertEquals(snoozed, LocationAlarmJsonCodec.fromJson(LocationAlarmJsonCodec.toJson(snoozed)))
+    }
+
+    @Test
     fun jsonCodec_roundTrip_withAllFields() {
         val alarm = LocationAlarm(
             id = "alarm-full-1",

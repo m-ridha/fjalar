@@ -11,6 +11,7 @@ import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.domain.ports.inbound.DeleteAlarmPort
+import com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
@@ -77,6 +78,7 @@ class FjalarViewModel(
     private val searchPlacesPort: SearchPlacesPort? = null,
     private val deleteAlarmPort: DeleteAlarmPort? = null,
     coroutineScope: CoroutineScope? = null,
+    private val snoozeAlarmPort: SnoozeAlarmPort? = null,
 ) : ViewModel() {
 
     internal val scope: CoroutineScope = coroutineScope ?: viewModelScope
@@ -91,7 +93,7 @@ class FjalarViewModel(
     init {
         scope.launch {
             observeAlarmsPort.observeAlarms().collect { alarmsList ->
-                val ringing = alarmsList.firstOrNull { it.state == AlarmState.RINGING }
+                val ringing = alarmsList.filter { it.state == AlarmState.RINGING }.minByOrNull { it.id }
                 _uiState.update { current ->
                     current.copy(
                         alarms = alarmsList,
@@ -288,8 +290,26 @@ class FjalarViewModel(
     }
 
     fun onDismissRingingAlarm(alarmId: String) {
+        performRingingOperation { dismissAlarmPort.dismissAlarm(alarmId) }
+    }
+
+    fun onSnoozeRingingAlarm(alarmId: String) {
+        performRingingOperation {
+            snoozeAlarmPort?.snoozeAlarm(alarmId)
+                ?: Result.failure(IllegalStateException("Snooze is unavailable"))
+        }
+    }
+
+    private fun performRingingOperation(operation: suspend () -> Result<Unit>) {
+        if (_uiState.value.isOperationPending) return
+        _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false) }
         scope.launch {
-            dismissAlarmPort.dismissAlarm(alarmId)
+            try {
+                val result = operation()
+                _uiState.update { it.copy(hasOperationFailure = result.isFailure) }
+            } finally {
+                _uiState.update { it.copy(isOperationPending = false) }
+            }
         }
     }
 

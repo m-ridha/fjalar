@@ -58,6 +58,7 @@ enum class FjalarStringKey {
     RINGING_IN_ZONE_BADGE,
     RINGING_HEADLINE,
     RINGING_SNOOZE_ACTION,
+    RINGING_OPERATION_FAILED,
     RINGING_SLIDE_TO_STOP,
 
     // System Notifications
@@ -158,7 +159,8 @@ object FjalarStrings {
 
         FjalarStringKey.RINGING_IN_ZONE_BADGE to "IN ZONE • %1\$s from target pin",
         FjalarStringKey.RINGING_HEADLINE to "Wake Up! Approaching %1\$s",
-        FjalarStringKey.RINGING_SNOOZE_ACTION to "Snooze (+2 min / 250m)",
+        FjalarStringKey.RINGING_OPERATION_FAILED to "Could not stop the alarm. Please try again.",
+        FjalarStringKey.RINGING_SNOOZE_ACTION to "Snooze (+2 min)",
         FjalarStringKey.RINGING_SLIDE_TO_STOP to "Slide to Stop Alarm",
 
         FjalarStringKey.NOTIF_MONITORING_TITLE to "Monitoring commute destination",
@@ -249,7 +251,8 @@ object FjalarStrings {
 
         FjalarStringKey.RINGING_IN_ZONE_BADGE to "DALAM ZONA • %1\$s dari titik tujuan",
         FjalarStringKey.RINGING_HEADLINE to "Bangun! Mendekati %1\$s",
-        FjalarStringKey.RINGING_SNOOZE_ACTION to "Tunda (+2 mnt / 250m)",
+        FjalarStringKey.RINGING_OPERATION_FAILED to "Alarm gagal dihentikan. Silakan coba lagi.",
+        FjalarStringKey.RINGING_SNOOZE_ACTION to "Tunda (+2 mnt)",
         FjalarStringKey.RINGING_SLIDE_TO_STOP to "Geser untuk Matikan Alarm",
 
         FjalarStringKey.NOTIF_MONITORING_TITLE to "Memantau tujuan perjalanan",

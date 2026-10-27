@@ -45,7 +45,7 @@
     <!-- Ringing wake-up screen -->
     <string name="ringing_in_zone_badge">IN ZONE • %1$s from target pin</string>
     <string name="ringing_headline">Wake Up! Approaching %1$s</string>
-    <string name="ringing_snooze_action">Snooze (+2 min / 250m)</string>
+    <string name="ringing_snooze_action">Snooze (+2 min)</string>
     <string name="ringing_slide_to_stop">Slide to Stop Alarm</string>
 
     <!-- System notifications & background telemetry -->
@@ -101,4 +101,6 @@
     <string name="pinned_location">Pinned Location</string>
     <string name="location_not_set">📍 Not set</string>
     <string name="operation_failed">Could not save changes. Please try again.</string>
+    <string name="ringing_operation_failed">Could not stop the alarm. Please try again.</string>
+    <string name="snooze_notification_body">Snooze ended. Open the app to stop the alarm.</string>
 </resources>
