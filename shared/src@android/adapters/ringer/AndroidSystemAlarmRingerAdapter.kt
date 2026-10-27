@@ -168,7 +168,10 @@ open class DefaultAndroidRingerPlatformGateway(
     private val mediaLock = Any()
     private var focusRequest: AudioFocusRequest? = null
     private var hasFocus = false
-    private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
+    private var focusListener: AudioManager.OnAudioFocusChangeListener? = null
+    private val focusOwnership = AlarmAudioFocusOwnership(mediaLock)
+
+    private fun handleFocusChange(change: Int) {
         when (change) {
             AudioManager.AUDIOFOCUS_LOSS -> {
                 Log.w(TAG, "Alarm audio focus lost; stopping playback")
@@ -183,7 +186,7 @@ open class DefaultAndroidRingerPlatformGateway(
         createPlayer = {
             val nativePlayer = MediaPlayer()
             object : AlarmAudioPlayer {
-                override fun start(source: String, volume: Float, onError: () -> Unit) {
+                override fun start(source: String, volume: Float, initiallyPaused: Boolean, onError: () -> Unit) {
                     nativePlayer.setAudioAttributes(attributes)
                     nativePlayer.setOnErrorListener { _, what, extra ->
                         Log.e(TAG, "Alarm MediaPlayer error what=$what extra=$extra")
@@ -195,7 +198,7 @@ open class DefaultAndroidRingerPlatformGateway(
                     val level = volume.coerceIn(0f, 1f)
                     nativePlayer.setVolume(level, level)
                     nativePlayer.prepare()
-                    nativePlayer.start()
+                    if (!initiallyPaused) nativePlayer.start()
                 }
 
                 override fun setPaused(paused: Boolean) {
@@ -209,6 +212,7 @@ open class DefaultAndroidRingerPlatformGateway(
         },
         reportFailure = { message, error -> Log.e(TAG, message, error) },
         onExhausted = { abandonFocus() },
+        lock = mediaLock,
     )
 
     init {
@@ -220,16 +224,19 @@ open class DefaultAndroidRingerPlatformGateway(
             stopAudio()
             try {
                 val sources = alarmSources()
+                val callback = focusOwnership.beginRequest(::handleFocusChange)
+                val listener = AudioManager.OnAudioFocusChangeListener { callback(it) }
+                focusListener = listener
                 val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                         .setAudioAttributes(attributes)
-                        .setOnAudioFocusChangeListener(focusListener)
+                        .setOnAudioFocusChangeListener(listener)
                         .build()
                     focusRequest = request
                     audioManager.requestAudioFocus(request)
                 } else {
                     @Suppress("DEPRECATION")
-                    audioManager.requestAudioFocus(focusListener, AudioManager.STREAM_ALARM, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                    audioManager.requestAudioFocus(listener, AudioManager.STREAM_ALARM, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                 }
                 hasFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
                 if (!hasFocus) {
@@ -272,16 +279,18 @@ open class DefaultAndroidRingerPlatformGateway(
     }
 
     private fun abandonFocus() {
+        focusOwnership.invalidate()
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 focusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
             } else if (hasFocus) {
                 @Suppress("DEPRECATION")
-                audioManager.abandonAudioFocus(focusListener)
+                focusListener?.let { audioManager.abandonAudioFocus(it) }
             }
         } catch (error: Exception) {
             Log.e(TAG, "Abandoning alarm audio focus failed", error)
         } finally {
+            focusListener = null
             focusRequest = null
             hasFocus = false
         }

@@ -263,14 +263,16 @@ class AndroidSystemAlarmRingerAdapterTest {
 
 class AlarmAudioPlaybackTest {
     private class Player(val fails: Boolean = false) : AlarmAudioPlayer {
+        var playing = false
         var releases = 0
         val pauses = mutableListOf<Boolean>()
         var error: (() -> Unit)? = null
-        override fun start(source: String, volume: Float, onError: () -> Unit) {
+        override fun start(source: String, volume: Float, initiallyPaused: Boolean, onError: () -> Unit) {
+            playing = !initiallyPaused
             error = onError
             if (fails) throw IllegalStateException("Unplayable URI")
         }
-        override fun setPaused(paused: Boolean) { pauses.add(paused) }
+        override fun setPaused(paused: Boolean) { pauses.add(paused); playing = !paused }
         override fun release() { releases++ }
     }
 
@@ -303,6 +305,22 @@ class AlarmAudioPlaybackTest {
         fallback.error!!()
         assertEquals(1, fallback.releases)
         assertTrue(players.isEmpty())
+    }
+
+    @Test
+    fun focusLossThenError_keepsFallbackSilentUntilFocusGain() {
+        val first = Player()
+        val fallback = Player()
+        val players = ArrayDeque(listOf(first, fallback))
+        val playback = AlarmAudioPlayback({ players.removeFirst() }, { _, _ -> })
+        playback.start(listOf("alarm", "fallback"), 1f)
+        playback.setPaused(true)
+        first.error!!()
+        assertFalse(fallback.playing)
+        playback.setPaused(true)
+        assertTrue(fallback.pauses.isEmpty())
+        playback.setPaused(false)
+        assertTrue(fallback.playing)
     }
 
     @Test
@@ -344,5 +362,37 @@ class AlarmAudioPlaybackTest {
         replacement.error!!()
         playback.stop()
         assertEquals(1, replacement.releases)
+    }
+}
+
+class AlarmAudioFocusOwnershipTest {
+    @Test
+    fun replacementRequest_ignoresDelayedLossAndGainFromPreviousRequest() {
+        val ownership = AlarmAudioFocusOwnership()
+        val changes = mutableListOf<Int>()
+        val first = ownership.beginRequest { changes.add(it) }
+        first(-2)
+        val replacement = ownership.beginRequest { changes.add(it * 10) }
+        first(-1)
+        first(1)
+        replacement(-2)
+        replacement(1)
+        assertEquals(listOf(-2, -20, 10), changes)
+    }
+
+    @Test
+    fun stopOrDeniedRequest_invalidatesQueuedCallbacksBeforeAbandoningFocus() {
+        val ownership = AlarmAudioFocusOwnership()
+        val changes = mutableListOf<Int>()
+        val stopped = ownership.beginRequest { changes.add(it) }
+        ownership.invalidate()
+        stopped(-1)
+        stopped(1)
+        val denied = ownership.beginRequest { changes.add(it) }
+        ownership.invalidate()
+        denied(1)
+        val active = ownership.beginRequest { changes.add(it) }
+        active(1)
+        assertEquals(listOf(1), changes)
     }
 }
