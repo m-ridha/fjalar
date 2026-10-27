@@ -36,13 +36,13 @@ import platform.objc.sel_registerName
  * draggable destination pins, and pin drag state changes.
  */
 @OptIn(ExperimentalForeignApi::class)
-private class FjalarMapKitDelegate(
+internal class FjalarMapKitDelegate(
     var isDarkTheme: Boolean,
     var onPinDrag: ((GeoCoordinates) -> Unit)?,
     var onCameraCenterChanged: ((GeoCoordinates) -> Unit)?,
 ) : NSObject(), MKMapViewDelegateProtocol {
 
-    override fun mapView(mapView: MKMapView, regionDidChangeAnimated: Boolean) {
+    override fun mapViewDidChangeVisibleRegion(mapView: MKMapView) {
         onCameraCenterChanged?.invoke(mapView.centerCoordinate.toGeoCoordinates())
     }
 
