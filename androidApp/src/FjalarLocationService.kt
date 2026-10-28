@@ -284,16 +284,14 @@ class FjalarLocationService : Service() {
 
         locationUpdateHook?.invoke(coordinates, accuracy)
 
-        serviceScope.launch {
-            try {
-                val container = resolveContainer()
-                val tracker = container?.locationTracker as? AndroidFusedLocationAdapter
-                if (tracker != null) {
-                    tracker.dispatchLocationUpdate(coordinates, accuracy, Instant.fromEpochMilliseconds(location.time))
-                } else {
-                    container?.alarmService?.handleLocationUpdate(coordinates, accuracy)
-                }
-            } catch (_: Exception) {}
+        val container = resolveContainer()
+        val tracker = container?.locationTracker as? AndroidFusedLocationAdapter
+        if (tracker != null) {
+            tracker.submitLocationUpdate(coordinates, accuracy, Instant.fromEpochMilliseconds(location.time))
+        } else {
+            serviceScope.launch {
+                container?.alarmService?.handleLocationUpdate(coordinates, accuracy)
+            }
         }
     }
 

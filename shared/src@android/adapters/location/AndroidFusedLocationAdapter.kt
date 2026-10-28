@@ -54,25 +54,26 @@ class AndroidFusedLocationAdapter(
 
     init {
         gateway.setLocationListener { coordinates, accuracy ->
-            adapterScope.launch {
-                dispatchLocationUpdate(coordinates, accuracy)
-            }
+            submitLocationUpdate(coordinates, accuracy)
         }
     }
 
     override suspend fun startTracking(updateIntervalMillis: Long) = ownershipMutex.withLock {
+        if (!alarmOwned) stream.invalidateQueuedFixes()
         alarmOwned = true
         gateway.setAlarmOwnership(true)
         reconcileTracking(updateIntervalMillis)
     }
 
     override suspend fun stopTracking() = ownershipMutex.withLock {
+        if (alarmOwned) stream.invalidateQueuedFixes()
         alarmOwned = false
         gateway.setAlarmOwnership(false)
         reconcileTracking(10_000L)
     }
 
     override suspend fun setForegroundMapTracking(enabled: Boolean) = ownershipMutex.withLock {
+        if (mapOwned != enabled) stream.invalidateQueuedFixes()
         mapOwned = enabled
         reconcileTracking(10_000L)
     }
@@ -88,6 +89,20 @@ class AndroidFusedLocationAdapter(
         }
     }
 
+    /** Publish on the native callback before queued alarm handling can be overtaken by failure. */
+    fun submitLocationUpdate(
+        coordinates: GeoCoordinates,
+        horizontalAccuracyMeters: Float,
+        observedAt: Instant = Clock.System.now(),
+    ) {
+        if (!horizontalAccuracyMeters.isFinite() || horizontalAccuracyMeters < 0f) return
+        stream.publish(LocationFix(coordinates, horizontalAccuracyMeters, observedAt))
+        val generation = stream.currentGeneration()
+        adapterScope.launch {
+            if (stream.isCurrent(generation)) forwardLocationUpdate(coordinates, horizontalAccuracyMeters)
+        }
+    }
+
     suspend fun dispatchLocationUpdate(
         coordinates: GeoCoordinates,
         horizontalAccuracyMeters: Float,
@@ -95,11 +110,16 @@ class AndroidFusedLocationAdapter(
     ) {
         if (!horizontalAccuracyMeters.isFinite() || horizontalAccuracyMeters < 0f) return
         if (!stream.publish(LocationFix(coordinates, horizontalAccuracyMeters, observedAt))) return
+        forwardLocationUpdate(coordinates, horizontalAccuracyMeters)
+    }
+
+    private suspend fun forwardLocationUpdate(coordinates: GeoCoordinates, accuracy: Float) {
         val port = updatePort ?: updatePortProvider?.invoke()
-        port?.handleLocationUpdate(coordinates, horizontalAccuracyMeters)
+        port?.handleLocationUpdate(coordinates, accuracy)
     }
 
     fun close() {
+        stream.invalidateQueuedFixes()
         gateway.stopForegroundService()
         gateway.setLocationListener(null)
         adapterScope.cancel()

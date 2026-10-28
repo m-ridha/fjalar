@@ -160,4 +160,28 @@ class IosCLLocationAdapterTest {
         assertEquals(GeoCoordinates(2.0, 2.0), adapter.observeFixes().first().coordinates)
         adapter.close()
     }
+    @Test
+    fun queuedFixCannotOverrideFailureOrReachAlarmAfterOwnershipEnds() = runTest {
+        val gateway = FakeGateway()
+        val port = FakeHandleLocationUpdatePort()
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val adapter = IosCLLocationAdapter(gateway = gateway, updatePort = port, coroutineDispatcher = dispatcher)
+        adapter.setForegroundMapTracking(true)
+        val fix = com.muhammadridha.fjalar.domain.model.LocationFix(GeoCoordinates(1.0, 2.0), 10f, kotlin.time.Clock.System.now())
+        for (status in listOf(com.muhammadridha.fjalar.domain.model.LocationAvailability.PERMISSION_DENIED, com.muhammadridha.fjalar.domain.model.LocationAvailability.PROVIDER_UNAVAILABLE)) {
+            gateway.fixListener(fix)
+            gateway.availabilityListener(status)
+            testScheduler.runCurrent()
+            assertEquals(status, adapter.observeAvailability().value)
+            assertTrue(port.receivedCalls.isEmpty())
+        }
+        kotlinx.coroutines.withContext(dispatcher) {
+            gateway.fixListener(fix)
+            adapter.setForegroundMapTracking(false)
+        }
+        testScheduler.runCurrent()
+        assertTrue(port.receivedCalls.isEmpty())
+        adapter.close()
+    }
+
 }

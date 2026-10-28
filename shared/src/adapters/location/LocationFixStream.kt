@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class LocationFixStream {
     private val latest = MutableStateFlow<LocationFix?>(null)
     private val status = MutableStateFlow(LocationAvailability.PROVIDER_UNAVAILABLE)
+    private val generation = MutableStateFlow(0L)
     val fixes = latest.filterNotNull()
     val availability = status.asStateFlow()
 
@@ -21,7 +22,19 @@ class LocationFixStream {
         return true
     }
 
+    fun currentGeneration(): Long = generation.value
+
+    fun isCurrent(generation: Long): Boolean = this.generation.value == generation
+
+    fun invalidateQueuedFixes() {
+        while (true) {
+            val previous = generation.value
+            if (generation.compareAndSet(previous, previous + 1)) break
+        }
+    }
+
     fun reportAvailability(value: LocationAvailability) {
+        invalidateQueuedFixes()
         status.value = value
     }
 }

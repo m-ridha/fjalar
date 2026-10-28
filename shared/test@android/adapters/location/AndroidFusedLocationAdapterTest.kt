@@ -254,4 +254,24 @@ class AndroidFusedLocationAdapterTest {
         assertEquals(GeoCoordinates(3.0, 3.0), adapter.observeFixes().first().coordinates)
         adapter.close()
     }
+    @Test
+    fun queuedFixCannotOverrideFailureOrReachAlarmAfterOwnershipEnds() = runTest {
+        val gateway = FakeLocationPlatformGateway()
+        val port = FakeHandleLocationUpdatePort()
+        val adapter = AndroidFusedLocationAdapter(gateway = gateway, updatePort = port, coroutineDispatcher = StandardTestDispatcher(testScheduler))
+        adapter.setForegroundMapTracking(true)
+        for (status in listOf(com.muhammadridha.fjalar.domain.model.LocationAvailability.PERMISSION_DENIED, com.muhammadridha.fjalar.domain.model.LocationAvailability.PROVIDER_UNAVAILABLE)) {
+            gateway.emitLocation(GeoCoordinates(1.0, 2.0), 10f)
+            adapter.reportAvailability(status)
+            testScheduler.runCurrent()
+            assertEquals(status, adapter.observeAvailability().value)
+            assertTrue(port.receivedCalls.isEmpty())
+        }
+        gateway.emitLocation(GeoCoordinates(1.0, 2.0), 10f)
+        adapter.setForegroundMapTracking(false)
+        testScheduler.runCurrent()
+        assertTrue(port.receivedCalls.isEmpty())
+        adapter.close()
+    }
+
 }

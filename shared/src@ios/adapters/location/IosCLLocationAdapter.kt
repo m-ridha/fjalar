@@ -33,22 +33,31 @@ class IosCLLocationAdapter(
 
     init {
         gateway.setListeners(
-            { fix -> adapterScope.launch { dispatchLocationUpdate(fix.coordinates, fix.horizontalAccuracyMeters, fix.observedAt) } },
+            { fix ->
+                stream.publish(fix)
+                val generation = stream.currentGeneration()
+                adapterScope.launch {
+                    if (stream.isCurrent(generation)) forwardLocationUpdate(fix.coordinates, fix.horizontalAccuracyMeters)
+                }
+            },
             stream::reportAvailability,
         )
     }
 
     override suspend fun startTracking(updateIntervalMillis: Long) = withContext(coroutineDispatcher) {
+        if (!alarmOwned) stream.invalidateQueuedFixes()
         alarmOwned = true
         reconcileTracking()
     }
 
     override suspend fun stopTracking() = withContext(coroutineDispatcher) {
+        if (alarmOwned) stream.invalidateQueuedFixes()
         alarmOwned = false
         reconcileTracking()
     }
 
     override suspend fun setForegroundMapTracking(enabled: Boolean) = withContext(coroutineDispatcher) {
+        if (mapOwned != enabled) stream.invalidateQueuedFixes()
         mapOwned = enabled
         reconcileTracking()
     }
@@ -74,11 +83,16 @@ class IosCLLocationAdapter(
     ) {
         if (!horizontalAccuracyMeters.isFinite() || horizontalAccuracyMeters < 0f) return
         if (!stream.publish(LocationFix(coordinates, horizontalAccuracyMeters, observedAt))) return
+        forwardLocationUpdate(coordinates, horizontalAccuracyMeters)
+    }
+
+    private suspend fun forwardLocationUpdate(coordinates: GeoCoordinates, accuracy: Float) {
         val port = updatePort ?: updatePortProvider?.invoke()
-        port?.handleLocationUpdate(coordinates, horizontalAccuracyMeters)
+        port?.handleLocationUpdate(coordinates, accuracy)
     }
 
     fun close() {
+        stream.invalidateQueuedFixes()
         gateway.stop()
         isTracking = false
         adapterScope.cancel()
