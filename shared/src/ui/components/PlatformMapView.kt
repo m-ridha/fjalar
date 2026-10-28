@@ -18,5 +18,6 @@ expect fun PlatformMapView(
     // The Boolean is true only for a camera movement initiated by a user map gesture.
     onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)? = null,
     viewportRequestId: Long = 0L,
+    preserveZoomOnViewportRequest: Boolean = false,
     modifier: Modifier = Modifier,
 )

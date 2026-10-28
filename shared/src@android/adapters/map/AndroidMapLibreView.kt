@@ -38,6 +38,7 @@ fun AndroidMapLibreView(
     onPinDrag: (GeoCoordinates) -> Unit,
     onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)? = null,
     viewportRequestId: Long = 0L,
+    preserveZoomOnViewportRequest: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -217,7 +218,11 @@ fun AndroidMapLibreView(
     // Re-center or viewport change request
     LaunchedEffect(viewportRequestId) {
         if (center != null && viewportRequestId > 0L) {
-            adapter.setViewport(center, zoom)
+            if (preserveZoomOnViewportRequest) {
+                adapter.recenterPreservingZoom(center)
+            } else {
+                adapter.setViewport(center, zoom)
+            }
         }
     }
 

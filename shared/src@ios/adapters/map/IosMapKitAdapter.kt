@@ -16,6 +16,7 @@ import platform.MapKit.addOverlay
 import platform.MapKit.removeOverlay
 import platform.UIKit.UIColor
 import kotlin.math.pow
+import kotlin.math.log2
 
 /**
  * iOS Apple MapKit adapter implementing [MapRendererPort].
@@ -92,6 +93,16 @@ class IosMapKitAdapter(
     override fun setViewport(center: GeoCoordinates, zoom: Double) {
         currentViewport = center to zoom
         applyViewport(center, zoom, animate = true)
+    }
+
+    /** Center a tapped destination without restoring the initial viewport zoom. */
+    fun recenterPreservingZoom(center: GeoCoordinates) {
+        val map = activeMap ?: return
+        val longitudeSpan = map.region.useContents { span.longitudeDelta }
+        val nativeZoom = log2(360.0 / longitudeSpan).coerceIn(1.0, 20.0)
+        currentViewport = center to nativeZoom
+        (map.delegate as? FjalarMapKitDelegate)?.beginProgrammaticViewportChange()
+        map.setCenterCoordinate(center.toCLLocationCoordinate2D(), animated = false)
     }
 
     override fun placePin(coordinates: GeoCoordinates) {

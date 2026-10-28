@@ -87,6 +87,7 @@ fun MapPickerScreen(
             },
             // Selection follows gestures without issuing a camera reset to initialZoom.
             viewportRequestId = viewportRequestId,
+            preserveZoomOnViewportRequest = true,
             modifier = Modifier.fillMaxSize(),
         )
 

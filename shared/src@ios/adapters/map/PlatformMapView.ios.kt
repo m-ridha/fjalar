@@ -18,6 +18,7 @@ actual fun PlatformMapView(
     onPinDrag: (GeoCoordinates) -> Unit,
     onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)?,
     viewportRequestId: Long,
+    preserveZoomOnViewportRequest: Boolean,
     modifier: Modifier,
 ) {
     IosMapKitView(
@@ -31,6 +32,7 @@ actual fun PlatformMapView(
         onPinDrag = onPinDrag,
         onCameraCenterChanged = onCameraCenterChanged,
         viewportRequestId = viewportRequestId,
+        preserveZoomOnViewportRequest = preserveZoomOnViewportRequest,
         modifier = modifier,
     )
 }

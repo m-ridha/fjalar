@@ -107,6 +107,16 @@ class AndroidMapRendererAdapter(
         applyViewport(center, zoom, animate = true)
     }
 
+    /** Move the selected point under the crosshair while retaining the live native camera. */
+    fun recenterPreservingZoom(center: GeoCoordinates) {
+        val map = activeMap ?: return
+        val camera = CameraPosition.Builder(map.cameraPosition)
+            .target(center.toLatLng())
+            .build()
+        currentViewport = center to camera.zoom
+        map.moveCamera(CameraUpdateFactory.newCameraPosition(camera))
+    }
+
     override fun placePin(coordinates: GeoCoordinates) {
         currentPin = coordinates
         val style = getActiveStyle()

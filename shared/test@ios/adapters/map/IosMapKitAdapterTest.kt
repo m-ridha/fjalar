@@ -38,6 +38,32 @@ class IosMapKitAdapterTest {
     }
 
     @Test
+    fun tappedSelectionPreservesLiveZoomAfterStartingAtWorldOverview() {
+        val adapter = IosMapKitAdapter()
+        val map = MKMapView(frame = CGRectMake(0.0, 0.0, 390.0, 844.0))
+        adapter.attachMap(map)
+        adapter.setViewport(GeoCoordinates(0.0, 0.0), 2.0)
+        // A native zoom gesture changes the map independently of the last requested zoom.
+        val zoomedRegion = kotlinx.cinterop.cValue<platform.MapKit.MKCoordinateRegion> {
+            center.latitude = 51.5
+            center.longitude = -0.1
+            span.latitudeDelta = 0.005
+            span.longitudeDelta = 0.005
+        }
+        map.setRegion(zoomedRegion, animated = false)
+        val spanBeforeTap = map.region.useContents { span.longitudeDelta }
+        assertTrue(spanBeforeTap < 0.1)
+        val tappedPoint = GeoCoordinates(51.501, -0.099)
+        adapter.recenterPreservingZoom(tappedPoint)
+        map.region.useContents {
+            assertEquals(spanBeforeTap, span.longitudeDelta, 0.000001)
+            assertEquals(tappedPoint.latitude, center.latitude, 0.000001)
+            assertEquals(tappedPoint.longitude, center.longitude, 0.000001)
+        }
+        adapter.detachMap()
+    }
+
+    @Test
     fun coordinateConversion_preservesValidCoordinates() {
         val original = GeoCoordinates(latitude = -6.2088, longitude = 106.8456)
         val clCoord = original.toCLLocationCoordinate2D()
