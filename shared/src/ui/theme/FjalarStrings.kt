@@ -63,6 +63,7 @@ enum class FjalarStringKey {
     RINGING_HEADLINE,
     RINGING_SNOOZE_ACTION,
     RINGING_OPERATION_FAILED,
+    RINGING_SNOOZE_NOTIFICATIONS_REQUIRED,
     RINGING_SLIDE_TO_STOP,
     RINGING_ACCESSIBLE_PROMPT,
     RINGING_ACCESSIBLE_CONFIRM,
@@ -169,6 +170,7 @@ object FjalarStrings {
 
         FjalarStringKey.RINGING_IN_ZONE_BADGE to "IN ZONE • %1\$s from target pin",
         FjalarStringKey.RINGING_HEADLINE to "Wake Up! Approaching %1\$s",
+        FjalarStringKey.RINGING_SNOOZE_NOTIFICATIONS_REQUIRED to "Enable notification alerts and sound in system settings to snooze, then try again.",
         FjalarStringKey.RINGING_OPERATION_FAILED to "Could not stop the alarm. Please try again.",
         FjalarStringKey.RINGING_SNOOZE_ACTION to "Snooze (+2 min)",
         FjalarStringKey.RINGING_SLIDE_TO_STOP to "Slide to Stop Alarm",
@@ -267,6 +269,7 @@ object FjalarStrings {
 
         FjalarStringKey.RINGING_IN_ZONE_BADGE to "DALAM ZONA • %1\$s dari titik tujuan",
         FjalarStringKey.RINGING_HEADLINE to "Bangun! Mendekati %1\$s",
+        FjalarStringKey.RINGING_SNOOZE_NOTIFICATIONS_REQUIRED to "Aktifkan notifikasi dan suara di pengaturan sistem untuk menunda alarm, lalu coba lagi.",
         FjalarStringKey.RINGING_OPERATION_FAILED to "Alarm gagal dihentikan. Silakan coba lagi.",
         FjalarStringKey.RINGING_SNOOZE_ACTION to "Tunda (+2 mnt)",
         FjalarStringKey.RINGING_SLIDE_TO_STOP to "Geser untuk Matikan Alarm",

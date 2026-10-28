@@ -1,6 +1,7 @@
 package com.muhammadridha.fjalar.adapters.scheduler
 
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
+import com.muhammadridha.fjalar.domain.ports.outbound.SnoozeDeliveryUnavailableException
 import com.muhammadridha.fjalar.resources.Res
 import com.muhammadridha.fjalar.resources.app_name
 import org.jetbrains.compose.resources.getString
@@ -109,7 +110,7 @@ class IosBackgroundSchedulerAdapter(
                     ))
                 }
             }
-            check(deliveryAvailable) { "Snooze requires notification alerts and enabled alarm sound" }
+            if (!deliveryAvailable) throw SnoozeDeliveryUnavailableException()
         } else {
             requestAuthorization()
         }

@@ -103,6 +103,7 @@
     <string name="pinned_location">Titik Lokasi</string>
     <string name="location_not_set">📍 Belum ditentukan</string>
     <string name="operation_failed">Perubahan gagal disimpan. Silakan coba lagi.</string>
+    <string name="ringing_snooze_notifications_required">Aktifkan notifikasi dan suara di pengaturan sistem untuk menunda alarm, lalu coba lagi.</string>
     <string name="ringing_operation_failed">Alarm gagal dihentikan. Silakan coba lagi.</string>
     <string name="snooze_notification_body">Waktu tunda selesai. Buka aplikasi untuk menghentikan alarm.</string>
     <string name="status_armed_scheduled_unknown">Aktif: %1$s • Lokasi tidak tersedia • %2$s–%3$s</string>

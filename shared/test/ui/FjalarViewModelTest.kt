@@ -155,6 +155,7 @@ class FjalarViewModelTest {
         locationTrackerPort: LocationTrackerPort? = null,
         searchPlacesPort: SearchPlacesPort? = null,
         snoozePort: com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort? = null,
+        clock: kotlin.time.Clock = kotlin.time.Clock.System,
         storage: InMemoryKeyValueStorage = InMemoryKeyValueStorage(),
     ): Triple<FjalarViewModel, PersistentPreferencesAdapter, CoroutineScope> {
         val testDispatcher = UnconfinedTestDispatcher(testScheduler)
@@ -174,6 +175,7 @@ class FjalarViewModelTest {
             deleteAlarmPort = deleteAlarmPort,
             coroutineScope = vmScope,
             snoozeAlarmPort = snoozePort,
+            clock = clock,
         )
         return Triple(viewModel, preferencesPort, vmScope)
     }
@@ -181,13 +183,15 @@ class FjalarViewModelTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun foregroundSnoozeDeadlineSynchronizesWithoutLocationAndCancelsInBackground() = runTest {
+        val clock = com.muhammadridha.fjalar.fakes.FakeClock(kotlin.time.Clock.System.now())
+        val deadline = clock.now + kotlin.time.Duration.parse("2m")
         val alarm = manggaraiAlarm().copy(
             state = AlarmState.SNOOZED,
-            snoozedUntil = kotlin.time.Clock.System.now() + kotlin.time.Duration.parse("2m"),
+            snoozedUntil = deadline,
         )
         val observe = FakeObserveAlarmsPort(listOf(alarm))
         val sync = FakeSyncSchedulesPort()
-        val (vm, _, scope) = createTestViewModel(observePort = observe, syncSchedulesPort = sync)
+        val (vm, _, scope) = createTestViewModel(observePort = observe, syncSchedulesPort = sync, clock = clock)
         try {
             vm.onAppForegroundChanged(true)
             testScheduler.advanceTimeBy(60_000)
@@ -195,7 +199,13 @@ class FjalarViewModelTest {
             testScheduler.advanceTimeBy(120_000)
             assertEquals(0, sync.syncCount)
             vm.onAppForegroundChanged(true)
+            // A backward wall-clock change at the first wake must re-arm the timer.
+            clock.now = deadline - kotlin.time.Duration.parse("1.0005s")
             testScheduler.advanceTimeBy(120_001)
+            testScheduler.runCurrent()
+            assertEquals(0, sync.syncCount)
+            clock.now = deadline
+            testScheduler.advanceTimeBy(1_002)
             testScheduler.runCurrent()
             assertEquals(1, sync.syncCount)
         } finally {
@@ -213,6 +223,21 @@ class FjalarViewModelTest {
             assertEquals("a", vm.uiState.value.activeRingingAlarm?.id)
             observe.flow.value = listOf(b, a.copy(state = AlarmState.SNOOZED))
             assertEquals("b", vm.uiState.value.activeRingingAlarm?.id)
+        } finally { scope.cancel() }
+    }
+
+    @Test
+    fun notificationDenialExposesSnoozeSettingsGuidance() = runTest {
+        val port = object : com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort {
+            override suspend fun snoozeAlarm(alarmId: String): Result<Unit> = Result.failure(
+                com.muhammadridha.fjalar.domain.ports.outbound.SnoozeDeliveryUnavailableException()
+            )
+        }
+        val (vm, _, scope) = createTestViewModel(snoozePort = port)
+        try {
+            vm.onSnoozeRingingAlarm("a")
+            assertTrue(vm.uiState.value.hasOperationFailure)
+            assertTrue(vm.uiState.value.snoozeDeliveryUnavailable)
         } finally { scope.cancel() }
     }
 

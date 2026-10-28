@@ -55,6 +55,7 @@ fun RingingAlertOverlay(
     distanceMeters: Int? = null,
     isOperationPending: Boolean = false,
     hasOperationFailure: Boolean = false,
+    snoozeDeliveryUnavailable: Boolean = false,
     operationFailureId: Long = 0L,
 ) {
     val slideState = remember(alarm.id) { SlideToStopState() }
@@ -172,7 +173,7 @@ fun RingingAlertOverlay(
                 }
                 if (hasOperationFailure) {
                     Text(
-                        text = fjalarString(FjalarStringKey.RINGING_OPERATION_FAILED),
+                        text = fjalarString(if (snoozeDeliveryUnavailable) FjalarStringKey.RINGING_SNOOZE_NOTIFICATIONS_REQUIRED else FjalarStringKey.RINGING_OPERATION_FAILED),
                         color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center,
                     )

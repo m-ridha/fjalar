@@ -401,6 +401,7 @@ fun FjalarApp(
                             onSnooze = viewModel::onSnoozeRingingAlarm,
                             isOperationPending = uiState.isOperationPending,
                             hasOperationFailure = uiState.hasOperationFailure,
+                            snoozeDeliveryUnavailable = uiState.snoozeDeliveryUnavailable,
                             operationFailureId = uiState.ringingOperationFailureId,
                             modifier = Modifier.fillMaxSize(),
                         )

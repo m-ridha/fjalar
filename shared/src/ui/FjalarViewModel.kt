@@ -9,6 +9,7 @@ import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationFix
 import com.muhammadridha.fjalar.domain.model.LocationAvailability
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
+import com.muhammadridha.fjalar.domain.ports.outbound.SnoozeDeliveryUnavailableException
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.PlaceCategory
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
@@ -37,6 +38,7 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Observable UI state representation for the entire Fjalar application.
@@ -70,6 +72,7 @@ data class FjalarUiState(
     val hasOperationFailure: Boolean = false,
     val isOperationPending: Boolean = false,
     val ringingOperationFailureId: Long = 0L,
+    val snoozeDeliveryUnavailable: Boolean = false,
 )
 
 /**
@@ -90,6 +93,7 @@ class FjalarViewModel(
     coroutineScope: CoroutineScope? = null,
     private val locationTrackerPort: LocationTrackerPort? = null,
     private val snoozeAlarmPort: SnoozeAlarmPort? = null,
+    private val clock: Clock = Clock.System,
 ) : ViewModel() {
 
     internal val scope: CoroutineScope = coroutineScope ?: viewModelScope
@@ -124,7 +128,13 @@ class FjalarViewModel(
                 }
             }.minOrNull() ?: return
         snoozeDeadlineJob = scope.launch {
-            delay((deadline - Clock.System.now()).inWholeMilliseconds.coerceAtLeast(0))
+            while (true) {
+                val remaining = deadline - clock.now()
+                if (remaining <= kotlin.time.Duration.ZERO) break
+                val wholeMillis = remaining.inWholeMilliseconds
+                val waitMillis = wholeMillis + if (remaining > wholeMillis.milliseconds) 1 else 0
+                delay(waitMillis.coerceAtLeast(1))
+            }
             syncSchedules()
         }
     }
@@ -401,13 +411,14 @@ class FjalarViewModel(
 
     private fun performRingingOperation(operation: suspend () -> Result<Unit>) {
         if (_uiState.value.isOperationPending) return
-        _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false) }
+        _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false, snoozeDeliveryUnavailable = false) }
         scope.launch {
             try {
                 val result = operation()
                 _uiState.update {
                     it.copy(
                         hasOperationFailure = result.isFailure,
+                        snoozeDeliveryUnavailable = result.exceptionOrNull() is SnoozeDeliveryUnavailableException,
                         ringingOperationFailureId = it.ringingOperationFailureId + if (result.isFailure) 1 else 0,
                     )
                 }
