@@ -83,6 +83,13 @@ fun FjalarApp(
     val uiState by viewModel.uiState.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    androidx.compose.runtime.DisposableEffect(currentRoute, viewModel) {
+        viewModel.onMapVisibilityChanged(
+            currentRoute == null || com.muhammadridha.fjalar.ui.navigation.isMapRoute(currentRoute),
+        )
+        onDispose { viewModel.onMapVisibilityChanged(false) }
+    }
+
 
     // System back can pop Configure without invoking its toolbar callback. Clear
     // abandoned editor state when a top-level destination becomes current again.

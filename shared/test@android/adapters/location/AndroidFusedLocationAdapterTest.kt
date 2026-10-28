@@ -7,6 +7,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -209,5 +210,48 @@ class AndroidFusedLocationAdapterTest {
         adapter.startTracking(10_000L)
         assertTrue(adapter.isTracking)
         assertEquals(2, fakeGateway.startCount)
+    }
+    @Test
+    fun foregroundMapAndAlarmShareOneStream() = runTest {
+        val gateway = FakeLocationPlatformGateway()
+        val adapter = AndroidFusedLocationAdapter(gateway = gateway)
+        adapter.setForegroundMapTracking(true)
+        assertEquals(1, gateway.startCount)
+        adapter.startTracking(10_000L)
+        adapter.stopTracking()
+        assertTrue(gateway.tracking, "Stopping alarms must preserve map ownership")
+        adapter.setForegroundMapTracking(false)
+        assertFalse(gateway.tracking)
+        assertEquals(1, gateway.stopCount)
+        adapter.close()
+    }
+
+    @Test
+    fun hiddenMapPreservesArmedAlarm() = runTest {
+        val gateway = FakeLocationPlatformGateway()
+        val adapter = AndroidFusedLocationAdapter(gateway = gateway)
+        adapter.startTracking(10_000L)
+        adapter.setForegroundMapTracking(true)
+        adapter.setForegroundMapTracking(false)
+        assertTrue(gateway.tracking)
+        assertEquals(1, gateway.startCount)
+        adapter.stopTracking()
+        assertFalse(gateway.tracking)
+        adapter.close()
+    }
+    @Test
+    fun availabilityAndLatestFixAreObservedWithoutAnotherListener() = runTest {
+        val adapter = AndroidFusedLocationAdapter(gateway = FakeLocationPlatformGateway())
+        for (status in listOf(com.muhammadridha.fjalar.domain.model.LocationAvailability.PERMISSION_DENIED, com.muhammadridha.fjalar.domain.model.LocationAvailability.PROVIDER_UNAVAILABLE)) {
+            adapter.reportAvailability(status)
+            assertEquals(status, adapter.observeAvailability().value)
+        }
+        val now = kotlin.time.Instant.parse("2026-10-27T00:00:00Z")
+        adapter.dispatchLocationUpdate(GeoCoordinates(1.0, 1.0), 10f, now)
+        adapter.dispatchLocationUpdate(GeoCoordinates(2.0, 2.0), 10f, now - kotlin.time.Duration.parse("1s"))
+        assertEquals(GeoCoordinates(2.0, 2.0), adapter.observeFixes().first().coordinates)
+        adapter.dispatchLocationUpdate(GeoCoordinates(3.0, 3.0), 5f, now + kotlin.time.Duration.parse("1s"))
+        assertEquals(GeoCoordinates(3.0, 3.0), adapter.observeFixes().first().coordinates)
+        adapter.close()
     }
 }

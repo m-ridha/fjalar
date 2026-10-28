@@ -88,6 +88,7 @@ fun createDefaultViewModel(
     val effectiveSearchPlacesPort = searchPlacesPort ?: HybridPlaceSearchAdapter()
 
     val vm = FjalarViewModel(
+        locationTrackerPort = tracker,
         observeAlarmsPort = effectiveAlarmService,
         saveAlarmPort = effectiveAlarmService,
         toggleAlarmPort = effectiveAlarmService,

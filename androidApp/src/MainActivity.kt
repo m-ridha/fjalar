@@ -4,13 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Location
 import android.net.Uri
 import android.provider.Settings
-import android.location.LocationManager
-import android.location.LocationListener
-import android.os.Looper
-import android.os.SystemClock
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -30,7 +25,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
@@ -39,23 +33,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.SharedPreferencesKeyValueStorage
-import com.muhammadridha.fjalar.domain.model.GeoCoordinates
-import com.muhammadridha.fjalar.adapters.location.isFreshLocationFix
 import com.muhammadridha.fjalar.ui.FjalarViewModel
 import com.muhammadridha.fjalar.ui.components.BackgroundLocationPermissionDialog
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.LightLiquidGlassColors
 import com.muhammadridha.fjalar.ui.theme.DarkLiquidGlassColors
 import com.muhammadridha.fjalar.ui.theme.resolveLiquidGlassColors
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.coroutines.resume
 
 class MainActivity : ComponentActivity() {
-    private var currentLocationJob: Job? = null
     private val permissionPreferences by lazy {
         getSharedPreferences("location_permission_requests", Context.MODE_PRIVATE)
     }
@@ -73,7 +58,6 @@ class MainActivity : ComponentActivity() {
         val app = application as? FjalarApplication
         val container = app?.container
         setContent {
-            val scope = rememberCoroutineScope()
             val viewModel: FjalarViewModel = viewModel {
                 if (container != null) {
                     createDefaultViewModel(
@@ -124,7 +108,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 refreshLocationPermissionState(viewModel)
                 if (hasForegroundLocationPermission()) {
-                    requestMapLocation(this@MainActivity, viewModel, scope)
+                    requestMapLocation(viewModel)
                 }
             }
             val applicationSettingsLauncher = rememberLauncherForActivityResult(
@@ -132,7 +116,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 refreshLocationPermissionState(viewModel)
                 if (hasForegroundLocationPermission()) {
-                    requestMapLocation(this@MainActivity, viewModel, scope)
+                    requestMapLocation(viewModel)
                 }
             }
             val permissionLauncher = rememberLauncherForActivityResult(
@@ -143,7 +127,7 @@ class MainActivity : ComponentActivity() {
                 hasCompletedForegroundPermissionRequest = !foregroundGranted
                 refreshLocationPermissionState(viewModel)
                 if (foregroundGranted) {
-                    requestMapLocation(this@MainActivity, viewModel, scope)
+                    requestMapLocation(viewModel)
                     showBackgroundRationale = locationPermissionStep() != LocationPermissionStep.GRANTED
                 }
             }
@@ -163,24 +147,27 @@ class MainActivity : ComponentActivity() {
                         requestForegroundPermission()
                     }
                 } else {
-                    requestMapLocation(this@MainActivity, viewModel, scope)
+                    requestMapLocation(viewModel)
                 }
             }
 
             DisposableEffect(viewModel) {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_RESUME) {
+                        viewModel.onAppForegroundChanged(true)
                         refreshLocationPermissionState(viewModel)
+                    } else if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                        viewModel.onAppForegroundChanged(false)
                     }
                 }
                 lifecycle.addObserver(observer)
                 viewModel.requestCurrentLocation = {
-                    requestMapLocation(this@MainActivity, viewModel, scope)
+                    requestMapLocation(viewModel)
                 }
                 onDispose {
+                    viewModel.onAppForegroundChanged(false)
                     lifecycle.removeObserver(observer)
                     viewModel.requestCurrentLocation = null
-                    currentLocationJob?.cancel()
                 }
             }
 
@@ -285,55 +272,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onStop() {
-        currentLocationJob?.cancel()
-        super.onStop()
-    }
-
     private fun requestMapLocation(
-        context: Context,
         viewModel: FjalarViewModel,
-        scope: CoroutineScope,
     ) {
-        currentLocationJob?.cancel()
-        currentLocationJob = scope.launch {
-            val manager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
-                ?: return@launch
-            // A bounded foreground request is exclusively for map positioning. Never evaluate
-            // cached or UI-requested fixes against an armed alarm.
-            val location = withTimeoutOrNull(15_000L) {
-                suspendCancellableCoroutine<Location> { continuation ->
-                    val listener = object : LocationListener {
-                        override fun onLocationChanged(location: Location) {
-                            val isFresh = isFreshLocationFix(
-                                location.elapsedRealtimeNanos / 1_000_000L,
-                                SystemClock.elapsedRealtime(),
-                            )
-                            if (!isFresh) return
-                            if (continuation.isActive) continuation.resume(location)
-                        }
-                        @Deprecated("Deprecated in Java")
-                        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-                        override fun onProviderEnabled(provider: String) {}
-                        override fun onProviderDisabled(provider: String) {}
-                    }
-                    for (provider in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)) {
-                        try {
-                            manager.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper())
-                        } catch (_: SecurityException) {
-                            // Permission may have been revoked while the screen was open.
-                        } catch (_: IllegalArgumentException) {
-                            // This device may not expose both providers.
-                        }
-                    }
-                    continuation.invokeOnCancellation { manager.removeUpdates(listener) }
-                    continuation.context[Job]?.invokeOnCompletion { manager.removeUpdates(listener) }
-                }
-            }
-            if (location != null) {
-                viewModel.onCurrentLocationReceived(GeoCoordinates(location.latitude, location.longitude))
-            }
-        }
+        // Permission recovery/recenter refresh the existing owner, never open a second listener.
+        viewModel.onAppForegroundChanged(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
     }
 }
 

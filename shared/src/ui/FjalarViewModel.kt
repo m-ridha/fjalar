@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
+import com.muhammadridha.fjalar.domain.model.LocationFix
+import com.muhammadridha.fjalar.domain.model.LocationAvailability
+import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.PlaceCategory
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
@@ -49,6 +52,8 @@ data class FjalarUiState(
     val isSearching: Boolean = false,
     val selectedCategoryFilter: PlaceCategory? = null,
     val initialAlarmLabel: String? = null,
+    val locationFix: LocationFix? = null,
+    val locationAvailability: LocationAvailability = LocationAvailability.PROVIDER_UNAVAILABLE,
     val userLocation: GeoCoordinates? = null,
     val selectedCoordinates: GeoCoordinates? = null,
     val mapViewportCenter: GeoCoordinates? = null,
@@ -79,6 +84,7 @@ class FjalarViewModel(
     private val searchPlacesPort: SearchPlacesPort? = null,
     private val deleteAlarmPort: DeleteAlarmPort? = null,
     coroutineScope: CoroutineScope? = null,
+    private val locationTrackerPort: LocationTrackerPort? = null,
     private val snoozeAlarmPort: SnoozeAlarmPort? = null,
 ) : ViewModel() {
 
@@ -91,7 +97,42 @@ class FjalarViewModel(
     private var searchJob: Job? = null
     private var unfilteredSearchResults: List<SearchResultPlace> = emptyList()
 
+    private val mapTrackingMutex = kotlinx.coroutines.sync.Mutex()
+    private var appForeground = false
+    private var mapVisible = false
+
+    fun onAppForegroundChanged(foreground: Boolean) {
+        appForeground = foreground
+        updateMapTracking()
+    }
+
+    fun onMapVisibilityChanged(visible: Boolean) {
+        mapVisible = visible
+        updateMapTracking()
+    }
+
+    private fun updateMapTracking() {
+        scope.launch {
+            mapTrackingMutex.lock()
+            try {
+                locationTrackerPort?.setForegroundMapTracking(appForeground && mapVisible)
+            } finally {
+                mapTrackingMutex.unlock()
+            }
+        }
+    }
+
     init {
+        scope.launch {
+            locationTrackerPort?.observeFixes()?.collect { fix ->
+                _uiState.update { it.copy(locationFix = fix, userLocation = fix.coordinates) }
+            }
+        }
+        scope.launch {
+            locationTrackerPort?.observeAvailability()?.collect { availability ->
+                _uiState.update { it.copy(locationAvailability = availability) }
+            }
+        }
         scope.launch {
             observeAlarmsPort.observeAlarms().collect { alarmsList ->
                 val ringing = alarmsList.filter { it.state == AlarmState.RINGING }.minByOrNull { it.id }
