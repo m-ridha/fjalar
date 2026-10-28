@@ -140,6 +140,9 @@ fun FjalarApp(
             ) {
                 // Screen 1: Living Map Canvas
                 composable<MapRoute> {
+                    SearchBackHandler(enabled = uiState.isSearchSheetVisible && uiState.activeRingingAlarm == null) {
+                        viewModel.onDismissSearch()
+                    }
                     var mapBearing by remember { mutableStateOf(0.0) }
                     var northRequestId by remember { mutableStateOf(0L) }
                     Box(modifier = Modifier.fillMaxSize()) {
