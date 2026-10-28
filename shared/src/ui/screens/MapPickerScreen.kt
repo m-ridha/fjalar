@@ -133,7 +133,7 @@ fun MapPickerScreen(
         // Header and map controls share the fold/cutout-safe scroll rectangle.
         Column(
             modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier)
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(bottom = 100.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
