@@ -9,7 +9,6 @@ import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ScheduleType
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.domain.model.ThemeMode
-import com.muhammadridha.fjalar.domain.ports.inbound.DeleteAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
@@ -175,8 +174,8 @@ class ConfigureAlarmScreenTest {
         }
         var savedAlarm: LocationAlarm? = null
         val savePort = object : SaveAlarmPort {
-            override suspend fun saveAlarm(a: LocationAlarm): Result<Unit> {
-                savedAlarm = a
+            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> {
+                savedAlarm = alarm
                 return Result.success(Unit)
             }
         }
@@ -241,9 +240,9 @@ class ConfigureAlarmScreenTest {
         // 4. Save draft
         viewModel.onSaveDraftAlarm(preservedDraft)
         assertNotNull(savedAlarm)
-        assertEquals("Edited Manggarai", savedAlarm?.label)
-        assertEquals(pickedCoords, savedAlarm?.coordinates)
-        assertEquals(2000, savedAlarm?.radius?.meters)
+        assertEquals("Edited Manggarai", savedAlarm.label)
+        assertEquals(pickedCoords, savedAlarm.coordinates)
+        assertEquals(2000, savedAlarm.radius.meters)
         assertNull(viewModel.uiState.value.activeDraft)
     }
 

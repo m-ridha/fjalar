@@ -142,7 +142,7 @@ private class NativeIosLocationGateway : IosLocationGateway {
         }
 
         override fun locationManager(manager: CLLocationManager, didFailWithError: NSError) {
-            onAvailability(if (didFailWithError.code == kCLErrorDenied.toLong()) {
+            onAvailability(if (didFailWithError.code == kCLErrorDenied) {
                 LocationAvailability.PERMISSION_DENIED
             } else {
                 LocationAvailability.PROVIDER_UNAVAILABLE
