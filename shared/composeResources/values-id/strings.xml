@@ -107,4 +107,5 @@
     <string name="status_armed_one_time_unknown">Aktif: %1$s • Lokasi tidak tersedia</string>
     <string name="distance_unavailable">Jarak tidak tersedia</string>
     <string name="hud_compass_north">Arahkan peta ke utara</string>
+    <string name="nav_add_alarm">Tambah Alarm</string>
 </resources>

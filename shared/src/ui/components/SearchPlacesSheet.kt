@@ -336,6 +336,7 @@ private fun CategoryChip(
 
     Box(
         modifier = Modifier
+            .heightIn(min = 48.dp)
             .then(backgroundModifier)
             .clip(CircleShape)
             .clickable(role = Role.RadioButton, onClick = onClick)

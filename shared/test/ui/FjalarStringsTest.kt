@@ -10,6 +10,22 @@ import kotlin.test.assertTrue
 class FjalarStringsTest {
 
     @Test
+    fun destructiveActionUsesShortRecognizableLabels() {
+        assertEquals("Delete", FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_CONFIRM, AppLocale.EN))
+        assertEquals("Hapus", FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_CONFIRM, AppLocale.ID))
+    }
+
+    @Test
+    fun placeholderSignaturesMatchForEveryTranslation() {
+        val placeholder = Regex("%(?:[0-9]+\\$)?[sd]")
+        for (key in FjalarStringKey.entries) {
+            val en = placeholder.findAll(FjalarStrings.get(key, AppLocale.EN)).map { it.value }.toList()
+            val id = placeholder.findAll(FjalarStrings.get(key, AppLocale.ID)).map { it.value }.toList()
+            assertEquals(en, id, "Placeholder signature differs for $key")
+        }
+    }
+
+    @Test
     fun snoozeCopyPromisesOnlyTwoMinutes() {
         assertEquals("Snooze (+2 min)", FjalarStrings.get(FjalarStringKey.RINGING_SNOOZE_ACTION, AppLocale.EN))
         assertEquals("Tunda (+2 mnt)", FjalarStrings.get(FjalarStringKey.RINGING_SNOOZE_ACTION, AppLocale.ID))

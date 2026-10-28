@@ -1,5 +1,6 @@
 package com.muhammadridha.fjalar.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,29 +10,24 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.muhammadridha.fjalar.domain.model.AlarmSchedule
 import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
@@ -55,7 +51,7 @@ fun AlarmCard(
     locale: AppLocale = LiquidGlassTheme.locale,
 ) {
     val colors = LiquidGlassTheme.colors
-    val deleteLabel = FjalarStrings.get(FjalarStringKey.EDITOR_DELETE_ALARM, locale)
+    val deleteLabel = FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_CONFIRM, locale)
 
     val scheduleSummary = if (alarm.schedule.type == ScheduleType.SCHEDULED) {
         val startStr = formatMinuteOfDay(alarm.schedule.startMinuteOfDay ?: 0)
@@ -86,8 +82,6 @@ fun AlarmCard(
                     text = alarm.label,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = colors.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
                 if (!alarm.addressLabel.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
@@ -101,37 +95,11 @@ fun AlarmCard(
                 }
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (onDelete != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                            .clickable(role = Role.Button) { onDelete(alarm) }
-                            .semantics { contentDescription = deleteLabel },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = "🗑️",
-                            fontSize = 14.sp,
-                        )
-                    }
-                }
-
-                Switch(
-                    checked = alarm.isEnabled,
-                    onCheckedChange = { checked -> onToggle(alarm.id, checked) },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = colors.primary,
-                        checkedTrackColor = colors.primary.copy(alpha = 0.4f),
-                        uncheckedThumbColor = colors.textSecondary.copy(alpha = 0.7f),
-                        uncheckedTrackColor = colors.textSecondary.copy(alpha = 0.2f),
-                    ),
-                )
-            }
+            AlarmSwitch(
+                checked = alarm.isEnabled,
+                onCheckedChange = { checked -> onToggle(alarm.id, checked) },
+                label = alarm.label,
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -189,6 +157,23 @@ fun AlarmCard(
                 )
             }
 
+            if (onDelete != null) {
+                OutlinedButton(
+                    onClick = { onDelete(alarm) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, colors.danger),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = colors.danger.copy(alpha = 0.12f),
+                        contentColor = colors.danger,
+                    ),
+                ) {
+                    Text(text = "🗑", fontSize = 18.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = deleteLabel, style = MaterialTheme.typography.labelMedium)
+                }
+            }
+
             // Skip Today control (for scheduled alarms)
             if (alarm.schedule.type == ScheduleType.SCHEDULED) {
                 if (alarm.state == AlarmState.COMPLETED_FOR_WINDOW) {
@@ -210,7 +195,8 @@ fun AlarmCard(
                         modifier = Modifier
                             .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                             .clickable(role = Role.Button) { onSkipToday(alarm.id) }
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                            .heightIn(min = 48.dp)
+                            .padding(horizontal = 12.dp, vertical = 14.dp),
                     )
                 }
             }

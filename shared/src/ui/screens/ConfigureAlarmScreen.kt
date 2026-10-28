@@ -28,8 +28,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -53,6 +51,7 @@ import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ScheduleType
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.ui.WindowInsetsLayoutHelper
+import com.muhammadridha.fjalar.ui.components.AlarmSwitch
 import com.muhammadridha.fjalar.ui.components.DeleteAlarmConfirmationDialog
 import com.muhammadridha.fjalar.ui.components.dayChipLabels
 import com.muhammadridha.fjalar.ui.components.formatDistance
@@ -173,12 +172,12 @@ fun ConfigureAlarmScreen(
             .then(WindowInsetsLayoutHelper.horizontalSafeDrawingPaddingModifier()),
     ) {
         // Safe Top Bar
-        Row(
+        FlowRow(
             modifier = WindowInsetsLayoutHelper
                 .hudTopPaddingModifier(Modifier)
                 .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // Back Button
             Row(
@@ -201,7 +200,7 @@ fun ConfigureAlarmScreen(
             // Screen Title
             Text(
                 text = FjalarStrings.get(FjalarStringKey.EDITOR_TITLE, locale),
-                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                modifier = Modifier.weight(1f).widthIn(min = 96.dp).heightIn(min = 48.dp),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = colors.textPrimary,
             )
@@ -209,6 +208,7 @@ fun ConfigureAlarmScreen(
             // Save CTA
             Row(
                 modifier = Modifier
+                    .heightIn(min = 48.dp)
                     .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                     .clip(CircleShape)
                     .clickable(
@@ -275,12 +275,8 @@ fun ConfigureAlarmScreen(
                     .glassSurface(level = GlassLevel.SHEET, shape = RoundedCornerShape(20.dp))
                     .padding(16.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
                             text = if (draft.addressLabel.isNullOrBlank()) {
                                 FjalarStrings.get(FjalarStringKey.PINNED_LOCATION, locale)
@@ -308,10 +304,11 @@ fun ConfigureAlarmScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Row(
                         modifier = Modifier
+                            .heightIn(min = 48.dp)
                             .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                             .clickable(
                                 role = Role.Button,
@@ -422,12 +419,13 @@ fun ConfigureAlarmScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
+                        .heightIn(min = 48.dp)
                         .clip(CircleShape)
                         .background(if (isOneTime) colors.primary else Color.Transparent)
                         .clickable(role = Role.Button) {
                             onDraftChange(draft.copy(scheduleType = ScheduleType.ONE_TIME))
                         }
-                        .padding(vertical = 8.dp),
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -443,12 +441,13 @@ fun ConfigureAlarmScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
+                        .heightIn(min = 48.dp)
                         .clip(CircleShape)
                         .background(if (isScheduled) colors.primary else Color.Transparent)
                         .clickable(role = Role.Button) {
                             onDraftChange(draft.copy(scheduleType = ScheduleType.SCHEDULED))
                         }
-                        .padding(vertical = 8.dp),
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -570,17 +569,19 @@ fun ConfigureAlarmScreen(
             ) {
                 Text(
                     text = FjalarStrings.get(FjalarStringKey.EDITOR_LOUD_SOUND, locale),
+                    modifier = Modifier.weight(1f).padding(end = 12.dp),
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.textPrimary,
                 )
-                Switch(
+                AlarmSwitch(
                     checked = draft.soundEnabled,
+                    label = FjalarStrings.get(FjalarStringKey.EDITOR_LOUD_SOUND, locale),
+                    enabled = !isOperationPending,
                     onCheckedChange = { checked ->
                         val newSound = checked
                         val newVibrate = if (!newSound && !draft.vibrateEnabled) true else draft.vibrateEnabled
                         onDraftChange(draft.copy(soundEnabled = newSound, vibrateEnabled = newVibrate))
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = colors.primary),
                 )
             }
 
@@ -592,17 +593,19 @@ fun ConfigureAlarmScreen(
             ) {
                 Text(
                     text = FjalarStrings.get(FjalarStringKey.EDITOR_STRONG_VIBRATE, locale),
+                    modifier = Modifier.weight(1f).padding(end = 12.dp),
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.textPrimary,
                 )
-                Switch(
+                AlarmSwitch(
                     checked = draft.vibrateEnabled,
+                    label = FjalarStrings.get(FjalarStringKey.EDITOR_STRONG_VIBRATE, locale),
+                    enabled = !isOperationPending,
                     onCheckedChange = { checked ->
                         val newVibrate = checked
                         val newSound = if (!newVibrate && !draft.soundEnabled) true else draft.soundEnabled
                         onDraftChange(draft.copy(soundEnabled = newSound, vibrateEnabled = newVibrate))
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = colors.primary),
                 )
             }
 
@@ -612,6 +615,7 @@ fun ConfigureAlarmScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(colors.danger.copy(alpha = 0.12f))
                         .clickable(role = Role.Button) { showDeleteDialog = true }

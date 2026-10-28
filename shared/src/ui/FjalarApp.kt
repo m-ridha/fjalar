@@ -237,7 +237,7 @@ fun FjalarApp(
                                 locale = uiState.appLocale,
                                 modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier()
                                     .imePadding()
-                                    .padding(bottom = 100.dp),
+                                    .padding(bottom = dockHeight),
                             )
                         }
                     }

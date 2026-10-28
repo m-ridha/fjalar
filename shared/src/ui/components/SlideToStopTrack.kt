@@ -4,9 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -111,7 +110,7 @@ fun SlideToStopTrack(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(trackHeight)
+            .heightIn(min = trackHeight)
             .glassSurface(level = GlassLevel.MODAL, shape = RoundedCornerShape(32.dp))
             .padding(trackPadding),
         contentAlignment = Alignment.CenterStart,
@@ -124,7 +123,7 @@ fun SlideToStopTrack(
         // Center Instruction Label with fade-out during drag
         val textAlpha = (1f - currentDragFraction * 1.4f).coerceIn(0f, 1f)
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxWidth().heightIn(min = thumbSize),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -133,7 +132,7 @@ fun SlideToStopTrack(
                 color = colors.textPrimary,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .padding(horizontal = thumbSize + 8.dp)
+                    .padding(start = thumbSize + 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp)
                     .alpha(textAlpha),
             )
         }
