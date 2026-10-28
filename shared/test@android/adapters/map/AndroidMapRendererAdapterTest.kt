@@ -18,14 +18,10 @@ import kotlin.test.assertTrue
 class AndroidMapRendererAdapterTest {
     @Test
     fun landmarkFilterRequiresNamedSupportedKindsAndSourceZoom() {
-        val filter = Expression.raw(AndroidMapRendererAdapter.LANDMARK_FILTER).toString()
-        assertTrue(filter.contains("\"has\", \"name\""))
-        for (kind in listOf("hospital", "school", "university", "college", "station", "railway_station", "bus_station", "government")) {
-            assertTrue(filter.contains("\"$kind\""), "Missing $kind")
-        }
-        assertTrue(filter.contains("\"min_zoom\""))
-        assertTrue(filter.contains("\"zoom\""))
-        assertTrue(!filter.contains("\"office\""))
+        val expected = Expression.raw(
+            """["all",["has","name"],["in",["get","kind"],["literal",["hospital","school","university","college","station","railway_station","bus_station","government"]]],["<=",["coalesce",["get","min_zoom"],0],["zoom"]]]"""
+        )
+        assertEquals(expected.toString(), Expression.raw(AndroidMapRendererAdapter.LANDMARK_FILTER).toString())
     }
 
     @Test

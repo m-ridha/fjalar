@@ -104,6 +104,8 @@ class AndroidMapRendererAdapter(
                 PropertyFactory.textField(Expression.get("name")),
                 PropertyFactory.textFont(arrayOf("Montserrat SemiBold", "Open Sans Bold", "Noto Sans Regular", "Noto Sans CJK JP Regular")),
                 PropertyFactory.textSize(11f),
+                PropertyFactory.textPadding(20f),
+                PropertyFactory.symbolSortKey(Expression.raw("""["case",["==",["get","kind"],"hospital"],0,["in",["get","kind"],["literal",["school","university","college"]]],1,2]""")),
                 PropertyFactory.textColor(if (isDarkTheme) "#D4D4D4" else "#444444"),
                 PropertyFactory.textHaloColor(if (isDarkTheme) "#181818" else "#F5F5F3"),
                 PropertyFactory.textHaloWidth(1.5f),
