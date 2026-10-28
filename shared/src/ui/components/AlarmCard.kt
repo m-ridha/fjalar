@@ -63,7 +63,7 @@ fun AlarmCard(
         val daysStr = formatDaysOfWeek(alarm.schedule.daysOfWeekMask, locale)
         if (daysStr.isNotBlank()) "$startStr – $endStr • $daysStr" else "$startStr – $endStr"
     } else {
-        fjalarString(FjalarStringKey.CARD_ONE_TIME_TRIP, formatDistance(alarm.radius.meters))
+        fjalarString(FjalarStringKey.CARD_ONE_TIME_TRIP, formatDistance(alarm.radius.meters, locale))
     }
 
     Column(
@@ -156,7 +156,7 @@ fun AlarmCard(
         ) {
             // Radius pill
             Text(
-                text = formatDistance(alarm.radius.meters),
+                text = formatDistance(alarm.radius.meters, locale),
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontFeatureSettings = "tnum",
                     fontWeight = FontWeight.Medium,

@@ -254,7 +254,7 @@ fun ConfigureAlarmSheet(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = formatDistance(preset),
+                        text = formatDistance(preset, locale),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             fontFeatureSettings = "tnum",

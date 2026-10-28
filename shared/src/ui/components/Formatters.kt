@@ -8,7 +8,7 @@ import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
 import com.muhammadridha.fjalar.ui.theme.FjalarStrings
 import kotlin.math.roundToInt
 
-fun formatDistance(meters: Int, locale: AppLocale = AppLocale.EN): String {
+fun formatDistance(meters: Int, locale: AppLocale): String {
     val text = if (meters >= 1_000) {
         val km = meters / 1_000.0
         val rounded = (km * 10).roundToInt() / 10.0

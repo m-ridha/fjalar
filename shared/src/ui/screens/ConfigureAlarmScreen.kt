@@ -349,7 +349,7 @@ fun ConfigureAlarmScreen(
                     color = colors.textPrimary,
                 )
                 Text(
-                    text = formatDistance(draft.radiusMeters),
+                    text = formatDistance(draft.radiusMeters, locale),
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontFeatureSettings = "tnum",
@@ -381,7 +381,7 @@ fun ConfigureAlarmScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = formatDistance(preset),
+                            text = formatDistance(preset, locale),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 fontFeatureSettings = "tnum",

@@ -305,6 +305,7 @@ fun SearchPlacesSheet(
                         distanceCalculator = distanceCalculator,
                         onClick = { onPlaceSelect(place) },
                         colors = colors,
+                        locale = locale,
                     )
 
                     if (index < results.lastIndex) {
@@ -358,6 +359,7 @@ private fun SearchResultRow(
     distanceCalculator: DistanceCalculator,
     onClick: () -> Unit,
     colors: LiquidGlassColors,
+    locale: AppLocale,
 ) {
     val distanceMeters = remember(place.coordinates, userLocation) {
         userLocation?.let {
@@ -418,7 +420,7 @@ private fun SearchResultRow(
         if (distanceMeters != null) {
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = formatDistance(distanceMeters),
+                text = formatDistance(distanceMeters, locale),
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontFeatureSettings = "tnum",
                     fontWeight = FontWeight.Medium,

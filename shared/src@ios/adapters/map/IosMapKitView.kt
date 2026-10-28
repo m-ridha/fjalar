@@ -62,7 +62,12 @@ internal class FjalarMapKitDelegate(
 
     @ObjCSignatureOverride
     override fun mapView(mapView: MKMapView, regionWillChangeAnimated: Boolean) {
-        cameraMovedByUser = !programmaticViewportChange && mapView.hasActiveMapGesture()
+        if (mapView.hasActiveMapGesture()) {
+            programmaticViewportChange = false
+            cameraMovedByUser = true
+        } else {
+            cameraMovedByUser = false
+        }
     }
 
     override fun mapViewDidChangeVisibleRegion(mapView: MKMapView) {

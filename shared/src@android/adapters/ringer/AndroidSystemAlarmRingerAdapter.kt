@@ -428,7 +428,7 @@ open class DefaultAndroidRingerPlatformGateway(
                     ).apply {
                         description = channelDesc
                         lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-                        setBypassDnd(false)
+                        setBypassDnd(true)
                         enableVibration(false)
                         setSound(null, null)
                     }

@@ -86,7 +86,11 @@ class IosBackgroundSchedulerAdapter(
     }
 
     private suspend fun scheduleNotification(alarmId: String, at: Instant, snoozedAlarm: LocationAlarm?) {
-        val center = checkNotNull(resolveNotificationCenter()) { "Notification center unavailable" }
+        val center = resolveNotificationCenter()
+        if (center == null) {
+            check(snoozedAlarm == null) { "Notification center unavailable" }
+            return
+        }
         requestAuthorization()
         val now = clock.now()
         val delaySeconds = (at - now).inWholeMilliseconds.coerceAtLeast(1000) / 1000.0
@@ -115,10 +119,12 @@ class IosBackgroundSchedulerAdapter(
             center.addNotificationRequest(request) { error ->
                 if (error != null) {
                     onError?.invoke(alarmId, error)
-                    continuation.resumeWithException(IllegalStateException(error.localizedDescription))
-                } else {
-                    continuation.resume(Unit)
+                    if (snoozedAlarm != null) {
+                        continuation.resumeWithException(IllegalStateException(error.localizedDescription))
+                        return@addNotificationRequest
+                    }
                 }
+                continuation.resume(Unit)
             }
         }
     }
