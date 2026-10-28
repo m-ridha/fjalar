@@ -6,6 +6,7 @@ import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.domain.service.HaversineCalculator
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.style.expressions.Expression
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,6 +16,18 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class AndroidMapRendererAdapterTest {
+    @Test
+    fun landmarkFilterRequiresNamedSupportedKindsAndSourceZoom() {
+        val filter = Expression.raw(AndroidMapRendererAdapter.LANDMARK_FILTER).toString()
+        assertTrue(filter.contains("\"has\", \"name\""))
+        for (kind in listOf("hospital", "school", "university", "college", "station", "railway_station", "bus_station", "government")) {
+            assertTrue(filter.contains("\"$kind\""), "Missing $kind")
+        }
+        assertTrue(filter.contains("\"min_zoom\""))
+        assertTrue(filter.contains("\"zoom\""))
+        assertTrue(!filter.contains("\"office\""))
+    }
+
     @Test
     fun liveFixAndPermissionLossNeverReplaceDestinationOrGeofence() {
         val adapter = AndroidMapRendererAdapter()

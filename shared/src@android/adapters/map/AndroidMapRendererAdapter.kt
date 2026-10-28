@@ -16,6 +16,7 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.FillLayer
 import org.maplibre.android.style.layers.LineLayer
@@ -82,6 +83,7 @@ class AndroidMapRendererAdapter(
      * Invoked whenever the initial style loads or when switching between light and dark Carto styles.
      */
     fun onStyleLoaded(style: Style) {
+        addLandmarkLabels(style)
         currentUserPosition?.let { applyUserPosition(it, style) }
         currentPin?.let { pin ->
             applyPin(pin, style)
@@ -89,6 +91,27 @@ class AndroidMapRendererAdapter(
         currentGeofence?.let { (center, radius) ->
             applyGeofence(center, radius, style)
         }
+    }
+
+    private fun addLandmarkLabels(style: Style) {
+        if (style.getSource(LANDMARK_SOURCE_ID) == null || style.getLayer(LANDMARK_LAYER_ID) != null) return
+
+        val labels = SymbolLayer(LANDMARK_LAYER_ID, LANDMARK_SOURCE_ID).apply {
+            sourceLayer = "pois"
+            minZoom = 14f
+            setFilter(Expression.raw(LANDMARK_FILTER))
+            setProperties(
+                PropertyFactory.textField(Expression.get("name")),
+                PropertyFactory.textFont(arrayOf("Montserrat SemiBold", "Open Sans Bold", "Noto Sans Regular", "Noto Sans CJK JP Regular")),
+                PropertyFactory.textSize(11f),
+                PropertyFactory.textColor(if (isDarkTheme) "#D4D4D4" else "#444444"),
+                PropertyFactory.textHaloColor(if (isDarkTheme) "#181818" else "#F5F5F3"),
+                PropertyFactory.textHaloWidth(1.5f),
+                PropertyFactory.textAllowOverlap(false),
+                PropertyFactory.textIgnorePlacement(false),
+            )
+        }
+        style.addLayer(labels)
     }
 
     /**
@@ -315,9 +338,12 @@ class AndroidMapRendererAdapter(
                 PropertyFactory.fillOpacity(0.2f),
                 PropertyFactory.fillAntialias(true),
             )
-            val anchor = when {
+            val anchor = style.layers.firstOrNull {
+                it is SymbolLayer && it.id != PIN_LAYER_ID && it.id != LANDMARK_LAYER_ID
+            }?.id ?: when {
                 style.getLayer(USER_ACCURACY_LAYER_ID) != null -> USER_ACCURACY_LAYER_ID
                 style.getLayer(PIN_LAYER_ID) != null -> PIN_LAYER_ID
+                style.getLayer(LANDMARK_LAYER_ID) != null -> LANDMARK_LAYER_ID
                 else -> null
             }
             if (anchor != null) style.addLayerBelow(fillLayer, anchor) else style.addLayer(fillLayer)
@@ -329,9 +355,12 @@ class AndroidMapRendererAdapter(
                 PropertyFactory.lineWidth(2.5f),
                 PropertyFactory.lineOpacity(0.8f),
             )
-            val anchor = when {
+            val anchor = style.layers.firstOrNull {
+                it is SymbolLayer && it.id != PIN_LAYER_ID && it.id != LANDMARK_LAYER_ID
+            }?.id ?: when {
                 style.getLayer(USER_ACCURACY_LAYER_ID) != null -> USER_ACCURACY_LAYER_ID
                 style.getLayer(PIN_LAYER_ID) != null -> PIN_LAYER_ID
+                style.getLayer(LANDMARK_LAYER_ID) != null -> LANDMARK_LAYER_ID
                 else -> null
             }
             if (anchor != null) style.addLayerBelow(strokeLayer, anchor) else style.addLayer(strokeLayer)
@@ -339,6 +368,10 @@ class AndroidMapRendererAdapter(
     }
 
     companion object {
+        const val LANDMARK_SOURCE_ID = "protomaps"
+        const val LANDMARK_LAYER_ID = "fjalar-landmark-labels"
+        const val LANDMARK_FILTER = """["all",["has","name"],["in",["get","kind"],["literal",["hospital","school","university","college","station","railway_station","bus_station","government"]]],["<=",["coalesce",["get","min_zoom"],0],["zoom"]]]"""
+
         const val USER_SOURCE_ID = "fjalar-user-source"
         const val USER_DOT_LAYER_ID = "fjalar-user-dot"
         const val USER_ACCURACY_SOURCE_ID = "fjalar-user-accuracy-source"
