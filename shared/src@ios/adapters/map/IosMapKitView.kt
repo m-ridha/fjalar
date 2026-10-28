@@ -27,6 +27,8 @@ import platform.MapKit.MKMarkerAnnotationView
 import platform.MapKit.MKOverlayProtocol
 import platform.MapKit.MKOverlayRenderer
 import platform.MapKit.MKUserLocation
+import platform.CoreGraphics.CGRectMake
+import platform.UIKit.UIColor
 import platform.UIKit.UITapGestureRecognizer
 import platform.UIKit.UIUserInterfaceStyle
 import platform.UIKit.UIView
@@ -47,6 +49,9 @@ internal class FjalarMapKitDelegate(
     var onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)?,
 ) : NSObject(), MKMapViewDelegateProtocol {
 
+    var userAccuracyOverlay: MKCircle? = null
+    var onBearingChanged: (Double) -> Unit = {}
+
     private var cameraMovedByUser = false
     private var programmaticViewportChange = false
 
@@ -61,12 +66,14 @@ internal class FjalarMapKitDelegate(
     }
 
     override fun mapViewDidChangeVisibleRegion(mapView: MKMapView) {
+        onBearingChanged(mapView.camera.heading)
         if (!programmaticViewportChange && mapView.hasActiveMapGesture()) cameraMovedByUser = true
         onCameraCenterChanged?.invoke(mapView.centerCoordinate.toGeoCoordinates(), cameraMovedByUser)
     }
 
     @ObjCSignatureOverride
     override fun mapView(mapView: MKMapView, regionDidChangeAnimated: Boolean) {
+        onBearingChanged(mapView.camera.heading)
         onCameraCenterChanged?.invoke(mapView.centerCoordinate.toGeoCoordinates(), cameraMovedByUser)
         cameraMovedByUser = false
         programmaticViewportChange = false
@@ -75,10 +82,16 @@ internal class FjalarMapKitDelegate(
     override fun mapView(mapView: MKMapView, rendererForOverlay: MKOverlayProtocol): MKOverlayRenderer {
         if (rendererForOverlay is MKCircle) {
             val renderer = MKCircleRenderer(circle = rendererForOverlay)
-            val (fillColor, strokeColor) = IosMapKitAdapter.getGeofenceUiColors(isDarkTheme)
-            renderer.fillColor = fillColor
-            renderer.strokeColor = strokeColor
-            renderer.lineWidth = IosMapKitAdapter.GEOFENCE_STROKE_WIDTH
+            if (rendererForOverlay == userAccuracyOverlay) {
+                renderer.fillColor = UIColor.colorWithRed(0.0, 122.0 / 255.0, 1.0, 0.15)
+                renderer.strokeColor = UIColor.clearColor
+                renderer.lineWidth = 0.0
+            } else {
+                val (fillColor, strokeColor) = IosMapKitAdapter.getGeofenceUiColors(isDarkTheme)
+                renderer.fillColor = fillColor
+                renderer.strokeColor = strokeColor
+                renderer.lineWidth = IosMapKitAdapter.GEOFENCE_STROKE_WIDTH
+            }
             return renderer
         }
         return MKOverlayRenderer(rendererForOverlay)
@@ -88,13 +101,27 @@ internal class FjalarMapKitDelegate(
         if (viewForAnnotation is MKUserLocation) {
             return null
         }
+        if (viewForAnnotation is FjalarUserPositionAnnotation) {
+            val identifier = "FjalarUserDot"
+            val dot = mapView.dequeueReusableAnnotationViewWithIdentifier(identifier)
+                ?: MKAnnotationView(viewForAnnotation, identifier)
+            dot.annotation = viewForAnnotation
+            dot.setFrame(CGRectMake(0.0, 0.0, 20.0, 20.0))
+            dot.backgroundColor = UIColor.colorWithRed(0.0, 122.0 / 255.0, 1.0, 1.0)
+            dot.layer.cornerRadius = 10.0
+            dot.layer.borderWidth = 3.0
+            dot.layer.borderColor = UIColor.whiteColor.CGColor
+            dot.draggable = false
+            dot.canShowCallout = false
+            return dot
+        }
         val identifier = "FjalarDestinationMarker"
         val annotationView = (mapView.dequeueReusableAnnotationViewWithIdentifier(identifier) as? MKMarkerAnnotationView)
             ?: MKMarkerAnnotationView(annotation = viewForAnnotation, reuseIdentifier = identifier)
 
         annotationView.annotation = viewForAnnotation
         annotationView.draggable = true
-        annotationView.markerTintColor = IosMapKitAdapter.getPrimaryUiColor(isDarkTheme)
+        annotationView.markerTintColor = UIColor.colorWithRed(1.0, 59.0 / 255.0, 48.0 / 255.0, 1.0)
         return annotationView
     }
 
@@ -104,6 +131,7 @@ internal class FjalarMapKitDelegate(
         didChangeDragState: MKAnnotationViewDragState,
         fromOldState: MKAnnotationViewDragState,
     ) {
+        if (annotationView.annotation is FjalarUserPositionAnnotation) return
         if (didChangeDragState == MKAnnotationViewDragStateEnding) {
             annotationView.annotation?.coordinate?.useContents {
                 onPinDrag?.invoke(
@@ -162,6 +190,9 @@ fun IosMapKitView(
     onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)? = null,
     viewportRequestId: Long = 0L,
     preserveZoomOnViewportRequest: Boolean = false,
+    userPosition: MapUserPosition? = null,
+    onBearingChanged: (Double) -> Unit = {},
+    northRequestId: Long = 0L,
     modifier: Modifier = Modifier,
 ) {
     val adapter = remember { IosMapKitAdapter(isDarkTheme = isDarkTheme) }
@@ -170,6 +201,7 @@ fun IosMapKitView(
     val currentOnCameraCenterChanged by rememberUpdatedState(onCameraCenterChanged)
     val currentOnMapClick by rememberUpdatedState(onMapClick)
     val currentOnPinDrag by rememberUpdatedState(onPinDrag)
+    val currentOnBearingChanged by rememberUpdatedState(onBearingChanged)
 
     val delegate = remember {
         FjalarMapKitDelegate(
@@ -185,6 +217,7 @@ fun IosMapKitView(
     DisposableEffect(mapView, delegate, tapHandler) {
         adapter.attachMap(mapView)
         mapView.delegate = delegate
+        delegate.onBearingChanged = { currentOnBearingChanged(it) }
 
         val tapRecognizer = UITapGestureRecognizer(
             target = tapHandler,
@@ -229,6 +262,14 @@ fun IosMapKitView(
                 adapter.setViewport(center, zoom)
             }
         }
+    }
+
+    LaunchedEffect(userPosition) {
+        adapter.showUserPosition(userPosition)
+    }
+
+    LaunchedEffect(northRequestId) {
+        if (northRequestId > 0L) adapter.resetNorth()
     }
 
     LaunchedEffect(pinLocation) {

@@ -21,6 +21,7 @@ enum class FjalarStringKey {
     HUD_THEME_SWITCH_DARK,
     HUD_LOCALE_LABEL,
     HUD_RECENTER_LOCATION,
+    HUD_COMPASS_NORTH,
 
     // Status Pill
     STATUS_ARMED_SCHEDULED,
@@ -130,6 +131,7 @@ object FjalarStrings {
         FjalarStringKey.HUD_THEME_SWITCH_DARK to "Switch to dark mode",
         FjalarStringKey.HUD_LOCALE_LABEL to "Language: English (EN)",
         FjalarStringKey.HUD_RECENTER_LOCATION to "Recenter GPS",
+        FjalarStringKey.HUD_COMPASS_NORTH to "Reset map north",
 
         FjalarStringKey.STATUS_ARMED_SCHEDULED to "Armed: %1\$s • %2\$s away • %3\$s–%4\$s",
         FjalarStringKey.STATUS_ARMED_SCHEDULED_UNKNOWN to "Armed: %1\$s • Location unavailable • %2\$s–%3\$s",
@@ -224,6 +226,7 @@ object FjalarStrings {
         FjalarStringKey.HUD_THEME_SWITCH_LIGHT to "Beralih ke mode terang",
         FjalarStringKey.HUD_THEME_SWITCH_DARK to "Beralih ke mode gelap",
         FjalarStringKey.HUD_LOCALE_LABEL to "Bahasa: Indonesia (ID)",
+        FjalarStringKey.HUD_COMPASS_NORTH to "Arahkan peta ke utara",
         FjalarStringKey.HUD_RECENTER_LOCATION to "Pusatkan Ulang GPS",
 
         FjalarStringKey.STATUS_ARMED_SCHEDULED to "Aktif: %1\$s • %2\$s lagi • %3\$s–%4\$s",

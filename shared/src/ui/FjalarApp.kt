@@ -140,11 +140,16 @@ fun FjalarApp(
             ) {
                 // Screen 1: Living Map Canvas
                 composable<MapRoute> {
+                    var mapBearing by remember { mutableStateOf(0.0) }
+                    var northRequestId by remember { mutableStateOf(0L) }
                     Box(modifier = Modifier.fillMaxSize()) {
                         PlatformMapView(
                             center = center,
                             zoom = uiState.mapViewportZoom,
                             pinLocation = pinLocation,
+                            userPosition = uiState.mapUserPosition(),
+                            onBearingChanged = { mapBearing = it },
+                            northRequestId = northRequestId,
                             geofenceCenter = geofenceCenter,
                             geofenceRadius = geofenceRadius,
                             isDarkTheme = isDarkTheme,
@@ -170,6 +175,8 @@ fun FjalarApp(
                                 onSelectLocale = viewModel::onSelectLocale,
                                 onToggleTheme = viewModel::onToggleTheme,
                                 onRecenter = viewModel::onRecenterMap,
+                                bearing = mapBearing,
+                                onResetNorth = { northRequestId++ },
                                 modifier = Modifier,
                                 locale = uiState.appLocale,
                                 themeMode = uiState.themeMode,
@@ -322,6 +329,7 @@ fun FjalarApp(
                         initialCoordinates = GeoCoordinates(route.initialLat, route.initialLon),
                         initialZoom = if (uiState.activeDraft?.coordinates == null) 2.0 else 15.0,
                         hasInitialSelection = uiState.activeDraft?.coordinates != null,
+                        userPosition = uiState.mapUserPosition(),
                         geofenceRadius = uiState.activeDraft
                             ?.let { TriggerRadius(it.radiusMeters) }
                             ?: TriggerRadius.DEFAULT,

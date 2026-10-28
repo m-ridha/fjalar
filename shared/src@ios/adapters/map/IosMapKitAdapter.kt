@@ -18,6 +18,8 @@ import platform.UIKit.UIColor
 import kotlin.math.pow
 import kotlin.math.log2
 
+internal class FjalarUserPositionAnnotation : MKPointAnnotation()
+
 /**
  * iOS Apple MapKit adapter implementing [MapRendererPort].
  *
@@ -35,12 +37,17 @@ class IosMapKitAdapter(
     var currentViewport: Pair<GeoCoordinates, Double>? = null
         private set
 
+    var currentUserPosition: MapUserPosition? = null
+        private set
+
     var currentPin: GeoCoordinates? = null
         private set
 
     var currentGeofence: Pair<GeoCoordinates, TriggerRadius>? = null
         private set
 
+    private var userAnnotation: FjalarUserPositionAnnotation? = null
+    private var accuracyOverlay: MKCircle? = null
     private var activeAnnotation: MKPointAnnotation? = null
     private var activeOverlay: MKCircle? = null
 
@@ -50,10 +57,13 @@ class IosMapKitAdapter(
      */
     fun attachMap(map: MKMapView) {
         this.activeMap = map
+        map.showsUserLocation = false
+        map.showsCompass = false
 
         currentViewport?.let { (center, zoom) ->
             applyViewport(center, zoom, animate = false)
         }
+        currentUserPosition?.let { applyUserPosition(it) }
         currentPin?.let { pin ->
             applyPin(pin)
         }
@@ -73,6 +83,7 @@ class IosMapKitAdapter(
             if (annotation != null) map.removeAnnotation(annotation)
             if (overlay != null) map.removeOverlay(overlay)
         }
+        removeUserPositionOverlays()
         activeAnnotation = null
         activeOverlay = null
         activeMap = null
@@ -173,10 +184,51 @@ class IosMapKitAdapter(
         } else {
             val newAnnotation = MKPointAnnotation()
             newAnnotation.setCoordinate(target)
-            newAnnotation.setTitle("Destination")
             activeAnnotation = newAnnotation
             map.addAnnotation(newAnnotation)
         }
+    }
+
+    fun showUserPosition(position: MapUserPosition?) {
+        currentUserPosition = position
+        if (position == null) removeUserPositionOverlays() else applyUserPosition(position)
+    }
+
+    private fun removeUserPositionOverlays() {
+        val map = activeMap
+        userAnnotation?.let { map?.removeAnnotation(it) }
+        accuracyOverlay?.let { map?.removeOverlay(it) }
+        userAnnotation = null
+        accuracyOverlay = null
+        (map?.delegate as? FjalarMapKitDelegate)?.userAccuracyOverlay = null
+    }
+
+    private fun applyUserPosition(position: MapUserPosition) {
+        val map = activeMap ?: return
+        val coordinate = position.coordinates.toCLLocationCoordinate2D()
+        val annotation = userAnnotation
+        if (annotation == null) {
+            userAnnotation = FjalarUserPositionAnnotation().also {
+                it.setCoordinate(coordinate)
+                map.addAnnotation(it)
+            }
+        } else {
+            annotation.setCoordinate(coordinate)
+        }
+        accuracyOverlay?.let { map.removeOverlay(it) }
+        val circle = MKCircle.circleWithCenterCoordinate(coordinate, position.accuracyMeters)
+        accuracyOverlay = circle
+        (map.delegate as? FjalarMapKitDelegate)?.userAccuracyOverlay = circle
+        map.addOverlay(circle)
+    }
+
+    /** Preserve the live map camera so compass taps never jump to a stale viewport. */
+    fun resetNorth() {
+        val map = activeMap ?: return
+        val camera = map.camera.copy() as platform.MapKit.MKMapCamera
+        camera.heading = 0.0
+        (map.delegate as? FjalarMapKitDelegate)?.beginProgrammaticViewportChange()
+        map.setCamera(camera, animated = false)
     }
 
     private fun applyGeofence(center: GeoCoordinates, radius: TriggerRadius) {

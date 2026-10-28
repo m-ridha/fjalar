@@ -6,6 +6,7 @@ import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
+import platform.MapKit.overlays
 import platform.MapKit.MKMapView
 import platform.CoreGraphics.CGRectMake
 import kotlin.math.abs
@@ -17,6 +18,63 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalForeignApi::class)
 class IosMapKitAdapterTest {
+
+    @Test
+    fun separateLiveDotAndAccuracyHaloPreserveDestinationAcrossFixesAndPermissionLoss() {
+        val adapter = IosMapKitAdapter()
+        val map = MKMapView(frame = CGRectMake(0.0, 0.0, 390.0, 844.0))
+        map.delegate = FjalarMapKitDelegate(false, null, null)
+        adapter.attachMap(map)
+        val destination = GeoCoordinates(51.51, -0.11)
+        adapter.placePin(destination)
+        val pin = map.annotations.filterIsInstance<platform.MapKit.MKPointAnnotation>().single()
+        adapter.showUserPosition(MapUserPosition(GeoCoordinates(51.5, -0.1), 25.0))
+        assertFalse(map.showsUserLocation, "Shared location ownership must not start a second native stream")
+        val dot = map.annotations.filterIsInstance<FjalarUserPositionAnnotation>().single()
+        val delegate = map.delegate as FjalarMapKitDelegate
+        assertTrue(delegate.mapView(mapView = map, viewForAnnotation = pin) is platform.MapKit.MKMarkerAnnotationView)
+        val dotView = delegate.mapView(mapView = map, viewForAnnotation = dot)!!
+        assertFalse(dotView is platform.MapKit.MKMarkerAnnotationView, "User position is a dot, never a destination pin")
+        assertFalse(dotView.draggable)
+        val halo = map.overlays.filterIsInstance<platform.MapKit.MKCircle>().single()
+        assertEquals(25.0, halo.radius)
+        val renderer = delegate.mapView(mapView = map, rendererForOverlay = halo) as platform.MapKit.MKCircleRenderer
+        assertEquals(0.0, renderer.lineWidth, "Accuracy halo must not use the destination geofence stroke")
+        adapter.showUserPosition(MapUserPosition(GeoCoordinates(51.501, -0.101), 40.0))
+        assertEquals(destination, adapter.currentPin)
+        assertTrue(map.annotations.any { it == pin })
+        assertEquals(40.0, map.overlays.filterIsInstance<platform.MapKit.MKCircle>().single().radius)
+        adapter.showUserPosition(null)
+        assertEquals(listOf(pin), map.annotations)
+        assertTrue(map.overlays.isEmpty())
+        adapter.detachMap()
+    }
+
+    @Test
+    fun northResetPreservesNativeCenterAndZoomAndReportsProgrammaticCamera() {
+        val adapter = IosMapKitAdapter()
+        val map = MKMapView(frame = CGRectMake(0.0, 0.0, 390.0, 844.0))
+        val gestures = mutableListOf<Boolean>()
+        val delegate = FjalarMapKitDelegate(false, null, { _, userGesture -> gestures.add(userGesture) })
+        map.delegate = delegate
+        adapter.attachMap(map)
+        adapter.setViewport(GeoCoordinates(-33.86, 151.2), 14.0)
+        val rotated = map.camera
+        rotated.heading = 75.0
+        map.setCamera(rotated, animated = false)
+        assertEquals(75.0, map.camera.heading, 0.001, "Test must start with a rotated map")
+        val centerBefore = map.centerCoordinate.toGeoCoordinates()
+        val altitudeBefore = map.camera.altitude
+        adapter.resetNorth()
+        assertEquals(0.0, map.camera.heading, 0.001)
+        assertEquals(centerBefore.latitude, map.centerCoordinate.toGeoCoordinates().latitude, 0.000001)
+        assertEquals(centerBefore.longitude, map.centerCoordinate.toGeoCoordinates().longitude, 0.000001)
+        assertEquals(altitudeBefore, map.camera.altitude, 0.001)
+        delegate.mapViewDidChangeVisibleRegion(map)
+        assertFalse(gestures.last(), "Compass must not create a picker selection")
+        adapter.detachMap()
+    }
+
 
     @Test
     fun initialViewportIsAppliedBeforeTheMapEntersAWindow() {

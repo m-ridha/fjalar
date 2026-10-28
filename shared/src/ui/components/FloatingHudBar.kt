@@ -121,6 +121,8 @@ fun FloatingHudBar(
     locale: AppLocale = LiquidGlassTheme.locale,
     themeMode: ThemeMode = LiquidGlassTheme.themeMode,
     onSelectLocale: ((AppLocale) -> Unit)? = null,
+    bearing: Double = 0.0,
+    onResetNorth: () -> Unit = {},
 ) {
     val colors = LiquidGlassTheme.colors
     val isDark = colors.isDark
@@ -129,7 +131,6 @@ fun FloatingHudBar(
         if (isDark) FjalarStringKey.HUD_THEME_SWITCH_LIGHT else FjalarStringKey.HUD_THEME_SWITCH_DARK
     )
     val searchPlaceholder = fjalarString(FjalarStringKey.HUD_SEARCH_PLACEHOLDER)
-    val recenterDescription = fjalarString(FjalarStringKey.HUD_RECENTER_LOCATION)
     val handleSelectLocale = onSelectLocale ?: { loc ->
         if (loc != locale) onToggleLocale()
     }
@@ -195,26 +196,10 @@ fun FloatingHudBar(
             )
         }
 
-        // Recenter GPS Button (◎)
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                .clickable(
-                    role = Role.Button,
-                    onClick = onRecenter,
-                )
-                .semantics {
-                    contentDescription = recenterDescription
-                    role = Role.Button
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "◎",
-                fontSize = 20.sp,
-                color = colors.primary,
-            )
-        }
+        MapNavigationControls(
+            onRecenter = onRecenter,
+            bearing = bearing,
+            onResetNorth = onResetNorth,
+        )
     }
 }

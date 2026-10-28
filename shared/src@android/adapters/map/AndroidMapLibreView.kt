@@ -39,6 +39,9 @@ fun AndroidMapLibreView(
     onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)? = null,
     viewportRequestId: Long = 0L,
     preserveZoomOnViewportRequest: Boolean = false,
+    userPosition: MapUserPosition? = null,
+    onBearingChanged: (Double) -> Unit = {},
+    northRequestId: Long = 0L,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -56,6 +59,7 @@ fun AndroidMapLibreView(
     val currentOnCameraCenterChanged by rememberUpdatedState(onCameraCenterChanged)
     val currentOnMapClick by rememberUpdatedState(onMapClick)
     val currentOnPinDrag by rememberUpdatedState(onPinDrag)
+    val currentOnBearingChanged by rememberUpdatedState(onBearingChanged)
 
     // MapView creation and lifecycle observer setup
     val mapView = remember(context) {
@@ -161,12 +165,14 @@ fun AndroidMapLibreView(
         mapView.getMapAsync { map ->
             mapLibreMap = map
             adapter.attachMap(map)
+            map.uiSettings.isCompassEnabled = false
             var cameraMovedByUser = false
             map.addOnCameraMoveStartedListener { reason ->
                 cameraMovedByUser = reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE
             }
             map.addOnCameraIdleListener { cameraMovedByUser = false }
             map.addOnCameraMoveListener {
+                currentOnBearingChanged(map.cameraPosition.bearing)
                 val target = map.cameraPosition.target
                 if (target != null) {
                     with(AndroidMapRendererAdapter) {
@@ -224,6 +230,14 @@ fun AndroidMapLibreView(
                 adapter.setViewport(center, zoom)
             }
         }
+    }
+
+    LaunchedEffect(userPosition, mapLibreMap) {
+        adapter.showUserPosition(userPosition)
+    }
+
+    LaunchedEffect(northRequestId) {
+        if (northRequestId > 0L) adapter.resetNorth()
     }
 
     // React to pinLocation changes

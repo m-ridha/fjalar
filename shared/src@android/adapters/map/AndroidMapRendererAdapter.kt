@@ -1,6 +1,12 @@
 package com.muhammadridha.fjalar.adapters.map
 
 import android.graphics.Color
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
+import org.maplibre.android.style.layers.SymbolLayer
+import org.maplibre.android.style.layers.Property.ICON_ANCHOR_BOTTOM
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
@@ -39,6 +45,9 @@ class AndroidMapRendererAdapter(
     var currentViewport: Pair<GeoCoordinates, Double>? = null
         private set
 
+    var currentUserPosition: MapUserPosition? = null
+        private set
+
     var currentPin: GeoCoordinates? = null
         private set
 
@@ -73,6 +82,7 @@ class AndroidMapRendererAdapter(
      * Invoked whenever the initial style loads or when switching between light and dark Carto styles.
      */
     fun onStyleLoaded(style: Style) {
+        currentUserPosition?.let { applyUserPosition(it, style) }
         currentPin?.let { pin ->
             applyPin(pin, style)
         }
@@ -96,9 +106,7 @@ class AndroidMapRendererAdapter(
             (style.getLayer(GEOFENCE_STROKE_LAYER_ID) as? LineLayer)?.setProperties(
                 PropertyFactory.lineColor(primaryColor)
             )
-            (style.getLayer(PIN_LAYER_ID) as? CircleLayer)?.setProperties(
-                PropertyFactory.circleColor(primaryColor)
-            )
+
         }
     }
 
@@ -193,16 +201,93 @@ class AndroidMapRendererAdapter(
             style.addSource(GeoJsonSource(PIN_SOURCE_ID, feature))
         }
 
+        if (style.getImage(PIN_IMAGE_ID) == null) {
+            style.addImage(PIN_IMAGE_ID, destinationPinBitmap())
+        }
         if (style.getLayer(PIN_LAYER_ID) == null) {
-            val primaryColor = Color.parseColor(getPrimaryColorHex(isDarkTheme))
-            val circleLayer = CircleLayer(PIN_LAYER_ID, PIN_SOURCE_ID).withProperties(
-                PropertyFactory.circleRadius(8f),
-                PropertyFactory.circleColor(primaryColor),
+            style.addLayer(SymbolLayer(PIN_LAYER_ID, PIN_SOURCE_ID).withProperties(
+                PropertyFactory.iconImage(PIN_IMAGE_ID),
+                PropertyFactory.iconAnchor(ICON_ANCHOR_BOTTOM),
+                PropertyFactory.iconAllowOverlap(true),
+                PropertyFactory.iconIgnorePlacement(true),
+            ))
+        }
+    }
+
+    /** Runtime vector artwork keeps the destination visibly different from the real blue dot. */
+    private fun destinationPinBitmap(): Bitmap {
+        val bitmap = Bitmap.createBitmap(40, 52, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val path = Path().apply {
+            moveTo(20f, 50f)
+            cubicTo(15f, 40f, 2f, 30f, 2f, 20f)
+            cubicTo(2f, -4f, 38f, -4f, 38f, 20f)
+            cubicTo(38f, 30f, 25f, 40f, 20f, 50f)
+            close()
+        }
+        paint.color = Color.WHITE
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 4f
+        canvas.drawPath(path, paint)
+        paint.style = Paint.Style.FILL
+        paint.color = Color.rgb(255, 59, 48)
+        canvas.drawPath(path, paint)
+        paint.color = Color.WHITE
+        canvas.drawCircle(20f, 19f, 6f, paint)
+        return bitmap
+    }
+
+    fun showUserPosition(position: MapUserPosition?) {
+        currentUserPosition = position
+        val style = getActiveStyle() ?: return
+        if (position == null) {
+            style.removeLayer(USER_DOT_LAYER_ID)
+            style.removeLayer(USER_ACCURACY_LAYER_ID)
+            style.removeSource(USER_SOURCE_ID)
+            style.removeSource(USER_ACCURACY_SOURCE_ID)
+        } else {
+            applyUserPosition(position, style)
+        }
+    }
+
+    fun resetNorth() {
+        val map = activeMap ?: return
+        val camera = CameraPosition.Builder(map.cameraPosition).bearing(0.0).build()
+        map.moveCamera(CameraUpdateFactory.newCameraPosition(camera))
+    }
+
+    private fun applyUserPosition(position: MapUserPosition, style: Style) {
+        val coordinates = position.coordinates
+        val point = Feature.fromGeometry(Point.fromLngLat(coordinates.longitude, coordinates.latitude))
+        val dotSource = style.getSource(USER_SOURCE_ID) as? GeoJsonSource
+        if (dotSource == null) style.addSource(GeoJsonSource(USER_SOURCE_ID, point)) else dotSource.setGeoJson(point)
+
+        val ring = calculateGeofencePolygon(coordinates, position.accuracyMeters)
+            .map { Point.fromLngLat(it.longitude, it.latitude) }.toMutableList()
+        ring.add(ring.first())
+        val accuracy = Feature.fromGeometry(Polygon.fromLngLats(listOf(ring)))
+        val accuracySource = style.getSource(USER_ACCURACY_SOURCE_ID) as? GeoJsonSource
+        if (accuracySource == null) {
+            style.addSource(GeoJsonSource(USER_ACCURACY_SOURCE_ID, accuracy))
+        } else {
+            accuracySource.setGeoJson(accuracy)
+        }
+        if (style.getLayer(USER_ACCURACY_LAYER_ID) == null) {
+            val halo = FillLayer(USER_ACCURACY_LAYER_ID, USER_ACCURACY_SOURCE_ID).withProperties(
+                PropertyFactory.fillColor("#007AFF"),
+                PropertyFactory.fillOpacity(0.15f),
+            )
+            if (style.getLayer(PIN_LAYER_ID) != null) style.addLayerBelow(halo, PIN_LAYER_ID) else style.addLayer(halo)
+        }
+        if (style.getLayer(USER_DOT_LAYER_ID) == null) {
+            val dot = CircleLayer(USER_DOT_LAYER_ID, USER_SOURCE_ID).withProperties(
+                PropertyFactory.circleRadius(7f),
+                PropertyFactory.circleColor("#007AFF"),
                 PropertyFactory.circleStrokeColor(Color.WHITE),
                 PropertyFactory.circleStrokeWidth(3f),
-                PropertyFactory.circleOpacity(1f),
             )
-            style.addLayer(circleLayer)
+            if (style.getLayer(PIN_LAYER_ID) != null) style.addLayerBelow(dot, PIN_LAYER_ID) else style.addLayer(dot)
         }
     }
 
@@ -230,12 +315,12 @@ class AndroidMapRendererAdapter(
                 PropertyFactory.fillOpacity(0.2f),
                 PropertyFactory.fillAntialias(true),
             )
-            val pinLayer = style.getLayer(PIN_LAYER_ID)
-            if (pinLayer != null) {
-                style.addLayerBelow(fillLayer, PIN_LAYER_ID)
-            } else {
-                style.addLayer(fillLayer)
+            val anchor = when {
+                style.getLayer(USER_ACCURACY_LAYER_ID) != null -> USER_ACCURACY_LAYER_ID
+                style.getLayer(PIN_LAYER_ID) != null -> PIN_LAYER_ID
+                else -> null
             }
+            if (anchor != null) style.addLayerBelow(fillLayer, anchor) else style.addLayer(fillLayer)
         }
 
         if (style.getLayer(GEOFENCE_STROKE_LAYER_ID) == null) {
@@ -244,16 +329,21 @@ class AndroidMapRendererAdapter(
                 PropertyFactory.lineWidth(2.5f),
                 PropertyFactory.lineOpacity(0.8f),
             )
-            val pinLayer = style.getLayer(PIN_LAYER_ID)
-            if (pinLayer != null) {
-                style.addLayerBelow(strokeLayer, PIN_LAYER_ID)
-            } else {
-                style.addLayer(strokeLayer)
+            val anchor = when {
+                style.getLayer(USER_ACCURACY_LAYER_ID) != null -> USER_ACCURACY_LAYER_ID
+                style.getLayer(PIN_LAYER_ID) != null -> PIN_LAYER_ID
+                else -> null
             }
+            if (anchor != null) style.addLayerBelow(strokeLayer, anchor) else style.addLayer(strokeLayer)
         }
     }
 
     companion object {
+        const val USER_SOURCE_ID = "fjalar-user-source"
+        const val USER_DOT_LAYER_ID = "fjalar-user-dot"
+        const val USER_ACCURACY_SOURCE_ID = "fjalar-user-accuracy-source"
+        const val USER_ACCURACY_LAYER_ID = "fjalar-user-accuracy"
+        const val PIN_IMAGE_ID = "fjalar-destination-pin"
         const val PIN_SOURCE_ID = "fjalar-pin-source"
         const val PIN_LAYER_ID = "fjalar-pin-layer"
         const val GEOFENCE_SOURCE_ID = "fjalar-geofence-source"

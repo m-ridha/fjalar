@@ -15,6 +15,22 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class AndroidMapRendererAdapterTest {
+    @Test
+    fun liveFixAndPermissionLossNeverReplaceDestinationOrGeofence() {
+        val adapter = AndroidMapRendererAdapter()
+        val destination = GeoCoordinates(-33.86, 151.2)
+        adapter.placePin(destination)
+        adapter.showGeofence(destination, TriggerRadius(250))
+        adapter.showUserPosition(MapUserPosition(GeoCoordinates(-33.85, 151.21), 25.0))
+        adapter.showUserPosition(MapUserPosition(GeoCoordinates(-33.851, 151.211), 50.0))
+        assertEquals(destination, adapter.currentPin)
+        assertEquals(50.0, adapter.currentUserPosition?.accuracyMeters)
+        adapter.showUserPosition(null)
+        assertNull(adapter.currentUserPosition)
+        assertEquals(destination, adapter.currentPin)
+        assertEquals(destination to TriggerRadius(250), adapter.currentGeofence)
+    }
+
 
     @Test
     fun coordinateConversions_preservesPrecisionAndMapsCorrectly() {
