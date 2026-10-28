@@ -31,8 +31,13 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
 
     /** Editing mode keeps disabled/ringing states and any unfinished completion guard. */
     fun prepareSave(previous: LocationAlarm?, edited: LocationAlarm, now: Instant): LocationAlarm {
-        if (previous == null || previous.schedule.type == edited.schedule.type) {
-            return syncSchedule(edited, now)
+        val carried = if (previous?.state == SNOOZED && edited.state == SNOOZED && edited.snoozedUntil == null) {
+            edited.copy(snoozedUntil = previous.snoozedUntil)
+        } else {
+            edited
+        }
+        if (previous == null || previous.schedule.type == carried.schedule.type) {
+            return syncSchedule(carried, now)
         }
         val preserved = edited.copy(state = previous.state, suppressedUntil = previous.suppressedUntil, snoozedUntil = previous.snoozedUntil)
         if (preserved.state == SNOOZED) return syncSchedule(preserved, now)

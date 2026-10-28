@@ -54,6 +54,7 @@ private final class ControlSafeAreaViewController: UIViewController {
         updateControlSafeArea()
     }
 
+    #if compiler(>=6.4)
     @available(iOS 26.0, *)
     override func updateProperties() {
         super.updateProperties()
@@ -61,9 +62,12 @@ private final class ControlSafeAreaViewController: UIViewController {
         updateControlSafeArea()
     }
 
+    #endif
+
     private func updateControlSafeArea() {
         guard isViewLoaded, !view.bounds.isEmpty else { return }
         var regions: [CGRect] = []
+        #if compiler(>=6.4)
         if #available(iOS 27.1, *) {
             let occlusions = view.reservedRegions(kind: .occlusion)
                 .filter { $0.isActive }.map { $0.frame }
@@ -78,6 +82,7 @@ private final class ControlSafeAreaViewController: UIViewController {
                 }
             regions = occlusions + folds
         }
+        #endif
         let baseInsets = view.safeAreaInsets
         let frame = controlSafeRect(
             in: view.bounds,

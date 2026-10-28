@@ -186,6 +186,7 @@ fun ConfigureAlarmSheet(
                             },
                             addressLabel = initialAlarm?.addressLabel,
                             suppressedUntil = initialAlarm?.suppressedUntil,
+                            snoozedUntil = initialAlarm?.snoozedUntil,
                         )
                         onSave(updated)
                     }

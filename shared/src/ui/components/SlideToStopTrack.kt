@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -41,6 +43,7 @@ import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 const val SLIDE_TO_STOP_THRESHOLD = 0.80f
 
@@ -89,6 +92,22 @@ class SlideToStopState(
     }
 }
 
+internal class AccessibleStopConfirmation {
+    var awaitingConfirmation by mutableStateOf(false)
+        private set
+
+    fun reset() { awaitingConfirmation = false }
+
+    fun activate(onConfirm: () -> Unit) {
+        if (awaitingConfirmation) {
+            awaitingConfirmation = false
+            onConfirm()
+        } else {
+            awaitingConfirmation = true
+        }
+    }
+}
+
 @Composable
 fun SlideToStopTrack(
     onStopAlarm: () -> Unit,
@@ -106,6 +125,16 @@ fun SlideToStopTrack(
     val trackPadding = 6.dp
 
     val label = fjalarString(FjalarStringKey.RINGING_SLIDE_TO_STOP)
+    val accessiblePrompt = fjalarString(FjalarStringKey.RINGING_ACCESSIBLE_PROMPT)
+    val accessibleConfirm = fjalarString(FjalarStringKey.RINGING_ACCESSIBLE_CONFIRM)
+    val confirmation = remember(state) { AccessibleStopConfirmation() }
+    LaunchedEffect(confirmation.awaitingConfirmation, enabled) {
+        if (!enabled) confirmation.reset()
+        else if (confirmation.awaitingConfirmation) {
+            delay(10_000)
+            confirmation.reset()
+        }
+    }
 
     BoxWithConstraints(
         modifier = modifier
@@ -146,6 +175,7 @@ fun SlideToStopTrack(
                 .background(colors.danger)
                 .pointerInput(maxDragPx) {
                     detectHorizontalDragGestures(
+                        onDragStart = { confirmation.reset() },
                         onDragEnd = {
                             // Resolve synchronously: release must see every delta, even before a frame.
                             if (currentEnabled) state.checkThresholdAndResolve { currentOnStop() }
@@ -161,8 +191,16 @@ fun SlideToStopTrack(
                     )
                 }
                 .semantics {
-                    contentDescription = label
+                    contentDescription = if (confirmation.awaitingConfirmation) accessibleConfirm else accessiblePrompt
                     role = Role.Button
+                    onClick(label = if (confirmation.awaitingConfirmation) accessibleConfirm else accessiblePrompt) {
+                        if (!currentEnabled) return@onClick false
+                        confirmation.activate {
+                            state.updateDrag(1f, 1f)
+                            state.checkThresholdAndResolve { currentOnStop() }
+                        }
+                        true
+                    }
                 },
             contentAlignment = Alignment.Center,
         ) {

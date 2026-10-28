@@ -22,6 +22,8 @@ import platform.UserNotifications.UNMutableNotificationContent
 import platform.UserNotifications.UNNotificationRequest
 import platform.UserNotifications.UNTimeIntervalNotificationTrigger
 import platform.UserNotifications.UNUserNotificationCenter
+import platform.UserNotifications.UNAuthorizationStatusAuthorized
+import platform.UserNotifications.UNNotificationSettingEnabled
 
 /**
  * iOS implementation of [AlarmSchedulerPort] using [UNUserNotificationCenter]
@@ -91,7 +93,26 @@ class IosBackgroundSchedulerAdapter(
             check(snoozedAlarm == null) { "Notification center unavailable" }
             return
         }
-        requestAuthorization()
+        if (snoozedAlarm != null) {
+            suspendCancellableCoroutine<Unit> { continuation ->
+                center.requestAuthorizationWithOptions(
+                    options = UNAuthorizationOptionAlert or UNAuthorizationOptionSound or UNAuthorizationOptionBadge,
+                ) { _, _ -> continuation.resume(Unit) }
+            }
+            val deliveryAvailable = suspendCancellableCoroutine<Boolean> { continuation ->
+                center.getNotificationSettingsWithCompletionHandler { settings ->
+                    continuation.resume(snoozeDeliveryAvailable(
+                        authorized = settings?.authorizationStatus == UNAuthorizationStatusAuthorized,
+                        alertsEnabled = settings?.alertSetting == UNNotificationSettingEnabled,
+                        soundEnabled = settings?.soundSetting == UNNotificationSettingEnabled,
+                        soundRequired = snoozedAlarm.soundConfig.soundEnabled,
+                    ))
+                }
+            }
+            check(deliveryAvailable) { "Snooze requires notification alerts and enabled alarm sound" }
+        } else {
+            requestAuthorization()
+        }
         val now = clock.now()
         val delaySeconds = (at - now).inWholeMilliseconds.coerceAtLeast(1000) / 1000.0
 
@@ -161,3 +182,10 @@ class IosBackgroundSchedulerAdapter(
             "com.muhammadridha.fjalar.wakeup.$alarmId"
     }
 }
+
+internal fun snoozeDeliveryAvailable(
+    authorized: Boolean,
+    alertsEnabled: Boolean,
+    soundEnabled: Boolean,
+    soundRequired: Boolean,
+): Boolean = authorized && alertsEnabled && (!soundRequired || soundEnabled)

@@ -46,6 +46,8 @@
     <string name="ringing_in_zone_badge">IN ZONE • %1$s from target pin</string>
     <string name="ringing_headline">Wake Up! Approaching %1$s</string>
     <string name="ringing_snooze_action">Snooze (+2 min)</string>
+    <string name="ringing_accessible_prompt">Activate to prepare to stop alarm</string>
+    <string name="ringing_accessible_confirm">Activate again to stop alarm</string>
     <string name="ringing_slide_to_stop">Slide to Stop Alarm</string>
 
     <!-- System notifications & background telemetry -->

@@ -178,6 +178,31 @@ class FjalarViewModelTest {
         return Triple(viewModel, preferencesPort, vmScope)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun foregroundSnoozeDeadlineSynchronizesWithoutLocationAndCancelsInBackground() = runTest {
+        val alarm = manggaraiAlarm().copy(
+            state = AlarmState.SNOOZED,
+            snoozedUntil = kotlin.time.Clock.System.now() + kotlin.time.Duration.parse("2m"),
+        )
+        val observe = FakeObserveAlarmsPort(listOf(alarm))
+        val sync = FakeSyncSchedulesPort()
+        val (vm, _, scope) = createTestViewModel(observePort = observe, syncSchedulesPort = sync)
+        try {
+            vm.onAppForegroundChanged(true)
+            testScheduler.advanceTimeBy(60_000)
+            vm.onAppForegroundChanged(false)
+            testScheduler.advanceTimeBy(120_000)
+            assertEquals(0, sync.syncCount)
+            vm.onAppForegroundChanged(true)
+            testScheduler.advanceTimeBy(120_001)
+            testScheduler.runCurrent()
+            assertEquals(1, sync.syncCount)
+        } finally {
+            scope.cancel()
+        }
+    }
+
     @Test
     fun ringingOwnerUsesSameIdOrderingAsPlaybackAndAdvances() = runTest {
         val a = manggaraiAlarm().copy(id = "a", state = AlarmState.RINGING)

@@ -64,6 +64,8 @@ enum class FjalarStringKey {
     RINGING_SNOOZE_ACTION,
     RINGING_OPERATION_FAILED,
     RINGING_SLIDE_TO_STOP,
+    RINGING_ACCESSIBLE_PROMPT,
+    RINGING_ACCESSIBLE_CONFIRM,
 
     // System Notifications
     NOTIF_MONITORING_TITLE,
@@ -170,6 +172,8 @@ object FjalarStrings {
         FjalarStringKey.RINGING_OPERATION_FAILED to "Could not stop the alarm. Please try again.",
         FjalarStringKey.RINGING_SNOOZE_ACTION to "Snooze (+2 min)",
         FjalarStringKey.RINGING_SLIDE_TO_STOP to "Slide to Stop Alarm",
+        FjalarStringKey.RINGING_ACCESSIBLE_PROMPT to "Activate to prepare to stop alarm",
+        FjalarStringKey.RINGING_ACCESSIBLE_CONFIRM to "Activate again to stop alarm",
 
         FjalarStringKey.NOTIF_MONITORING_TITLE to "Monitoring commute destination",
         FjalarStringKey.NOTIF_MONITORING_BODY to "Active: %1\$s • %2\$s remaining",
@@ -266,6 +270,8 @@ object FjalarStrings {
         FjalarStringKey.RINGING_OPERATION_FAILED to "Alarm gagal dihentikan. Silakan coba lagi.",
         FjalarStringKey.RINGING_SNOOZE_ACTION to "Tunda (+2 mnt)",
         FjalarStringKey.RINGING_SLIDE_TO_STOP to "Geser untuk Matikan Alarm",
+        FjalarStringKey.RINGING_ACCESSIBLE_PROMPT to "Aktifkan untuk bersiap mematikan alarm",
+        FjalarStringKey.RINGING_ACCESSIBLE_CONFIRM to "Aktifkan lagi untuk mematikan alarm",
 
         FjalarStringKey.NOTIF_MONITORING_TITLE to "Memantau tujuan perjalanan",
         FjalarStringKey.NOTIF_MONITORING_BODY to "Aktif: %1\$s • %2\$s lagi",

@@ -98,6 +98,7 @@ class FjalarViewModel(
     private val _uiState = MutableStateFlow(FjalarUiState())
     val uiState: StateFlow<FjalarUiState> = _uiState.asStateFlow()
 
+    private var snoozeDeadlineJob: Job? = null
     private var fixExpiryJob: Job? = null
     private var searchJob: Job? = null
     private var unfilteredSearchResults: List<SearchResultPlace> = emptyList()
@@ -109,7 +110,23 @@ class FjalarViewModel(
 
     fun onAppForegroundChanged(foreground: Boolean) {
         appForeground = foreground
+        updateSnoozeDeadline(_uiState.value.alarms)
         updateMapTracking()
+    }
+
+    private fun updateSnoozeDeadline(alarms: List<LocationAlarm>) {
+        snoozeDeadlineJob?.cancel()
+        if (!appForeground || syncSchedulesPort == null) return
+        val deadline = alarms.filter { it.state == AlarmState.SNOOZED }
+            .mapNotNull { alarm ->
+                alarm.snoozedUntil?.let { deadline ->
+                    alarm.suppressedUntil?.let { minOf(deadline, it) } ?: deadline
+                }
+            }.minOrNull() ?: return
+        snoozeDeadlineJob = scope.launch {
+            delay((deadline - Clock.System.now()).inWholeMilliseconds.coerceAtLeast(0))
+            syncSchedules()
+        }
     }
 
     fun onMapVisibilityChanged(visible: Boolean) {
@@ -141,6 +158,7 @@ class FjalarViewModel(
         }
         scope.launch {
             observeAlarmsPort.observeAlarms().collect { alarmsList ->
+                updateSnoozeDeadline(alarmsList)
                 val ringing = alarmsList.filter { it.state == AlarmState.RINGING }.minByOrNull { it.id }
                 _uiState.update { current ->
                     current.copy(

@@ -7,6 +7,21 @@ import kotlin.test.assertTrue
 
 class SlideToStopGestureStateTest {
     @Test
+    fun accessibleStopRequiresTwoActivationsAndResetRequiresFreshConfirmation() {
+        val confirmation = AccessibleStopConfirmation()
+        var stops = 0
+        confirmation.activate { stops++ }
+        assertEquals(0, stops)
+        assertTrue(confirmation.awaitingConfirmation)
+        confirmation.reset()
+        confirmation.activate { stops++ }
+        assertEquals(0, stops)
+        confirmation.activate { stops++ }
+        assertEquals(1, stops)
+        assertFalse(confirmation.awaitingConfirmation)
+    }
+
+    @Test
     fun immediateReleaseReadsLatestProgressAndDuplicateEndsDoNotStopTwice() {
         val state = SlideToStopState()
         var stops = 0

@@ -27,6 +27,26 @@ class AlarmStateTransitionTest {
     private suspend fun state() = repository.getAlarm("manggarai")!!.state
 
     @Test
+    fun editingSnoozedAlarmsRetainsDeadlineForBothScheduleTypes() = runTest {
+        clock.now = jakarta(2026, 10, 26, 8)
+        for (schedule in listOf(AlarmSchedule.ONE_TIME, manggaraiAlarm().schedule)) {
+            val ringing = manggaraiAlarm().copy(schedule = schedule, state = AlarmState.RINGING)
+            service.saveAlarm(ringing).getOrThrow()
+            service.snoozeAlarm(ringing.id).getOrThrow()
+            val before = repository.getAlarm(ringing.id)!!
+            val draft = com.muhammadridha.fjalar.ui.screens.ConfigureAlarmDraft.fromAlarm(before)
+            val edited = draft.copy(label = "Renamed").toLocationAlarm(before)
+            assertEquals(before.snoozedUntil, edited.snoozedUntil)
+            // The service protects the deadline even when an older caller omits it.
+            service.saveAlarm(edited.copy(snoozedUntil = null)).getOrThrow()
+            val saved = repository.getAlarm(ringing.id)!!
+            assertEquals(AlarmState.SNOOZED, saved.state)
+            assertEquals(before.snoozedUntil, saved.snoozedUntil)
+            service.deleteAlarm(ringing.id).getOrThrow()
+        }
+    }
+
+    @Test
     fun snoozeExpiresAtOriginalWindowEndAndNextWindowUsesOriginalRadius() = runTest {
         clock.now = jakarta(2026, 10, 26, 9, 29)
         service.saveAlarm(manggaraiAlarm().copy(state = AlarmState.RINGING)).getOrThrow()

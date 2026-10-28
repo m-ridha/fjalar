@@ -119,6 +119,7 @@ data class ConfigureAlarmDraft(
             state = finalState,
             addressLabel = addressLabel,
             suppressedUntil = existingAlarm?.suppressedUntil,
+            snoozedUntil = existingAlarm?.snoozedUntil,
         )
     }
 
