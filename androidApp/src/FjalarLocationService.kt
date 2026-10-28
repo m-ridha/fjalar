@@ -267,10 +267,9 @@ class FjalarLocationService : Service() {
 
     private fun handleFix(location: Location) {
         if (!isTracking) return
-        val isFresh = isFreshLocationFix(
-            location.elapsedRealtimeNanos / 1_000_000L,
-            SystemClock.elapsedRealtime(),
-        )
+        val nowElapsedMillis = SystemClock.elapsedRealtime()
+        val observationElapsedMillis = location.elapsedRealtimeNanos / 1_000_000L
+        val isFresh = isFreshLocationFix(observationElapsedMillis, nowElapsedMillis)
         if (!isFresh) return
 
         if (!location.hasAccuracy() || !location.accuracy.isFinite() || location.accuracy < 0f) return
@@ -287,7 +286,12 @@ class FjalarLocationService : Service() {
         val container = resolveContainer()
         val tracker = container?.locationTracker as? AndroidFusedLocationAdapter
         if (tracker != null) {
-            tracker.submitLocationUpdate(coordinates, accuracy, Instant.fromEpochMilliseconds(location.time))
+            tracker.submitLocationUpdate(
+                coordinates,
+                accuracy,
+                Instant.fromEpochMilliseconds(location.time),
+                observationAgeMillis = nowElapsedMillis - observationElapsedMillis,
+            )
         } else {
             serviceScope.launch {
                 container?.alarmService?.handleLocationUpdate(coordinates, accuracy)

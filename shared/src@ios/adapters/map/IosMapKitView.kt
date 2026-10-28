@@ -13,6 +13,7 @@ import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCAction
+import kotlinx.cinterop.ObjCSignatureOverride
 import kotlinx.cinterop.useContents
 import platform.MapKit.MKAnnotationProtocol
 import platform.MapKit.MKAnnotationView
@@ -28,6 +29,10 @@ import platform.MapKit.MKOverlayRenderer
 import platform.MapKit.MKUserLocation
 import platform.UIKit.UITapGestureRecognizer
 import platform.UIKit.UIUserInterfaceStyle
+import platform.UIKit.UIView
+import platform.UIKit.UIGestureRecognizer
+import platform.UIKit.UIGestureRecognizerStateBegan
+import platform.UIKit.UIGestureRecognizerStateChanged
 import platform.darwin.NSObject
 import platform.objc.sel_registerName
 
@@ -39,11 +44,32 @@ import platform.objc.sel_registerName
 internal class FjalarMapKitDelegate(
     var isDarkTheme: Boolean,
     var onPinDrag: ((GeoCoordinates) -> Unit)?,
-    var onCameraCenterChanged: ((GeoCoordinates) -> Unit)?,
+    var onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)?,
 ) : NSObject(), MKMapViewDelegateProtocol {
 
+    private var cameraMovedByUser = false
+    private var programmaticViewportChange = false
+
+    fun beginProgrammaticViewportChange() {
+        programmaticViewportChange = true
+        cameraMovedByUser = false
+    }
+
+    @ObjCSignatureOverride
+    override fun mapView(mapView: MKMapView, regionWillChangeAnimated: Boolean) {
+        cameraMovedByUser = !programmaticViewportChange && mapView.hasActiveMapGesture()
+    }
+
     override fun mapViewDidChangeVisibleRegion(mapView: MKMapView) {
-        onCameraCenterChanged?.invoke(mapView.centerCoordinate.toGeoCoordinates())
+        if (!programmaticViewportChange && mapView.hasActiveMapGesture()) cameraMovedByUser = true
+        onCameraCenterChanged?.invoke(mapView.centerCoordinate.toGeoCoordinates(), cameraMovedByUser)
+    }
+
+    @ObjCSignatureOverride
+    override fun mapView(mapView: MKMapView, regionDidChangeAnimated: Boolean) {
+        onCameraCenterChanged?.invoke(mapView.centerCoordinate.toGeoCoordinates(), cameraMovedByUser)
+        cameraMovedByUser = false
+        programmaticViewportChange = false
     }
 
     override fun mapView(mapView: MKMapView, rendererForOverlay: MKOverlayProtocol): MKOverlayRenderer {
@@ -91,6 +117,14 @@ internal class FjalarMapKitDelegate(
     }
 }
 
+private fun UIView.hasActiveMapGesture(): Boolean {
+    val activeHere = gestureRecognizers.orEmpty().filterIsInstance<UIGestureRecognizer>().any {
+        it.state == UIGestureRecognizerStateBegan || it.state == UIGestureRecognizerStateChanged
+    }
+    if (activeHere) return true
+    return subviews.filterIsInstance<UIView>().any { it.hasActiveMapGesture() }
+}
+
 /**
  * Objective-C target handling map tap gestures and dispatching converted coordinates.
  */
@@ -125,7 +159,7 @@ fun IosMapKitView(
     isDarkTheme: Boolean,
     onMapClick: (GeoCoordinates) -> Unit,
     onPinDrag: (GeoCoordinates) -> Unit,
-    onCameraCenterChanged: ((GeoCoordinates) -> Unit)? = null,
+    onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)? = null,
     viewportRequestId: Long = 0L,
     modifier: Modifier = Modifier,
 ) {
@@ -140,7 +174,7 @@ fun IosMapKitView(
         FjalarMapKitDelegate(
             isDarkTheme = isDarkTheme,
             onPinDrag = { currentOnPinDrag(it) },
-            onCameraCenterChanged = { currentOnCameraCenterChanged?.invoke(it) },
+            onCameraCenterChanged = { coordinates, isUserGesture -> currentOnCameraCenterChanged?.invoke(coordinates, isUserGesture) },
         )
     }
     val tapHandler = remember(mapView) {

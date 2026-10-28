@@ -13,6 +13,8 @@ import platform.Foundation.*
 import platform.darwin.NSObject
 import kotlin.time.Clock
 import kotlin.time.Instant
+import kotlin.time.TimeSource
+import kotlin.time.Duration.Companion.milliseconds
 
 /** The map and alarms own requests, while this adapter owns exactly one CLLocationManager. */
 class IosCLLocationAdapter(
@@ -130,7 +132,12 @@ private class NativeIosLocationGateway : IosLocationGateway {
                         !longitude.isFinite() || longitude !in -180.0..180.0) null
                     else GeoCoordinates(latitude, longitude)
                 } ?: continue
-                onFix(LocationFix(coordinates, accuracy, Instant.fromEpochMilliseconds((location.timestamp.timeIntervalSince1970 * 1000).toLong())))
+                onFix(LocationFix(
+                    coordinates,
+                    accuracy,
+                    Instant.fromEpochMilliseconds((location.timestamp.timeIntervalSince1970 * 1000).toLong()),
+                    TimeSource.Monotonic.markNow() - ageMillis.milliseconds,
+                ))
             }
         }
 

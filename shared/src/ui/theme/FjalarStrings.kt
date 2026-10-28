@@ -25,6 +25,9 @@ enum class FjalarStringKey {
     // Status Pill
     STATUS_ARMED_SCHEDULED,
     STATUS_ARMED_ONE_TIME,
+    STATUS_ARMED_SCHEDULED_UNKNOWN,
+    STATUS_ARMED_ONE_TIME_UNKNOWN,
+    DISTANCE_UNAVAILABLE,
 
     // Sheet & Cards
     SHEET_SAVED_TITLE,
@@ -129,6 +132,9 @@ object FjalarStrings {
         FjalarStringKey.HUD_RECENTER_LOCATION to "Recenter GPS",
 
         FjalarStringKey.STATUS_ARMED_SCHEDULED to "Armed: %1\$s • %2\$s away • %3\$s–%4\$s",
+        FjalarStringKey.STATUS_ARMED_SCHEDULED_UNKNOWN to "Armed: %1\$s • Location unavailable • %2\$s–%3\$s",
+        FjalarStringKey.STATUS_ARMED_ONE_TIME_UNKNOWN to "Armed: %1\$s • Location unavailable",
+        FjalarStringKey.DISTANCE_UNAVAILABLE to "Distance unavailable",
         FjalarStringKey.STATUS_ARMED_ONE_TIME to "Armed: %1\$s • %2\$s away",
 
         FjalarStringKey.SHEET_SAVED_TITLE to "Saved & Scheduled Alarms",
@@ -221,6 +227,9 @@ object FjalarStrings {
         FjalarStringKey.HUD_RECENTER_LOCATION to "Pusatkan Ulang GPS",
 
         FjalarStringKey.STATUS_ARMED_SCHEDULED to "Aktif: %1\$s • %2\$s lagi • %3\$s–%4\$s",
+        FjalarStringKey.STATUS_ARMED_SCHEDULED_UNKNOWN to "Aktif: %1\$s • Lokasi tidak tersedia • %2\$s–%3\$s",
+        FjalarStringKey.STATUS_ARMED_ONE_TIME_UNKNOWN to "Aktif: %1\$s • Lokasi tidak tersedia",
+        FjalarStringKey.DISTANCE_UNAVAILABLE to "Jarak tidak tersedia",
         FjalarStringKey.STATUS_ARMED_ONE_TIME to "Aktif: %1\$s • %2\$s lagi",
 
         FjalarStringKey.SHEET_SAVED_TITLE to "Alarm Tersimpan & Terjadwal",

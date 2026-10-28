@@ -2,16 +2,45 @@ package com.muhammadridha.fjalar.ui.components
 
 import com.muhammadridha.fjalar.domain.model.AlarmSchedule
 import com.muhammadridha.fjalar.domain.model.AppLocale
+import com.muhammadridha.fjalar.domain.model.LocationAlarm
+import com.muhammadridha.fjalar.domain.model.ScheduleType
+import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
+import com.muhammadridha.fjalar.ui.theme.FjalarStrings
 import kotlin.math.roundToInt
 
-fun formatDistance(meters: Int): String {
-    return if (meters >= 1_000) {
+fun formatDistance(meters: Int, locale: AppLocale = AppLocale.EN): String {
+    val text = if (meters >= 1_000) {
         val km = meters / 1_000.0
         val rounded = (km * 10).roundToInt() / 10.0
         if (rounded % 1.0 == 0.0) "${rounded.toInt()} km" else "$rounded km"
     } else {
         "${meters}m"
     }
+    return if (locale == AppLocale.ID) text.replace('.', ',') else text
+}
+
+fun armedStatusText(alarm: LocationAlarm, distanceMeters: Int?, locale: AppLocale): String {
+    val scheduled = alarm.schedule.type == ScheduleType.SCHEDULED
+    val start = formatMinuteOfDay(alarm.schedule.startMinuteOfDay ?: 0)
+    val end = formatMinuteOfDay(alarm.schedule.endMinuteOfDay ?: 0)
+    if (distanceMeters == null) {
+        return if (scheduled) {
+            FjalarStrings.get(FjalarStringKey.STATUS_ARMED_SCHEDULED_UNKNOWN, locale, alarm.label, start, end)
+        } else {
+            FjalarStrings.get(FjalarStringKey.STATUS_ARMED_ONE_TIME_UNKNOWN, locale, alarm.label)
+        }
+    }
+    val distance = formatDistance(distanceMeters, locale)
+    return if (scheduled) {
+        FjalarStrings.get(FjalarStringKey.STATUS_ARMED_SCHEDULED, locale, alarm.label, distance, start, end)
+    } else {
+        FjalarStrings.get(FjalarStringKey.STATUS_ARMED_ONE_TIME, locale, alarm.label, distance)
+    }
+}
+
+fun ringingDistanceText(distanceMeters: Int?, locale: AppLocale): String {
+    if (distanceMeters == null) return FjalarStrings.get(FjalarStringKey.DISTANCE_UNAVAILABLE, locale)
+    return FjalarStrings.get(FjalarStringKey.RINGING_IN_ZONE_BADGE, locale, formatDistance(distanceMeters, locale))
 }
 
 fun formatMinuteOfDay(minute: Int): String {

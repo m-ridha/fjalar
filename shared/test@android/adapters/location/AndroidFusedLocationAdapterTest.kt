@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlin.time.Duration.Companion.seconds
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -60,6 +61,21 @@ class AndroidFusedLocationAdapterTest {
         ): List<LocationAlarm> {
             receivedCalls.add(UpdateCall(coordinates, horizontalAccuracyMeters))
             return emptyList()
+        }
+    }
+
+    @Test
+    fun nativeObservationAgeSurvivesPublicationInsteadOfRestartingAtZero() = runTest {
+        val adapter = AndroidFusedLocationAdapter(
+            coroutineDispatcher = StandardTestDispatcher(testScheduler),
+            gateway = FakeLocationPlatformGateway(),
+        )
+        try {
+            adapter.submitLocationUpdate(GeoCoordinates(51.5, -0.1), 10f, observationAgeMillis = 29_000L)
+            val published = adapter.observeFixes().first()
+            assertTrue(published.monotonicObservation.elapsedNow() >= 29.seconds)
+        } finally {
+            adapter.close()
         }
     }
 

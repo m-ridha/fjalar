@@ -49,15 +49,17 @@ fun MapPickerScreen(
     modifier: Modifier = Modifier,
     locale: AppLocale = LiquidGlassTheme.locale,
     initialZoom: Double = 15.0,
+    hasInitialSelection: Boolean = true,
     geofenceRadius: TriggerRadius = TriggerRadius.DEFAULT,
 ) {
     val colors = LiquidGlassTheme.colors
     val isDarkTheme = LiquidGlassTheme.themeMode == ThemeMode.DARK ||
         (LiquidGlassTheme.themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
 
-    var currentCoordinates by remember(initialCoordinates) {
-        mutableStateOf(initialCoordinates)
+    var selection by remember(initialCoordinates, hasInitialSelection) {
+        mutableStateOf(MapPickerSelection(initialCoordinates.takeIf { hasInitialSelection }))
     }
+    var viewportRequestId by remember(initialCoordinates, hasInitialSelection) { mutableStateOf(0L) }
 
 
     Box(
@@ -67,19 +69,24 @@ fun MapPickerScreen(
     ) {
         // Layer 1: 100% Viewport Edge-to-Edge Map
         PlatformMapView(
-            center = currentCoordinates,
+            center = selection.viewportCenter,
             zoom = initialZoom,
             // Crosshair-only selection: panning chooses the true camera center. A separate
             // tappable/draggable pin would disagree with the crosshair after a gesture.
             pinLocation = null,
-            geofenceCenter = currentCoordinates,
+            geofenceCenter = selection.coordinates,
             geofenceRadius = geofenceRadius,
             isDarkTheme = isDarkTheme,
-            onMapClick = {},
+            onMapClick = {
+                selection = selection.select(it)
+                viewportRequestId++
+            },
             onPinDrag = {},
-            onCameraCenterChanged = { currentCoordinates = it },
+            onCameraCenterChanged = { center, isUserGesture ->
+                selection = selection.onCameraCenterChanged(center, isUserGesture)
+            },
             // Selection follows gestures without issuing a camera reset to initialZoom.
-            viewportRequestId = 0L,
+            viewportRequestId = viewportRequestId,
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -160,7 +167,8 @@ fun MapPickerScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
         ) {
             Button(
-                onClick = { onConfirmCoordinates(currentCoordinates) },
+                onClick = { selection.coordinates?.let(onConfirmCoordinates) },
+                enabled = selection.coordinates != null,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colors.primary,
                     contentColor = colors.onPrimary,

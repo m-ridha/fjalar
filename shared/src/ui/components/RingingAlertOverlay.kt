@@ -76,7 +76,7 @@ fun RingingAlertOverlay(
     val pulse2 = (rawProgress + 0.333f) % 1f
     val pulse3 = (rawProgress + 0.667f) % 1f
 
-    val distanceText = formatDistance(distanceMeters ?: alarm.radius.meters)
+    val distanceText = ringingDistanceText(distanceMeters, LiquidGlassTheme.locale)
 
     Box(
         modifier = modifier
@@ -141,7 +141,7 @@ fun RingingAlertOverlay(
 
                 // In-Zone Distance Pill Badge
                 Text(
-                    text = fjalarString(FjalarStringKey.RINGING_IN_ZONE_BADGE, distanceText),
+                    text = distanceText,
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontFeatureSettings = "tnum",

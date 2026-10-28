@@ -59,4 +59,27 @@ class LocationTrackingLifecycleTest {
         assertEquals(destination, vm.uiState.value.selectedCoordinates)
         assertEquals(LocationAvailability.PERMISSION_DENIED, vm.uiState.value.locationAvailability)
     }
+    @Test fun noLocationNewAlarmRequiresASelectedDestination() = runTest {
+        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), coroutineScope = backgroundScope)
+        vm.onOpenNewAlarm()
+        assertTrue(vm.uiState.value.isConfigureSheetVisible)
+        assertNull(vm.uiState.value.selectedCoordinates)
+        vm.onStartConfiguringAlarm(null)
+        assertNull(vm.uiState.value.activeDraft?.coordinates)
+    }
+
+    @Test fun permissionDenialRemovesUserPositionWithoutChangingDestination() = runTest {
+        val tracker = Tracker()
+        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val destination = GeoCoordinates(51.5, -0.1)
+        vm.onMapClicked(destination)
+        tracker.availability.value = LocationAvailability.AVAILABLE
+        tracker.fixes.emit(LocationFix(GeoCoordinates(-33.0, 151.0), 12f, Instant.parse("2026-10-27T00:00:00Z")))
+        runCurrent()
+        assertNotNull(vm.uiState.value.userLocation)
+        tracker.availability.value = LocationAvailability.PERMISSION_DENIED
+        runCurrent()
+        assertNull(vm.uiState.value.userLocation)
+        assertEquals(destination, vm.uiState.value.selectedCoordinates)
+    }
 }

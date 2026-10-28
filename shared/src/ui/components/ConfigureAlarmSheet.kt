@@ -117,7 +117,8 @@ fun ConfigureAlarmSheet(
 
     val isScheduleValid = scheduleType != ScheduleType.SCHEDULED ||
         (startMinute != endMinute && daysMask != 0)
-    val isSaveEnabled = label.isNotBlank() && isScheduleValid
+    val targetCoordinates = selectedCoordinates ?: initialAlarm?.coordinates
+    val isSaveEnabled = label.isNotBlank() && isScheduleValid && targetCoordinates != null
 
     Column(
         modifier = modifier
@@ -164,7 +165,7 @@ fun ConfigureAlarmSheet(
                         }
 
                         val id = initialAlarm?.id ?: "alarm-${Clock.System.now().toEpochMilliseconds()}"
-                        val coordinates = selectedCoordinates ?: initialAlarm?.coordinates ?: GeoCoordinates.DEFAULT_JAKARTA
+                        val coordinates = requireNotNull(targetCoordinates)
                         val updated = LocationAlarm(
                             id = id,
                             label = label.trim(),

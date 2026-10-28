@@ -16,10 +16,14 @@ class IosMapKitDelegateTest {
     @Test
     fun visibleRegionChangesReportEachCenterWithoutWaitingForMovementToEnd() {
         val reportedCenters = mutableListOf<GeoCoordinates>()
+        val userGestures = mutableListOf<Boolean>()
         val delegate = FjalarMapKitDelegate(
             isDarkTheme = false,
             onPinDrag = null,
-            onCameraCenterChanged = { reportedCenters.add(it) },
+            onCameraCenterChanged = { coordinates, isUserGesture ->
+                reportedCenters.add(coordinates)
+                userGestures.add(isUserGesture)
+            },
         )
         assertTrue(
             delegate.respondsToSelector(sel_registerName("mapViewDidChangeVisibleRegion:")),
@@ -39,5 +43,6 @@ class IosMapKitDelegateTest {
             assertEquals(center.longitude, reportedCenters.last().longitude, 0.000001)
         }
         assertEquals(centers.size, reportedCenters.size)
+        assertTrue(userGestures.none { it }, "Programmatic camera initialization cannot select a destination")
     }
 }

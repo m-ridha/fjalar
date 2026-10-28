@@ -18,6 +18,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
+import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import kotlinx.coroutines.CoroutineScope
@@ -151,6 +152,7 @@ class FjalarViewModelTest {
         deleteAlarmPort: DeleteAlarmPort? = null,
         syncSchedulesPort: SyncSchedulesPort? = null,
         mapRendererPort: MapRendererPort? = null,
+        locationTrackerPort: LocationTrackerPort? = null,
         searchPlacesPort: SearchPlacesPort? = null,
         snoozePort: com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort? = null,
         storage: InMemoryKeyValueStorage = InMemoryKeyValueStorage(),
@@ -167,6 +169,7 @@ class FjalarViewModelTest {
             preferencesPort = preferencesPort,
             syncSchedulesPort = syncSchedulesPort,
             mapRendererPort = mapRendererPort,
+            locationTrackerPort = locationTrackerPort,
             searchPlacesPort = searchPlacesPort,
             deleteAlarmPort = deleteAlarmPort,
             coroutineScope = vmScope,
@@ -559,11 +562,12 @@ class FjalarViewModelTest {
 
     @Test
     fun onRecenterMap_centersOnUserLocationWhenAvailable() = runTest {
+        val tracker = UiLocationTracker()
         val fakeMapRenderer = FakeMapRendererPort()
-        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        val (viewModel, _, vmScope) = createTestViewModel(locationTrackerPort = tracker, mapRendererPort = fakeMapRenderer)
         try {
             val userLocation = GeoCoordinates(-6.1754, 106.8272)
-            viewModel.onUserLocationChanged(userLocation)
+            tracker.emit(userLocation)
 
             viewModel.onRecenterMap()
 
@@ -614,11 +618,12 @@ class FjalarViewModelTest {
 
     @Test
     fun onOpenNewAlarm_defaultsToUserLocationWhenSelectedCoordinatesNull() = runTest {
+        val tracker = UiLocationTracker()
         val fakeMapRenderer = FakeMapRendererPort()
-        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        val (viewModel, _, vmScope) = createTestViewModel(locationTrackerPort = tracker, mapRendererPort = fakeMapRenderer)
         try {
             val userLocation = GeoCoordinates(-6.1754, 106.8272)
-            viewModel.onUserLocationChanged(userLocation)
+            tracker.emit(userLocation)
             assertNull(viewModel.uiState.value.selectedCoordinates)
 
             viewModel.onOpenNewAlarm()
@@ -736,9 +741,10 @@ class FjalarViewModelTest {
 
     @Test
     fun onRecenterMap_incrementsViewportRequestId() = runTest {
-        val (viewModel, _, vmScope) = createTestViewModel()
+        val tracker = UiLocationTracker()
+        val (viewModel, _, vmScope) = createTestViewModel(locationTrackerPort = tracker)
         try {
-            viewModel.onUserLocationChanged(GeoCoordinates(51.5, -0.1))
+            tracker.emit(GeoCoordinates(51.5, -0.1))
             assertEquals(1L, viewModel.uiState.value.viewportRequestId)
 
             viewModel.onRecenterMap()

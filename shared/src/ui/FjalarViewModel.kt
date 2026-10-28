@@ -2,6 +2,7 @@ package com.muhammadridha.fjalar.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.muhammadridha.fjalar.adapters.location.isFreshLocationFix
 import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Observable UI state representation for the entire Fjalar application.
@@ -55,6 +57,8 @@ data class FjalarUiState(
     val locationFix: LocationFix? = null,
     val locationAvailability: LocationAvailability = LocationAvailability.PROVIDER_UNAVAILABLE,
     val userLocation: GeoCoordinates? = null,
+    val distanceMetersByAlarmId: Map<String, Int?> = emptyMap(),
+    val nearestArmedAlarm: LocationAlarm? = null,
     val selectedCoordinates: GeoCoordinates? = null,
     val mapViewportCenter: GeoCoordinates? = null,
     val mapViewportZoom: Double = 2.0,
@@ -94,12 +98,14 @@ class FjalarViewModel(
     private val _uiState = MutableStateFlow(FjalarUiState())
     val uiState: StateFlow<FjalarUiState> = _uiState.asStateFlow()
 
+    private var fixExpiryJob: Job? = null
     private var searchJob: Job? = null
     private var unfilteredSearchResults: List<SearchResultPlace> = emptyList()
 
     private val mapTrackingMutex = kotlinx.coroutines.sync.Mutex()
     private var appForeground = false
     private var mapVisible = false
+    private var pendingRecenter = false
 
     fun onAppForegroundChanged(foreground: Boolean) {
         appForeground = foreground
@@ -125,12 +131,12 @@ class FjalarViewModel(
     init {
         scope.launch {
             locationTrackerPort?.observeFixes()?.collect { fix ->
-                _uiState.update { it.copy(locationFix = fix, userLocation = fix.coordinates) }
+                acceptLocationFix(fix)
             }
         }
         scope.launch {
             locationTrackerPort?.observeAvailability()?.collect { availability ->
-                _uiState.update { it.copy(locationAvailability = availability) }
+                updateLocationDisplay { it.copy(locationAvailability = availability) }
             }
         }
         scope.launch {
@@ -140,7 +146,7 @@ class FjalarViewModel(
                     current.copy(
                         alarms = alarmsList,
                         activeRingingAlarm = ringing,
-                    )
+                    ).withLocationDistances()
                 }
             }
         }
@@ -159,6 +165,39 @@ class FjalarViewModel(
                     current.copy(appLocale = locale)
                 }
             }
+        }
+    }
+
+    private fun acceptLocationFix(fix: LocationFix) {
+        fixExpiryJob?.cancel()
+        val age = fix.monotonicObservation.elapsedNow()
+        if (!isFreshLocationFix(age)) {
+            updateLocationDisplay { it.copy(locationFix = null) }
+            return
+        }
+        updateLocationDisplay { it.copy(locationFix = fix) }
+        fixExpiryJob = scope.launch {
+            // The boundary itself remains valid. Expire at the first millisecond after it.
+            delay((30.seconds - age).inWholeMilliseconds + 1)
+            updateLocationDisplay { it.copy(locationFix = null) }
+        }
+    }
+
+    private fun updateLocationDisplay(transform: (FjalarUiState) -> FjalarUiState) {
+        val recenterRequested = pendingRecenter
+        _uiState.update { current ->
+            val updated = transform(current).withLocationDistances()
+            if (updated.userLocation != null && (current.mapViewportCenter == null || recenterRequested)) {
+                updated.copy(
+                    mapViewportCenter = updated.userLocation,
+                    mapViewportZoom = 15.0,
+                    viewportRequestId = current.viewportRequestId + 1,
+                )
+            } else updated
+        }
+        if (recenterRequested && _uiState.value.userLocation != null) {
+            pendingRecenter = false
+            _uiState.value.userLocation?.let { mapRendererPort?.setViewport(it, zoom = 15.0) }
         }
     }
 
@@ -363,7 +402,6 @@ class FjalarViewModel(
     fun onOpenNewAlarm() {
         val target = _uiState.value.selectedCoordinates
             ?: _uiState.value.userLocation
-            ?: GeoCoordinates.DEFAULT_JAKARTA
         _uiState.update { current ->
             current.copy(
                 selectedAlarmForEdit = null,
@@ -373,8 +411,10 @@ class FjalarViewModel(
                 selectedRadius = TriggerRadius.DEFAULT,
             )
         }
-        mapRendererPort?.placePin(target)
-        mapRendererPort?.showGeofence(target, TriggerRadius.DEFAULT)
+        if (target != null) {
+            mapRendererPort?.placePin(target)
+            mapRendererPort?.showGeofence(target, TriggerRadius.DEFAULT)
+        }
     }
 
     fun onOpenEditAlarm(alarm: LocationAlarm) {
@@ -523,12 +563,8 @@ class FjalarViewModel(
     var requestCurrentLocation: (() -> Unit)? = null
 
     fun onRecenterMap() {
+        pendingRecenter = true
         requestCurrentLocation?.invoke()
-        recenterOnKnownLocation()
-    }
-
-    fun onCurrentLocationReceived(coordinates: GeoCoordinates) {
-        onUserLocationChanged(coordinates)
         recenterOnKnownLocation()
     }
 
@@ -536,7 +572,6 @@ class FjalarViewModel(
         val current = _uiState.value
         val knownTarget = current.userLocation
             ?: current.selectedCoordinates
-            ?: current.alarms.firstOrNull()?.coordinates
         val target = knownTarget ?: GeoCoordinates(0.0, 0.0)
         val zoom = if (knownTarget == null) 2.0 else 15.0
         _uiState.update { state ->
@@ -547,21 +582,6 @@ class FjalarViewModel(
             )
         }
         mapRendererPort?.setViewport(target, zoom = zoom)
-    }
-
-    fun onUserLocationChanged(coordinates: GeoCoordinates) {
-        _uiState.update { current ->
-            current.copy(
-                userLocation = coordinates,
-                mapViewportCenter = current.mapViewportCenter ?: coordinates,
-                mapViewportZoom = if (current.mapViewportCenter == null) 15.0 else current.mapViewportZoom,
-                viewportRequestId = if (current.mapViewportCenter == null) {
-                    current.viewportRequestId + 1L
-                } else {
-                    current.viewportRequestId
-                },
-            )
-        }
     }
 
     fun onMapClicked(coordinates: GeoCoordinates) {

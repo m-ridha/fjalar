@@ -16,14 +16,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
-import com.muhammadridha.fjalar.domain.model.ScheduleType
-import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
-import com.muhammadridha.fjalar.ui.theme.fjalarString
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
@@ -36,15 +32,7 @@ fun ArmedStatusPill(
     onClick: () -> Unit = {},
 ) {
     val colors = LiquidGlassTheme.colors
-    val formattedDistance = formatDistance(distanceMeters ?: alarm.radius.meters)
-
-    val statusText = if (alarm.schedule.type == ScheduleType.SCHEDULED) {
-        val startStr = formatMinuteOfDay(alarm.schedule.startMinuteOfDay ?: 0)
-        val endStr = formatMinuteOfDay(alarm.schedule.endMinuteOfDay ?: 0)
-        fjalarString(FjalarStringKey.STATUS_ARMED_SCHEDULED, alarm.label, formattedDistance, startStr, endStr)
-    } else {
-        fjalarString(FjalarStringKey.STATUS_ARMED_ONE_TIME, alarm.label, formattedDistance)
-    }
+    val statusText = armedStatusText(alarm, distanceMeters, LiquidGlassTheme.locale)
 
     Row(
         modifier = modifier

@@ -110,11 +110,15 @@ fun FjalarApp(
         val isDarkTheme = uiState.themeMode == ThemeMode.DARK ||
             (uiState.themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
 
-        val activeAlarm = uiState.alarms.firstOrNull { it.state == AlarmState.ARMED_MONITORING }
+        val activeAlarm = uiState.nearestArmedAlarm
 
-        val pinLocation = activeAlarm?.coordinates ?: uiState.selectedCoordinates
+        val pinLocation = uiState.selectedCoordinates ?: activeAlarm?.coordinates
         val geofenceCenter = pinLocation
-        val geofenceRadius = activeAlarm?.radius ?: uiState.selectedRadius
+        val geofenceRadius = if (uiState.selectedCoordinates != null) {
+            uiState.selectedRadius
+        } else {
+            activeAlarm?.radius ?: uiState.selectedRadius
+        }
 
         val center = uiState.mapViewportCenter
             ?: uiState.userLocation
@@ -187,6 +191,7 @@ fun FjalarApp(
                                 Spacer(modifier = Modifier.height(6.dp))
                                 ArmedStatusPill(
                                     alarm = activeAlarm,
+                                    distanceMeters = uiState.distanceMetersByAlarmId[activeAlarm.id],
                                     onClick = {
                                         viewModel.onStartConfiguringAlarm(
                                             alarmId = activeAlarm.id,
@@ -316,6 +321,7 @@ fun FjalarApp(
                     MapPickerScreen(
                         initialCoordinates = GeoCoordinates(route.initialLat, route.initialLon),
                         initialZoom = if (uiState.activeDraft?.coordinates == null) 2.0 else 15.0,
+                        hasInitialSelection = uiState.activeDraft?.coordinates != null,
                         geofenceRadius = uiState.activeDraft
                             ?.let { TriggerRadius(it.radiusMeters) }
                             ?: TriggerRadius.DEFAULT,
@@ -376,6 +382,7 @@ fun FjalarApp(
                     ) {
                         RingingAlertOverlay(
                             alarm = ringingAlarm,
+                            distanceMeters = uiState.distanceMetersByAlarmId[ringingAlarm.id],
                             onDismiss = viewModel::onDismissRingingAlarm,
                             onSnooze = viewModel::onSnoozeRingingAlarm,
                             isOperationPending = uiState.isOperationPending,

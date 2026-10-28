@@ -103,4 +103,7 @@
     <string name="operation_failed">Could not save changes. Please try again.</string>
     <string name="ringing_operation_failed">Could not stop the alarm. Please try again.</string>
     <string name="snooze_notification_body">Snooze ended. Open the app to stop the alarm.</string>
+    <string name="status_armed_scheduled_unknown">Armed: %1$s • Location unavailable • %2$s–%3$s</string>
+    <string name="status_armed_one_time_unknown">Armed: %1$s • Location unavailable</string>
+    <string name="distance_unavailable">Distance unavailable</string>
 </resources>

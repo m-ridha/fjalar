@@ -41,6 +41,16 @@ class HaversineCalculatorTest {
         assertEquals(20_015_115.0, d, 1.0)
     }
 
+    @Test fun antimeridianUsesShortCrossing() {
+        assertEquals(22_239.016, HaversineCalculator.distanceMeters(
+            GeoCoordinates(0.0, 179.9), GeoCoordinates(0.0, -179.9)), 0.01)
+    }
+
+    @Test fun highLatitudeRemainsFinite() {
+        assertEquals(157_249.6, HaversineCalculator.distanceMeters(
+            GeoCoordinates(89.0, 0.0), GeoCoordinates(89.0, 90.0)), 0.1)
+    }
+
     @Test
     fun coordinatesOutOfBoundsAreRejected() {
         assertFailsWith<IllegalArgumentException> { GeoCoordinates(90.1, 0.0) }

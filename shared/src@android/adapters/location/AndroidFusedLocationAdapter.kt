@@ -4,6 +4,8 @@ import com.muhammadridha.fjalar.domain.model.LocationFix
 import com.muhammadridha.fjalar.domain.model.LocationAvailability
 import kotlin.time.Clock
 import kotlin.time.Instant
+import kotlin.time.TimeSource
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import android.content.Context
@@ -94,9 +96,12 @@ class AndroidFusedLocationAdapter(
         coordinates: GeoCoordinates,
         horizontalAccuracyMeters: Float,
         observedAt: Instant = Clock.System.now(),
+        observationAgeMillis: Long = 0L,
     ) {
         if (!horizontalAccuracyMeters.isFinite() || horizontalAccuracyMeters < 0f) return
-        stream.publish(LocationFix(coordinates, horizontalAccuracyMeters, observedAt))
+        if (observationAgeMillis !in 0L..30_000L) return
+        val observation = TimeSource.Monotonic.markNow() - observationAgeMillis.milliseconds
+        stream.publish(LocationFix(coordinates, horizontalAccuracyMeters, observedAt, observation))
         val generation = stream.currentGeneration()
         adapterScope.launch {
             if (stream.isCurrent(generation)) forwardLocationUpdate(coordinates, horizontalAccuracyMeters)

@@ -103,4 +103,7 @@
     <string name="operation_failed">Perubahan gagal disimpan. Silakan coba lagi.</string>
     <string name="ringing_operation_failed">Alarm gagal dihentikan. Silakan coba lagi.</string>
     <string name="snooze_notification_body">Waktu tunda selesai. Buka aplikasi untuk menghentikan alarm.</string>
+    <string name="status_armed_scheduled_unknown">Aktif: %1$s • Lokasi tidak tersedia • %2$s–%3$s</string>
+    <string name="status_armed_one_time_unknown">Aktif: %1$s • Lokasi tidak tersedia</string>
+    <string name="distance_unavailable">Jarak tidak tersedia</string>
 </resources>

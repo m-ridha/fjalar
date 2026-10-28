@@ -149,6 +149,7 @@ class IosMapKitAdapter(
             this.span.latitudeDelta = latDelta
             this.span.longitudeDelta = lonDelta
         }
+        (map.delegate as? FjalarMapKitDelegate)?.beginProgrammaticViewportChange()
         map.setRegion(region, animated = animate)
     }
 
