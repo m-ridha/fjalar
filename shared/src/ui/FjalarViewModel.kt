@@ -130,12 +130,22 @@ class FjalarViewModel(
         snoozeDeadlineJob = scope.launch {
             while (true) {
                 val remaining = deadline - clock.now()
-                if (remaining <= kotlin.time.Duration.ZERO) break
-                val wholeMillis = remaining.inWholeMilliseconds
-                val waitMillis = wholeMillis + if (remaining > wholeMillis.milliseconds) 1 else 0
-                delay(waitMillis.coerceAtLeast(1))
+                if (remaining > kotlin.time.Duration.ZERO) {
+                    val wholeMillis = remaining.inWholeMilliseconds
+                    val waitMillis = wholeMillis + if (remaining > wholeMillis.milliseconds) 1 else 0
+                    delay(waitMillis.coerceAtLeast(1))
+                    continue
+                }
+                // Synchronization can observe an earlier clock than this timer. If it
+                // leaves the same snooze intact, retry without depending on a new emission.
+                syncSchedules().join()
+                val stillPending = _uiState.value.alarms.any { alarm ->
+                    alarm.state == AlarmState.SNOOZED &&
+                        (alarm.snoozedUntil == deadline || alarm.suppressedUntil == deadline)
+                }
+                if (!stillPending) return@launch
+                delay(1_000)
             }
-            syncSchedules()
         }
     }
 

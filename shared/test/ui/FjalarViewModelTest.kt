@@ -208,6 +208,13 @@ class FjalarViewModelTest {
             testScheduler.advanceTimeBy(1_002)
             testScheduler.runCurrent()
             assertEquals(1, sync.syncCount)
+            // A synchronization which saw an earlier clock emits no state change.
+            testScheduler.advanceTimeBy(1_001)
+            testScheduler.runCurrent()
+            assertEquals(2, sync.syncCount)
+            observe.flow.value = listOf(alarm.copy(state = AlarmState.RINGING, snoozedUntil = null))
+            testScheduler.advanceTimeBy(2_000)
+            assertEquals(2, sync.syncCount)
         } finally {
             scope.cancel()
         }
