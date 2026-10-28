@@ -159,57 +159,60 @@ fun FjalarApp(
                             modifier = Modifier.fillMaxSize(),
                         )
 
-                        // Top Floating HUD & Armed Status Pill
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.TopCenter)
-                                .then(WindowInsetsLayoutHelper.safeDrawingPaddingModifier())
-                                .padding(bottom = dockHeight)
-                                .verticalScroll(rememberScrollState()),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            FloatingHudBar(
-                                onSearchClick = viewModel::onOpenSearch,
-                                onToggleLocale = viewModel::onToggleLocale,
-                                onSelectLocale = viewModel::onSelectLocale,
-                                onToggleTheme = viewModel::onToggleTheme,
-                                onRecenter = viewModel::onRecenterMap,
-                                bearing = mapBearing,
-                                onResetNorth = { northRequestId++ },
-                                modifier = Modifier,
-                                locale = uiState.appLocale,
-                                themeMode = uiState.themeMode,
-                            )
-
-                            if (!uiState.hasLocationPermission && !permissionBannerDismissed) {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                LocationPermissionBanner(
-                                    onRequestPermission = { onRequestPermission?.invoke() },
-                                    onDismiss = { permissionBannerDismissed = true },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .then(WindowInsetsLayoutHelper.horizontalSafeDrawingPaddingModifier())
-                                        .padding(horizontal = 16.dp),
+                        if (!uiState.isSearchSheetVisible) {
+                            // Top Floating HUD & Armed Status Pill
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.TopCenter)
+                                    .then(WindowInsetsLayoutHelper.safeDrawingPaddingModifier())
+                                    .padding(bottom = dockHeight)
+                                    .verticalScroll(rememberScrollState()),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                FloatingHudBar(
+                                    onSearchClick = viewModel::onOpenSearch,
+                                    onToggleLocale = viewModel::onToggleLocale,
+                                    onSelectLocale = viewModel::onSelectLocale,
+                                    onToggleTheme = viewModel::onToggleTheme,
+                                    onRecenter = viewModel::onRecenterMap,
+                                    bearing = mapBearing,
+                                    onResetNorth = { northRequestId++ },
+                                    modifier = Modifier,
+                                    locale = uiState.appLocale,
+                                    themeMode = uiState.themeMode,
                                 )
+
+                                if (!uiState.hasLocationPermission && !permissionBannerDismissed) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    LocationPermissionBanner(
+                                        onRequestPermission = { onRequestPermission?.invoke() },
+                                        onDismiss = { permissionBannerDismissed = true },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .then(WindowInsetsLayoutHelper.horizontalSafeDrawingPaddingModifier())
+                                            .padding(horizontal = 16.dp),
+                                    )
+                                }
+
+                                if (activeAlarm != null) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    ArmedStatusPill(
+                                        alarm = activeAlarm,
+                                        distanceMeters = uiState.distanceMetersByAlarmId[activeAlarm.id],
+                                        onClick = {
+                                            viewModel.onStartConfiguringAlarm(
+                                                alarmId = activeAlarm.id,
+                                                defaultCoordinates = null,
+                                            )
+                                            navController.navigate(ConfigureRoute(activeAlarm.id))
+                                        },
+                                        modifier = WindowInsetsLayoutHelper.horizontalSafeDrawingPaddingModifier()
+                                            .padding(horizontal = 16.dp),
+                                    )
+                                }
                             }
 
-                            if (activeAlarm != null) {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                ArmedStatusPill(
-                                    alarm = activeAlarm,
-                                    distanceMeters = uiState.distanceMetersByAlarmId[activeAlarm.id],
-                                    onClick = {
-                                        viewModel.onStartConfiguringAlarm(
-                                            alarmId = activeAlarm.id,
-                                            defaultCoordinates = null,
-                                        )
-                                        navController.navigate(ConfigureRoute(activeAlarm.id))
-                                    },
-                                    modifier = WindowInsetsLayoutHelper.horizontalSafeDrawingPaddingModifier()
-                                        .padding(horizontal = 16.dp),
-                                )
-                            }
                         }
 
                         // Search Places Modal Sheet
