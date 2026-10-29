@@ -60,8 +60,8 @@
     <string name="perm_location_body">Fjalar memeriksa jarak GPS di latar belakang hanya saat alarm aktif agar dapat membangunkan Anda meski layar terkunci. Lokasi Anda tidak pernah dikirim keluar dari ponsel ini.</string>
     <string name="perm_location_grant">Izinkan Akses</string>
     <string name="perm_location_dismiss">Abaikan</string>
-    <string name="perm_background_settings_body">Di setelan aplikasi, buka Izin &gt; Lokasi lalu pilih %s. Anda dapat melewati langkah ini dan tetap menggunakan peta, tetapi alarm terjadwal memerlukan lokasi latar belakang.</string>
-    <string name="perm_background_settings_action">Buka Setelan</string>
+    <string name="perm_background_settings_body">Pilih %s di setelan izin lokasi sistem. Anda dapat melewati langkah ini dan tetap menggunakan peta, tetapi alarm terjadwal memerlukan lokasi latar belakang.</string>
+    <string name="perm_background_settings_action">Lanjutkan</string>
 
     <!-- Search modal & station catalog -->
     <string name="search_placeholder">Cari stasiun, halte, atau tempat...</string>

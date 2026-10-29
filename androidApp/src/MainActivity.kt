@@ -50,6 +50,12 @@ class MainActivity : ComponentActivity() {
             permissionPreferences.edit().putBoolean("foreground_request_completed", value).apply()
         }
 
+    private var hasCompletedBackgroundPermissionRequest: Boolean
+        get() = permissionPreferences.getBoolean("background_request_completed", false)
+        set(value) {
+            permissionPreferences.edit().putBoolean("background_request_completed", value).apply()
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         awakenScreenAndShowOverKeyguard()
         // Draw edge-to-edge behind system status and navigation bars; safe insets are handled via WindowInsetsLayoutHelper
@@ -102,10 +108,11 @@ class MainActivity : ComponentActivity() {
                 foregroundPermissions(Build.VERSION.SDK_INT)
             }
 
-            // Android 10 offers "Allow all the time" in a separate runtime request.
+            // Background access must be requested separately after foreground access.
             val backgroundPermissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestPermission(),
-            ) {
+            ) { granted ->
+                hasCompletedBackgroundPermissionRequest = !granted
                 refreshLocationPermissionState(viewModel)
                 if (hasForegroundLocationPermission()) {
                     requestMapLocation(viewModel)
@@ -178,8 +185,7 @@ class MainActivity : ComponentActivity() {
                     onRequestPermission = {
                         when (locationPermissionStep()) {
                             LocationPermissionStep.FOREGROUND -> requestForegroundPermission()
-                            LocationPermissionStep.BACKGROUND_RUNTIME,
-                            LocationPermissionStep.BACKGROUND_SETTINGS -> showBackgroundRationale = true
+                            LocationPermissionStep.BACKGROUND_RUNTIME -> showBackgroundRationale = true
                             LocationPermissionStep.GRANTED -> refreshLocationPermissionState(viewModel)
                         }
                     },
@@ -203,12 +209,13 @@ class MainActivity : ComponentActivity() {
                             showBackgroundRationale = false
                             when (locationPermissionStep()) {
                                 LocationPermissionStep.FOREGROUND -> requestForegroundPermission()
-                                LocationPermissionStep.BACKGROUND_RUNTIME -> backgroundPermissionLauncher.launch(
-                                    Manifest.permission.ACCESS_BACKGROUND_LOCATION,
-                                )
-                                LocationPermissionStep.BACKGROUND_SETTINGS -> applicationSettingsLauncher.launch(
-                                    applicationDetailsSettingsIntent(),
-                                )
+                                LocationPermissionStep.BACKGROUND_RUNTIME -> {
+                                    if (isBackgroundLocationPermanentlyDenied()) {
+                                        applicationSettingsLauncher.launch(applicationDetailsSettingsIntent())
+                                    } else {
+                                        backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                                    }
+                                }
                                 LocationPermissionStep.GRANTED -> refreshLocationPermissionState(viewModel)
                             }
                         },
@@ -232,6 +239,12 @@ class MainActivity : ComponentActivity() {
         coarseLocationRationale = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_COARSE_LOCATION),
     )
 
+    private fun isBackgroundLocationPermanentlyDenied(): Boolean = shouldOpenBackgroundLocationSettings(
+        backgroundGranted = hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+        requestCompleted = hasCompletedBackgroundPermissionRequest,
+        backgroundRationale = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+    )
+
     private fun applicationDetailsSettingsIntent(): Intent = Intent(
         Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
         Uri.fromParts("package", packageName, null),
@@ -244,6 +257,9 @@ class MainActivity : ComponentActivity() {
     )
 
     private fun refreshLocationPermissionState(viewModel: FjalarViewModel) {
+        if (hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+            hasCompletedBackgroundPermissionRequest = false
+        }
         val granted = locationPermissionStep() == LocationPermissionStep.GRANTED
         val previouslyGranted = viewModel.uiState.value.hasLocationPermission
         // The alarm permission banner stays visible until both foreground and

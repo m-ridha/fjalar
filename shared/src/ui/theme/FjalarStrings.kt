@@ -185,8 +185,8 @@ object FjalarStrings {
         FjalarStringKey.PERM_LOCATION_BODY to "Fjalar checks your GPS distance in the background only while an alarm is armed so it can wake you up even when your screen is locked. Your location never leaves your phone.",
         FjalarStringKey.PERM_LOCATION_GRANT to "Grant Permission",
         FjalarStringKey.PERM_LOCATION_DISMISS to "Dismiss",
-        FjalarStringKey.PERM_BACKGROUND_SETTINGS_BODY to "In app settings, open Permissions > Location and select %s. You can skip this step and keep using the map, but scheduled alarms need background location.",
-        FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION to "Open Settings",
+        FjalarStringKey.PERM_BACKGROUND_SETTINGS_BODY to "Choose %s in the system location permission settings. You can skip this step and keep using the map, but scheduled alarms need background location.",
+        FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION to "Continue",
 
         FjalarStringKey.SEARCH_PLACEHOLDER to "Search stations, stops, or places...",
         FjalarStringKey.SEARCH_CATEGORY_ALL to "All",
@@ -284,8 +284,8 @@ object FjalarStrings {
         FjalarStringKey.PERM_LOCATION_BODY to "Fjalar memeriksa jarak GPS di latar belakang hanya saat alarm aktif agar dapat membangunkan Anda meski layar terkunci. Lokasi Anda tidak pernah dikirim keluar dari ponsel ini.",
         FjalarStringKey.PERM_LOCATION_GRANT to "Izinkan Akses",
         FjalarStringKey.PERM_LOCATION_DISMISS to "Abaikan",
-        FjalarStringKey.PERM_BACKGROUND_SETTINGS_BODY to "Di setelan aplikasi, buka Izin > Lokasi lalu pilih %s. Anda dapat melewati langkah ini dan tetap menggunakan peta, tetapi alarm terjadwal memerlukan lokasi latar belakang.",
-        FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION to "Buka Setelan",
+        FjalarStringKey.PERM_BACKGROUND_SETTINGS_BODY to "Pilih %s di setelan izin lokasi sistem. Anda dapat melewati langkah ini dan tetap menggunakan peta, tetapi alarm terjadwal memerlukan lokasi latar belakang.",
+        FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION to "Lanjutkan",
 
         FjalarStringKey.SEARCH_PLACEHOLDER to "Cari stasiun, halte, atau tempat...",
         FjalarStringKey.SEARCH_CATEGORY_ALL to "Semua",
