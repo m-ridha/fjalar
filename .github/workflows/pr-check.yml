@@ -87,6 +87,9 @@ jobs:
       - name: Run Unit Tests (./kotlin test)
         run: ./kotlin test
 
+      - name: Test Release Version Handling
+        run: python3 scripts/test_release_metadata.py
+
       - name: Run Multiplatform Checks (./kotlin check)
         run: ./kotlin check
 

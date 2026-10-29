@@ -10,6 +10,7 @@ gen/
 out/
 *.class
 *.dex
+__pycache__/
 
 # Local configuration & secrets
 local.properties
