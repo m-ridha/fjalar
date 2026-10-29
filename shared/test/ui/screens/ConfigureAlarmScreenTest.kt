@@ -69,6 +69,8 @@ class ConfigureAlarmScreenTest {
         assertEquals(7 * 60 + 15, draft.startMinuteOfDay)
         assertEquals(9 * 60 + 45, draft.endMinuteOfDay)
         assertEquals(AlarmSchedule.MONDAY or AlarmSchedule.FRIDAY, draft.daysOfWeekMask)
+        assertTrue(draft.enabled)
+        assertNull(draft.enabledOverride)
         assertTrue(draft.soundEnabled)
         assertFalse(draft.vibrateEnabled)
     }
@@ -85,6 +87,8 @@ class ConfigureAlarmScreenTest {
             startMinuteOfDay = 8 * 60,
             endMinuteOfDay = 10 * 60,
             daysOfWeekMask = AlarmSchedule.WEEKDAYS,
+            enabled = false,
+            initialEnabled = true,
             soundEnabled = false,
             vibrateEnabled = true,
         )
@@ -103,6 +107,9 @@ class ConfigureAlarmScreenTest {
         assertEquals(8 * 60, newDraft.startMinuteOfDay)
         assertEquals(10 * 60, newDraft.endMinuteOfDay)
         assertEquals(AlarmSchedule.WEEKDAYS, newDraft.daysOfWeekMask)
+        assertFalse(newDraft.enabled)
+        assertEquals(false, newDraft.enabledOverride)
+        assertTrue(newDraft.initialEnabled)
         assertFalse(newDraft.soundEnabled)
         assertTrue(newDraft.vibrateEnabled)
     }
@@ -161,6 +168,59 @@ class ConfigureAlarmScreenTest {
         assertEquals("Updated Name", result.label)
         assertEquals(AlarmState.COMPLETED_FOR_WINDOW, result.state)
         assertEquals(kotlin.time.Instant.fromEpochMilliseconds(1700000000000L), result.suppressedUntil)
+    }
+
+    @Test
+    fun keyboardTimeAcceptsExactMinutesAndRejectsBlankOrInvalidValues() {
+        assertEquals(0, editorMinuteOfDay("00", "00"))
+        assertEquals(1439, editorMinuteOfDay("23", "59"))
+        assertEquals(7 * 60 + 13, editorMinuteOfDay("7", "13"))
+        for ((hour, minute) in listOf("" to "15", "07" to "", "24" to "00", "23" to "60", "-1" to "00", "ab" to "10")) {
+            assertNull(editorMinuteOfDay(hour, minute), "Invalid time $hour:$minute must not confirm")
+        }
+    }
+
+    @Test
+    fun unchangedEnableChoicePreservesLatestDismissalAndOffThenOnIsANoOp() {
+        val original = sampleAlarm().copy(schedule = AlarmSchedule.ONE_TIME, state = AlarmState.ARMED_MONITORING)
+        val latest = original.copy(state = AlarmState.DISABLED)
+        val draft = ConfigureAlarmDraft.fromAlarm(original).copy(label = "New label")
+        assertNull(draft.enabledOverride)
+        assertEquals(AlarmState.DISABLED, draft.toLocationAlarm(latest).state)
+        assertFalse(draft.displayedEnabled(latest))
+
+        val restored = draft.withEnabled(false, true).withEnabled(true, false)
+        assertNull(restored.enabledOverride)
+        assertEquals(AlarmState.DISABLED, restored.toLocationAlarm(latest).state)
+
+        // The persisted state can change while the editor is open. A new tap must
+        // express intent relative to the switch currently displayed to the user.
+        val explicitlyEnabled = draft.withEnabled(true, draft.displayedEnabled(latest))
+        assertEquals(true, explicitlyEnabled.enabledOverride)
+        assertEquals(AlarmState.ARMED_MONITORING, explicitlyEnabled.toLocationAlarm(latest).state)
+    }
+
+    @Test
+    fun enableChoiceRoundTripsForBothModesAndNewDisabledDrafts() {
+        for (type in ScheduleType.entries) {
+            val existing = sampleAlarm().copy(state = AlarmState.DISABLED)
+            val draft = ConfigureAlarmDraft.fromAlarm(existing).copy(scheduleType = type)
+            assertFalse(draft.enabled)
+            assertNull(draft.enabledOverride)
+            assertEquals(AlarmState.DISABLED, draft.toLocationAlarm(existing).state)
+            val enabled = draft.withEnabled(true, false)
+            assertEquals(true, enabled.enabledOverride)
+            assertTrue(enabled.toLocationAlarm(existing).isEnabled)
+
+            val newDisabled = ConfigureAlarmDraft(
+                label = "Later",
+                coordinates = existing.coordinates,
+                scheduleType = type,
+                enabled = false,
+            )
+            assertEquals(false, newDisabled.enabledOverride)
+            assertEquals(AlarmState.DISABLED, newDisabled.toLocationAlarm().state)
+        }
     }
 
     @Test
@@ -262,6 +322,15 @@ class ConfigureAlarmScreenTest {
         assertEquals("Tetapkan Lokasi", idPickerConfirm)
         assertEquals("Change Pin on Map", enChangePin)
         assertEquals("Ubah Titik di Peta", idChangePin)
+
+        assertEquals("Enable Alarm", FjalarStrings.get(FjalarStringKey.EDITOR_ENABLE_ALARM, AppLocale.EN))
+        assertEquals("Aktifkan Alarm", FjalarStrings.get(FjalarStringKey.EDITOR_ENABLE_ALARM, AppLocale.ID))
+        assertEquals("Start time", FjalarStrings.get(FjalarStringKey.EDITOR_TIME_START_TITLE, AppLocale.EN))
+        assertEquals("Waktu selesai", FjalarStrings.get(FjalarStringKey.EDITOR_TIME_END_TITLE, AppLocale.ID))
+        assertEquals("Hour", FjalarStrings.get(FjalarStringKey.EDITOR_TIME_HOUR, AppLocale.EN))
+        assertEquals("Menit", FjalarStrings.get(FjalarStringKey.EDITOR_TIME_MINUTE, AppLocale.ID))
+        assertEquals("Confirm", FjalarStrings.get(FjalarStringKey.EDITOR_TIME_CONFIRM, AppLocale.EN))
+        assertEquals("Konfirmasi", FjalarStrings.get(FjalarStringKey.EDITOR_TIME_CONFIRM, AppLocale.ID))
 
         // Configure Editor strings
         val enTitle = FjalarStrings.get(FjalarStringKey.EDITOR_TITLE, AppLocale.EN)

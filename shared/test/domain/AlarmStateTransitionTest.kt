@@ -2,6 +2,7 @@ package com.muhammadridha.fjalar.domain
 
 import com.muhammadridha.fjalar.domain.model.AlarmSchedule
 import com.muhammadridha.fjalar.domain.model.AlarmState
+import com.muhammadridha.fjalar.domain.model.ScheduleType
 import com.muhammadridha.fjalar.domain.service.AlarmService
 import com.muhammadridha.fjalar.domain.service.ScheduleEvaluator
 import com.muhammadridha.fjalar.fakes.FakeAlarmRinger
@@ -25,6 +26,108 @@ class AlarmStateTransitionTest {
     private val service = AlarmService(repository, tracker, scheduler, ringer, ScheduleEvaluator(JAKARTA), clock)
 
     private suspend fun state() = repository.getAlarm("manggarai")!!.state
+
+    @Test
+    fun editorSavePreservesRepositoryDismissalEvenWhenSubmittedRuntimeIsStale() = runTest {
+        val original = manggaraiAlarm(schedule = AlarmSchedule.ONE_TIME).copy(state = AlarmState.RINGING)
+        service.saveAlarm(original).getOrThrow()
+        service.dismissAlarm(original.id).getOrThrow()
+        // A dismissal can arrive after the UI constructed its save payload.
+        service.saveAlarm(original.copy(label = "Edited after dismissal"), enabled = null).getOrThrow()
+        val saved = repository.getAlarm(original.id)!!
+        assertEquals(AlarmState.DISABLED, saved.state)
+        assertEquals("Edited after dismissal", saved.label)
+        assertFalse(tracker.isTracking)
+        assertTrue(ringer.ringingIds.isEmpty())
+    }
+
+    @Test
+    fun editorEnableAndDisableApplyTogetherWithBothModeChanges() = runTest {
+        clock.now = jakarta(2026, 10, 26, 8)
+        for (initialSchedule in listOf(AlarmSchedule.ONE_TIME, manggaraiAlarm().schedule)) {
+            val editedSchedule = if (initialSchedule.type == ScheduleType.ONE_TIME) {
+                manggaraiAlarm().schedule
+            } else {
+                AlarmSchedule.ONE_TIME
+            }
+            val original = manggaraiAlarm(schedule = initialSchedule).copy(state = AlarmState.RINGING)
+            service.saveAlarm(original).getOrThrow()
+            service.snoozeAlarm(original.id).getOrThrow()
+            val snoozed = repository.getAlarm(original.id)!!
+            service.saveAlarm(snoozed.copy(schedule = editedSchedule), enabled = false).getOrThrow()
+            val disabled = repository.getAlarm(original.id)!!
+            assertEquals(AlarmState.DISABLED, disabled.state)
+            assertEquals(editedSchedule, disabled.schedule)
+            kotlin.test.assertNull(disabled.snoozedUntil)
+            kotlin.test.assertNull(disabled.suppressedUntil)
+            assertFalse(tracker.isTracking)
+
+            service.saveAlarm(disabled.copy(schedule = initialSchedule), enabled = true).getOrThrow()
+            assertEquals(AlarmState.ARMED_MONITORING, state())
+            assertTrue(tracker.isTracking)
+            service.deleteAlarm(original.id).getOrThrow()
+        }
+    }
+
+    @Test
+    fun editorEnableUsesCurrentScheduledWindowAndNewDisabledAlarmsStayStopped() = runTest {
+        clock.now = jakarta(2026, 10, 26, 6)
+        for (schedule in listOf(AlarmSchedule.ONE_TIME, manggaraiAlarm().schedule)) {
+            val alarm = manggaraiAlarm(schedule = schedule)
+            service.saveAlarm(alarm, enabled = false).getOrThrow()
+            assertEquals(AlarmState.DISABLED, state())
+            assertFalse(tracker.isTracking)
+            assertTrue(scheduler.wakeups.isEmpty())
+            service.saveAlarm(alarm, enabled = true).getOrThrow()
+            val expected = if (schedule.type == ScheduleType.ONE_TIME) {
+                AlarmState.ARMED_MONITORING
+            } else {
+                AlarmState.SCHEDULED_IDLE
+            }
+            assertEquals(expected, state())
+            service.deleteAlarm(alarm.id).getOrThrow()
+        }
+    }
+
+    @Test
+    fun ordinaryEditorModeEditsPreserveSnoozeAndCompletionGuards() = runTest {
+        clock.now = jakarta(2026, 10, 26, 8)
+        for (schedule in listOf(AlarmSchedule.ONE_TIME, manggaraiAlarm().schedule)) {
+            val original = manggaraiAlarm(schedule = schedule).copy(state = AlarmState.RINGING)
+            service.saveAlarm(original).getOrThrow()
+            service.snoozeAlarm(original.id).getOrThrow()
+            val before = repository.getAlarm(original.id)!!
+            val editedSchedule = if (schedule.type == ScheduleType.ONE_TIME) {
+                manggaraiAlarm().schedule
+            } else {
+                AlarmSchedule.ONE_TIME
+            }
+            service.saveAlarm(before.copy(schedule = editedSchedule), enabled = null).getOrThrow()
+            val saved = repository.getAlarm(original.id)!!
+            assertEquals(AlarmState.SNOOZED, saved.state)
+            assertEquals(before.snoozedUntil, saved.snoozedUntil)
+            assertEquals(before.suppressedUntil, saved.suppressedUntil)
+            clock.now = jakarta(2026, 10, 26, 8, 1)
+            service.syncSchedules()
+            assertEquals(AlarmState.SNOOZED, state())
+            assertTrue(ringer.ringingIds.isEmpty())
+            clock.now = jakarta(2026, 10, 26, 8, 2)
+            service.syncSchedules()
+            assertEquals(AlarmState.RINGING, state())
+            service.deleteAlarm(original.id).getOrThrow()
+            clock.now = jakarta(2026, 10, 26, 8)
+        }
+
+        val ringing = manggaraiAlarm().copy(state = AlarmState.RINGING)
+        service.saveAlarm(ringing).getOrThrow()
+        service.dismissAlarm(ringing.id).getOrThrow()
+        val completed = repository.getAlarm(ringing.id)!!
+        service.saveAlarm(ringing.copy(schedule = AlarmSchedule.ONE_TIME), enabled = null).getOrThrow()
+        val saved = repository.getAlarm(ringing.id)!!
+        assertEquals(AlarmState.COMPLETED_FOR_WINDOW, saved.state)
+        assertEquals(completed.suppressedUntil, saved.suppressedUntil)
+        assertFalse(tracker.isTracking)
+    }
 
     @Test
     fun editingSnoozedAlarmsRetainsDeadlineForBothScheduleTypes() = runTest {

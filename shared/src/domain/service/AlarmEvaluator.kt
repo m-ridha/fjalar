@@ -31,15 +31,22 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
 
     /** Editing mode keeps disabled/ringing states and any unfinished completion guard. */
     fun prepareSave(previous: LocationAlarm?, edited: LocationAlarm, now: Instant): LocationAlarm {
-        val carried = if (previous?.state == SNOOZED && edited.state == SNOOZED && edited.snoozedUntil == null) {
-            edited.copy(snoozedUntil = previous.snoozedUntil)
+        val carried = if (previous?.state == SNOOZED && edited.state == SNOOZED) {
+            edited.copy(
+                suppressedUntil = previous.suppressedUntil,
+                snoozedUntil = previous.snoozedUntil,
+            )
         } else {
             edited
         }
         if (previous == null || previous.schedule.type == carried.schedule.type) {
             return syncSchedule(carried, now)
         }
-        val preserved = edited.copy(state = previous.state, suppressedUntil = previous.suppressedUntil, snoozedUntil = previous.snoozedUntil)
+        val preserved = carried.copy(
+            state = previous.state,
+            suppressedUntil = previous.suppressedUntil,
+            snoozedUntil = previous.snoozedUntil,
+        )
         if (preserved.state == SNOOZED) return syncSchedule(preserved, now)
         if (preserved.state == DISABLED || preserved.state == RINGING) return preserved
         if (preserved.suppressedUntil != null && now < preserved.suppressedUntil) {
@@ -51,12 +58,16 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
     /** Moves scheduled alarms in or out of monitoring as windows open and close. */
     fun syncSchedule(alarm: LocationAlarm, now: Instant): LocationAlarm {
         if (alarm.state == SNOOZED) {
-            // The original window end survives process death and prevents a late wakeup
-            // from ringing in a different window.
-            if (alarm.schedule.type == ScheduleType.SCHEDULED &&
-                (alarm.suppressedUntil == null || now >= alarm.suppressedUntil ||
-                    !scheduleEvaluator.isActive(alarm.schedule, now))) {
-                return withWindowState(alarm.copy(snoozedUntil = null, suppressedUntil = null), now)
+            // The persisted timer and original cutoff survive process death and field/mode
+            // edits. The edited schedule takes over only after that snooze guard expires.
+            val originalWindowEnd = alarm.suppressedUntil
+            if (originalWindowEnd != null && now >= originalWindowEnd) {
+                val cleared = alarm.copy(snoozedUntil = null, suppressedUntil = null)
+                return if (alarm.schedule.type == ScheduleType.SCHEDULED) {
+                    withWindowState(cleared, now)
+                } else {
+                    cleared.copy(state = ARMED_MONITORING)
+                }
             }
             val deadline = alarm.snoozedUntil
             if (deadline != null && now < deadline) return alarm

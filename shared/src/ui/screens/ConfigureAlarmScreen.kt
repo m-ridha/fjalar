@@ -4,44 +4,64 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.TimePickerLayoutType
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.muhammadridha.fjalar.domain.model.AlarmSchedule
 import com.muhammadridha.fjalar.domain.model.AlarmSoundConfig
 import com.muhammadridha.fjalar.domain.model.AlarmState
@@ -79,9 +99,23 @@ data class ConfigureAlarmDraft(
     val startMinuteOfDay: Int = 7 * 60,
     val endMinuteOfDay: Int = 9 * 60 + 30,
     val daysOfWeekMask: Int = AlarmSchedule.WEEKDAYS,
+    val enabled: Boolean = true,
+    val initialEnabled: Boolean = enabled,
     val soundEnabled: Boolean = true,
     val vibrateEnabled: Boolean = true,
 ) {
+    /** Only a net switch change may replace the latest persisted runtime state. */
+    val enabledOverride: Boolean?
+        get() = if (alarmId == null || enabled != initialEnabled) enabled else null
+
+    fun displayedEnabled(existingAlarm: LocationAlarm?): Boolean =
+        enabledOverride ?: existingAlarm?.isEnabled ?: enabled
+
+    fun withEnabled(value: Boolean, displayedEnabled: Boolean): ConfigureAlarmDraft = copy(
+        enabled = value,
+        initialEnabled = if (enabledOverride == null) displayedEnabled else initialEnabled,
+    )
+
     fun withNewCoordinates(newCoordinates: GeoCoordinates): ConfigureAlarmDraft =
         copy(coordinates = newCoordinates, addressLabel = if (newCoordinates == coordinates) addressLabel else null)
 
@@ -101,10 +135,15 @@ data class ConfigureAlarmDraft(
         } else {
             AlarmSchedule.ONE_TIME
         }
-        val finalState = existingAlarm?.state ?: if (scheduleType == ScheduleType.ONE_TIME) {
+        val enabledState = if (scheduleType == ScheduleType.ONE_TIME) {
             AlarmState.ARMED_MONITORING
         } else {
             AlarmState.SCHEDULED_IDLE
+        }
+        val finalState = when (enabledOverride) {
+            false -> AlarmState.DISABLED
+            true -> existingAlarm?.state?.takeUnless { it == AlarmState.DISABLED } ?: enabledState
+            null -> existingAlarm?.state ?: enabledState
         }
         return LocationAlarm(
             id = id,
@@ -134,6 +173,7 @@ data class ConfigureAlarmDraft(
             startMinuteOfDay = alarm.schedule.startMinuteOfDay ?: (7 * 60),
             endMinuteOfDay = alarm.schedule.endMinuteOfDay ?: (9 * 60 + 30),
             daysOfWeekMask = alarm.schedule.daysOfWeekMask.takeIf { it != 0 } ?: AlarmSchedule.WEEKDAYS,
+            enabled = alarm.isEnabled,
             soundEnabled = alarm.soundConfig.soundEnabled,
             vibrateEnabled = alarm.soundConfig.vibrateEnabled,
         )
@@ -165,6 +205,7 @@ fun ConfigureAlarmScreen(
         isScheduleValid && !isOperationPending
 
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var editingTime by remember { mutableStateOf<EditorTimeField?>(null) }
 
     Column(
         modifier = modifier
@@ -266,6 +307,29 @@ fun ConfigureAlarmScreen(
                     unfocusedTextColor = colors.textPrimary,
                 ),
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = FjalarStrings.get(FjalarStringKey.EDITOR_ENABLE_ALARM, locale),
+                    modifier = Modifier.weight(1f).padding(end = 12.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textPrimary,
+                )
+                AlarmSwitch(
+                    checked = draft.displayedEnabled(persistedAlarm),
+                    label = FjalarStrings.get(FjalarStringKey.EDITOR_ENABLE_ALARM, locale),
+                    enabled = !isOperationPending,
+                    onCheckedChange = { enabled ->
+                        onDraftChange(draft.withEnabled(enabled, draft.displayedEnabled(persistedAlarm)))
+                    },
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -486,26 +550,24 @@ fun ConfigureAlarmScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    EditorTimeStepper(
+                    EditorTimeSelection(
                         label = FjalarStrings.get(
                             FjalarStringKey.EDITOR_START_TIME,
                             locale,
                             formatMinuteOfDay(draft.startMinuteOfDay),
                         ),
-                        minuteOfDay = draft.startMinuteOfDay,
-                        onChange = { onDraftChange(draft.copy(startMinuteOfDay = it)) },
-                        locale = locale,
+                        enabled = !isOperationPending,
+                        onClick = { editingTime = EditorTimeField.START },
                         modifier = Modifier.weight(1f).widthIn(min = 152.dp),
                     )
-                    EditorTimeStepper(
+                    EditorTimeSelection(
                         label = FjalarStrings.get(
                             FjalarStringKey.EDITOR_END_TIME,
                             locale,
                             formatMinuteOfDay(draft.endMinuteOfDay),
                         ),
-                        minuteOfDay = draft.endMinuteOfDay,
-                        onChange = { onDraftChange(draft.copy(endMinuteOfDay = it)) },
-                        locale = locale,
+                        enabled = !isOperationPending,
+                        onClick = { editingTime = EditorTimeField.END },
                         modifier = Modifier.weight(1f).widthIn(min = 152.dp),
                     )
                 }
@@ -648,21 +710,61 @@ fun ConfigureAlarmScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+
+    val selectedField = editingTime
+    if (selectedField != null && !isOperationPending) {
+        val initialMinute = if (selectedField == EditorTimeField.START) {
+            draft.startMinuteOfDay
+        } else {
+            draft.endMinuteOfDay
+        }
+        key(selectedField) {
+            EditorTimePickerDialog(
+                title = FjalarStrings.get(
+                    if (selectedField == EditorTimeField.START) {
+                        FjalarStringKey.EDITOR_TIME_START_TITLE
+                    } else {
+                        FjalarStringKey.EDITOR_TIME_END_TITLE
+                    },
+                    locale,
+                ),
+                initialMinuteOfDay = initialMinute,
+                locale = locale,
+                onDismiss = { editingTime = null },
+                onConfirm = { selectedMinute ->
+                    editingTime = null
+                    onDraftChange(
+                        if (selectedField == EditorTimeField.START) {
+                            draft.copy(startMinuteOfDay = selectedMinute)
+                        } else {
+                            draft.copy(endMinuteOfDay = selectedMinute)
+                        },
+                    )
+                },
+            )
+        }
+    }
+}
+
+private enum class EditorTimeField {
+    START,
+    END,
 }
 
 @Composable
-private fun EditorTimeStepper(
+private fun EditorTimeSelection(
     label: String,
-    minuteOfDay: Int,
-    onChange: (Int) -> Unit,
-    locale: AppLocale,
+    enabled: Boolean,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LiquidGlassTheme.colors
     Column(
         modifier = modifier
             .glassSurface(level = GlassLevel.PILL, shape = RoundedCornerShape(16.dp))
-            .padding(10.dp),
+            .clickable(role = Role.Button, enabled = enabled, onClick = onClick)
+            .heightIn(min = 48.dp)
+            .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -673,38 +775,240 @@ private fun EditorTimeStepper(
             ),
             color = colors.textPrimary,
         )
-        Spacer(modifier = Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun EditorTimePickerDialog(
+    title: String,
+    initialMinuteOfDay: Int,
+    locale: AppLocale,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit,
+) {
+    val colors = LiquidGlassTheme.colors
+    val pickerState = rememberTimePickerState(
+        initialHour = initialMinuteOfDay / 60,
+        initialMinute = initialMinuteOfDay % 60,
+        is24Hour = true,
+    )
+    var keyboardMode by remember { mutableStateOf(false) }
+    var hourText by remember { mutableStateOf((initialMinuteOfDay / 60).toString().padStart(2, '0')) }
+    var minuteText by remember { mutableStateOf((initialMinuteOfDay % 60).toString().padStart(2, '0')) }
+    val pickerColors = TimePickerDefaults.colors(
+        clockDialColor = colors.glassPill,
+        clockDialSelectedContentColor = colors.onPrimary,
+        clockDialUnselectedContentColor = colors.textPrimary,
+        selectorColor = colors.primary,
+        containerColor = Color.Transparent,
+        periodSelectorBorderColor = colors.borderSubtle,
+        periodSelectorSelectedContainerColor = colors.primary,
+        periodSelectorUnselectedContainerColor = colors.glassPill,
+        periodSelectorSelectedContentColor = colors.onPrimary,
+        periodSelectorUnselectedContentColor = colors.textPrimary,
+        timeSelectorSelectedContainerColor = colors.primary,
+        timeSelectorUnselectedContainerColor = colors.glassPill,
+        timeSelectorSelectedContentColor = colors.onPrimary,
+        timeSelectorUnselectedContentColor = colors.textPrimary,
+    )
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(WindowInsetsLayoutHelper.safeDrawingPaddingModifier())
+                .imePadding()
+                .padding(12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            val compact = maxWidth < 360.dp || maxHeight < 500.dp || LocalDensity.current.fontScale > 1.3f
+            val showKeyboard = compact || keyboardMode
+            LaunchedEffect(showKeyboard) {
+                if (showKeyboard) {
+                    hourText = pickerState.hour.toString().padStart(2, '0')
+                    minuteText = pickerState.minute.toString().padStart(2, '0')
+                }
+            }
+            val selectedMinute = if (showKeyboard) {
+                editorMinuteOfDay(hourText, minuteText)
+            } else {
+                pickerState.hour * 60 + pickerState.minute
+            }
+            Column(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(colors.primary.copy(alpha = 0.12f))
-                    .clickable(role = Role.Button) { onChange((minuteOfDay - 15 + 1440) % 1440) }
-                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center,
+                    .widthIn(max = 400.dp)
+                    .fillMaxWidth()
+                    .heightIn(max = maxHeight)
+                    .glassSurface(level = GlassLevel.MODAL, shape = RoundedCornerShape(24.dp))
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = FjalarStrings.get(FjalarStringKey.EDITOR_TIME_STEP_MINUS_15, locale),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = colors.primary,
+                    text = title,
+                    color = colors.textPrimary,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontFeatureSettings = "tnum",
+                    ),
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                if (showKeyboard) {
+                    EditorTimeInput(
+                        hourText = hourText,
+                        minuteText = minuteText,
+                        locale = locale,
+                        onHourChange = { value ->
+                            hourText = value
+                            value.toIntOrNull()?.takeIf { it in 0..23 }?.let { pickerState.hour = it }
+                        },
+                        onMinuteChange = { value ->
+                            minuteText = value
+                            value.toIntOrNull()?.takeIf { it in 0..59 }?.let { pickerState.minute = it }
+                        },
+                    )
+                } else {
+                    val typography = MaterialTheme.typography
+                    MaterialTheme(
+                        typography = typography.copy(
+                            displayLarge = typography.displayLarge.copy(fontFeatureSettings = "tnum"),
+                            bodyLarge = typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                        ),
+                    ) {
+                        TimePicker(
+                            state = pickerState,
+                            colors = pickerColors,
+                            layoutType = TimePickerLayoutType.Vertical,
+                        )
+                    }
+                }
+                if (!compact) {
+                    TextButton(
+                        onClick = { keyboardMode = !keyboardMode },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) {
+                        Text(
+                            FjalarStrings.get(
+                                if (keyboardMode) {
+                                    FjalarStringKey.EDITOR_TIME_DIAL
+                                } else {
+                                    FjalarStringKey.EDITOR_TIME_KEYBOARD
+                                },
+                                locale,
+                            ),
+                            color = colors.primary,
+                        )
+                    }
+                }
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text(FjalarStrings.get(FjalarStringKey.EDITOR_CANCEL, locale), color = colors.textPrimary)
+                    }
+                    Button(
+                        onClick = { selectedMinute?.let(onConfirm) },
+                        enabled = selectedMinute != null,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.primary,
+                            contentColor = colors.onPrimary,
+                            disabledContainerColor = colors.textSecondary.copy(alpha = 0.2f),
+                            disabledContentColor = colors.textPrimary,
+                        ),
+                    ) {
+                        Text(FjalarStrings.get(FjalarStringKey.EDITOR_TIME_CONFIRM, locale))
+                    }
+                }
             }
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(colors.primary.copy(alpha = 0.12f))
-                    .clickable(role = Role.Button) { onChange((minuteOfDay + 15) % 1440) }
-                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = FjalarStrings.get(FjalarStringKey.EDITOR_TIME_STEP_PLUS_15, locale),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = colors.primary,
-                )
-            }
+        }
+    }
+}
+
+/** A blank or invalid field never falls back to the picker's previous valid value. */
+internal fun editorMinuteOfDay(hourText: String, minuteText: String): Int? {
+    fun validNumber(text: String, maximum: Int): Int? {
+        if (text.isEmpty() || text.length > 2 || text.any { it !in '0'..'9' }) return null
+        return text.toIntOrNull()?.takeIf { it in 0..maximum }
+    }
+    val hour = validNumber(hourText, 23) ?: return null
+    val minute = validNumber(minuteText, 59) ?: return null
+    return hour * 60 + minute
+}
+
+@Composable
+private fun EditorTimeInput(
+    hourText: String,
+    minuteText: String,
+    locale: AppLocale,
+    onHourChange: (String) -> Unit,
+    onMinuteChange: (String) -> Unit,
+) {
+    val colors = LiquidGlassTheme.colors
+    val focusManager = LocalFocusManager.current
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = colors.textPrimary,
+        unfocusedTextColor = colors.textPrimary,
+        focusedContainerColor = colors.glassPill,
+        unfocusedContainerColor = colors.glassPill,
+        focusedBorderColor = colors.primary,
+        unfocusedBorderColor = colors.textSecondary,
+        focusedLabelColor = colors.textPrimary,
+        unfocusedLabelColor = colors.textPrimary,
+        cursorColor = colors.primary,
+        errorTextColor = colors.textPrimary,
+        errorContainerColor = colors.glassPill,
+        errorBorderColor = colors.danger,
+        errorLabelColor = colors.textPrimary,
+    )
+    Column {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(
+                value = hourText,
+                onValueChange = { value ->
+                    if (value.length <= 2 && value.all { it in '0'..'9' }) onHourChange(value)
+                },
+                label = { Text(FjalarStrings.get(FjalarStringKey.EDITOR_TIME_HOUR, locale)) },
+                isError = editorMinuteOfDay(hourText, "00") == null,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum"),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Next,
+                ),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) }),
+                colors = fieldColors,
+                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+            )
+            OutlinedTextField(
+                value = minuteText,
+                onValueChange = { value ->
+                    if (value.length <= 2 && value.all { it in '0'..'9' }) onMinuteChange(value)
+                },
+                label = { Text(FjalarStrings.get(FjalarStringKey.EDITOR_TIME_MINUTE, locale)) },
+                isError = editorMinuteOfDay("00", minuteText) == null,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum"),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done,
+                ),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                colors = fieldColors,
+                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+            )
+        }
+        if (editorMinuteOfDay(hourText, minuteText) == null) {
+            Text(
+                text = FjalarStrings.get(FjalarStringKey.EDITOR_TIME_INVALID, locale),
+                color = colors.textPrimary,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp),
+            )
         }
     }
 }
