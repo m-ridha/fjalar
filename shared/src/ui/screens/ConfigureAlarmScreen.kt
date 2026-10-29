@@ -51,13 +51,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -950,6 +953,19 @@ private fun EditorTimeInput(
 ) {
     val colors = LiquidGlassTheme.colors
     val focusManager = LocalFocusManager.current
+    var hourValue by remember { mutableStateOf(TextFieldValue(hourText)) }
+    var minuteValue by remember { mutableStateOf(TextFieldValue(minuteText)) }
+    var hourFocused by remember { mutableStateOf(false) }
+    var minuteFocused by remember { mutableStateOf(false) }
+
+    // Dial/mode changes can replace the text; ordinary typing keeps its selection and cursor.
+    LaunchedEffect(hourText) {
+        if (hourText != hourValue.text) hourValue = TextFieldValue(hourText)
+    }
+    LaunchedEffect(minuteText) {
+        if (minuteText != minuteValue.text) minuteValue = TextFieldValue(minuteText)
+    }
+
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = colors.textPrimary,
         unfocusedTextColor = colors.textPrimary,
@@ -968,9 +984,12 @@ private fun EditorTimeInput(
     Column {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(
-                value = hourText,
+                value = hourValue,
                 onValueChange = { value ->
-                    if (value.length <= 2 && value.all { it in '0'..'9' }) onHourChange(value)
+                    if (value.text.length <= 2 && value.text.all { it in '0'..'9' }) {
+                        hourValue = value
+                        onHourChange(value.text)
+                    }
                 },
                 label = { Text(FjalarStrings.get(FjalarStringKey.EDITOR_TIME_HOUR, locale)) },
                 isError = editorMinuteOfDay(hourText, "00") == null,
@@ -982,12 +1001,23 @@ private fun EditorTimeInput(
                 ),
                 keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) }),
                 colors = fieldColors,
-                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 56.dp)
+                    .onFocusChanged { focus ->
+                        if (focus.isFocused && !hourFocused) {
+                            hourValue = hourValue.copy(selection = TextRange(0, hourValue.text.length))
+                        }
+                        hourFocused = focus.isFocused
+                    },
             )
             OutlinedTextField(
-                value = minuteText,
+                value = minuteValue,
                 onValueChange = { value ->
-                    if (value.length <= 2 && value.all { it in '0'..'9' }) onMinuteChange(value)
+                    if (value.text.length <= 2 && value.text.all { it in '0'..'9' }) {
+                        minuteValue = value
+                        onMinuteChange(value.text)
+                    }
                 },
                 label = { Text(FjalarStrings.get(FjalarStringKey.EDITOR_TIME_MINUTE, locale)) },
                 isError = editorMinuteOfDay("00", minuteText) == null,
@@ -999,7 +1029,15 @@ private fun EditorTimeInput(
                 ),
                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                 colors = fieldColors,
-                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 56.dp)
+                    .onFocusChanged { focus ->
+                        if (focus.isFocused && !minuteFocused) {
+                            minuteValue = minuteValue.copy(selection = TextRange(0, minuteValue.text.length))
+                        }
+                        minuteFocused = focus.isFocused
+                    },
             )
         }
         if (editorMinuteOfDay(hourText, minuteText) == null) {
