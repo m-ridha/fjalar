@@ -72,10 +72,13 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
             val deadline = alarm.snoozedUntil
             if (deadline != null && now < deadline) return alarm
             val cleared = alarm.copy(snoozedUntil = null, suppressedUntil = null)
-            // A stale snooze must not ring once the scheduled window is over; returning through
-            // withWindowState keeps the alarm idle until its next window opens.
-            val windowStillRelevant = alarm.schedule.type != ScheduleType.SCHEDULED ||
-                scheduleEvaluator.isActive(alarm.schedule, now)
+            // A future original cutoff owns the pending snooze even after a schedule edit.
+            // Without one, a stale scheduled snooze must still be inside the edited window.
+            val windowStillRelevant = if (originalWindowEnd != null) {
+                now < originalWindowEnd
+            } else {
+                alarm.schedule.type != ScheduleType.SCHEDULED || scheduleEvaluator.isActive(alarm.schedule, now)
+            }
             return if (windowStillRelevant) cleared.copy(state = RINGING) else withWindowState(cleared, now)
         }
         if (alarm.schedule.type != ScheduleType.SCHEDULED) {
