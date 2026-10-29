@@ -113,10 +113,28 @@ class LocationPermissionsTest {
     }
 
     @Test
-    fun backgroundSettingsRecoveryRequiresACompletedDeniedRequestWithoutRationale() {
-        assertFalse(shouldOpenBackgroundLocationSettings(false, false, false))
-        assertFalse(shouldOpenBackgroundLocationSettings(false, true, true))
-        assertFalse(shouldOpenBackgroundLocationSettings(true, true, false))
-        assertTrue(shouldOpenBackgroundLocationSettings(false, true, false))
+    fun androidTenBackgroundDenialsWithRationaleKeepRuntimeRetryAvailable() {
+        assertFalse(shouldOpenBackgroundLocationSettings(29, false, true, true))
+        assertTrue(shouldOpenBackgroundLocationSettings(29, false, true, false))
+    }
+
+    @Test
+    fun androidElevenAndLaterCompletedBackgroundDenialsOpenSettingsRegardlessOfRationale() {
+        for (apiLevel in listOf(30, 31, 33, 37)) {
+            for (backgroundRationale in listOf(false, true)) {
+                assertTrue(shouldOpenBackgroundLocationSettings(apiLevel, false, true, backgroundRationale))
+            }
+        }
+    }
+
+    @Test
+    fun backgroundSettingsRecoveryRequiresACompletedDeniedRequest() {
+        for (apiLevel in listOf(29, 30, 31, 33, 37)) {
+            for (backgroundRationale in listOf(false, true)) {
+                assertFalse(shouldOpenBackgroundLocationSettings(apiLevel, false, false, backgroundRationale))
+                assertFalse(shouldOpenBackgroundLocationSettings(apiLevel, true, true, backgroundRationale))
+                assertFalse(shouldOpenBackgroundLocationSettings(apiLevel, true, false, backgroundRationale))
+            }
+        }
     }
 }

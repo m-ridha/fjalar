@@ -240,6 +240,7 @@ class MainActivity : ComponentActivity() {
     )
 
     private fun isBackgroundLocationPermanentlyDenied(): Boolean = shouldOpenBackgroundLocationSettings(
+        apiLevel = Build.VERSION.SDK_INT,
         backgroundGranted = hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
         requestCompleted = hasCompletedBackgroundPermissionRequest,
         backgroundRationale = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_BACKGROUND_LOCATION),

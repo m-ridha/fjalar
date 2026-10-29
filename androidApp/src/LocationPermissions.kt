@@ -35,7 +35,9 @@ internal fun shouldOpenForegroundLocationSettings(
 ): Boolean = !foregroundGranted && requestCompleted && !fineLocationRationale && !coarseLocationRationale
 
 internal fun shouldOpenBackgroundLocationSettings(
+    apiLevel: Int,
     backgroundGranted: Boolean,
     requestCompleted: Boolean,
     backgroundRationale: Boolean,
-): Boolean = !backgroundGranted && requestCompleted && !backgroundRationale
+): Boolean = !backgroundGranted && requestCompleted &&
+    (apiLevel >= Build.VERSION_CODES.R || !backgroundRationale)
