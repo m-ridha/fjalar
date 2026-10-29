@@ -183,6 +183,9 @@ python3 scripts/generate_app_icons.py
 python3 scripts/test_generated_icons.py
 ```
 
+For version-tagged GitHub Releases, see the [release assets guide](docs/releasing.md)
+for Android signing secrets, publication steps, and the current iOS signing limitation.
+
 ---
 
 ## Testing Standards
