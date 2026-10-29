@@ -31,6 +31,15 @@
     <string name="editor_label_placeholder">cth. Stasiun Manggarai</string>
     <string name="editor_start_time">Mulai: %1$s</string>
     <string name="editor_end_time">Selesai: %1$s</string>
+    <string name="editor_enable_alarm">Aktifkan Alarm</string>
+    <string name="editor_time_dial">Gunakan jam</string>
+    <string name="editor_time_keyboard">Gunakan papan ketik</string>
+    <string name="editor_time_hour">Jam</string>
+    <string name="editor_time_minute">Menit</string>
+    <string name="editor_time_invalid">Masukkan jam 00–23 dan menit 00–59.</string>
+    <string name="editor_time_start_title">Waktu mulai</string>
+    <string name="editor_time_end_title">Waktu selesai</string>
+    <string name="editor_time_confirm">Konfirmasi</string>
     <string name="editor_time_step_minus_15">-15m</string>
     <string name="editor_time_step_plus_15">+15m</string>
     <string name="editor_trigger_radius">Radius Alarm</string>

@@ -62,6 +62,27 @@ class AlarmService(
         }
     }
 
+    override suspend fun saveAlarm(alarm: LocationAlarm, enabled: Boolean?): Result<Unit> = resultOf {
+        mutex.withLock {
+            val now = clock.now()
+            val previous = repository.getAlarm(alarm.id)
+            val prepared = when (enabled) {
+                true -> evaluator.enable(alarm, now)
+                false -> evaluator.disable(alarm)
+                null -> {
+                    val edited = if (previous == null) alarm else alarm.copy(
+                        state = previous.state,
+                        suppressedUntil = previous.suppressedUntil,
+                        snoozedUntil = previous.snoozedUntil,
+                    )
+                    evaluator.prepareSave(previous, edited, now)
+                }
+            }
+            persist(previous, prepared)
+            applySideEffects(now)
+        }
+    }
+
     override suspend fun toggleAlarm(alarmId: String, enabled: Boolean): Result<Unit> =
         mutate(alarmId) { alarm, now -> if (enabled) evaluator.enable(alarm, now) else evaluator.disable(alarm) }
 

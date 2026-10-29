@@ -1063,6 +1063,34 @@ class FjalarViewModelTest {
     }
 
     @Test
+    fun failedEditorDisableKeepsDraftAndPersistedStateUntilSaveSucceeds() = runTest {
+        val save = FakeSaveAlarmPort(shouldFail = true)
+        val alarm = manggaraiAlarm().copy(state = AlarmState.ARMED_MONITORING)
+        val (viewModel, _, vmScope) = createTestViewModel(
+            observePort = FakeObserveAlarmsPort(listOf(alarm)),
+            savePort = save,
+        )
+        try {
+            viewModel.onStartConfiguringAlarm(alarm.id)
+            val draft = viewModel.uiState.value.activeDraft!!.withEnabled(false, true)
+            viewModel.onUpdateDraft(draft)
+            var completed = false
+            viewModel.onSaveDraftAlarm(draft) { completed = true }
+            assertFalse(completed)
+            assertEquals(draft, viewModel.uiState.value.activeDraft)
+            assertTrue(viewModel.uiState.value.alarms.single().isEnabled)
+            assertTrue(viewModel.uiState.value.hasOperationFailure)
+            save.shouldFail = false
+            viewModel.onSaveDraftAlarm(draft) { completed = true }
+            assertTrue(completed)
+            assertEquals(AlarmState.DISABLED, save.savedAlarms.single().state)
+            assertNull(viewModel.uiState.value.activeDraft)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
     fun missingDeletePortDoesNotSignalSuccess() = runTest {
         val (viewModel, _, vmScope) = createTestViewModel()
         try {

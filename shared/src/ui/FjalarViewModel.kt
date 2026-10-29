@@ -560,7 +560,7 @@ class FjalarViewModel(
         val operationDraftRevision = draftRevision
         _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false) }
         scope.launch {
-            val result = saveAlarmPort.saveAlarm(alarm)
+            val result = saveAlarmPort.saveAlarm(alarm, draft.enabledOverride)
             val ownsDraft = operationDraftRevision == draftRevision
             _uiState.update {
                 it.copy(isOperationPending = false, hasOperationFailure = ownsDraft && result.isFailure)

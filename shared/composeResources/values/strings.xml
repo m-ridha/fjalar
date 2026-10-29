@@ -31,6 +31,15 @@
     <string name="editor_label_placeholder">e.g. Manggarai Station</string>
     <string name="editor_start_time">Start: %1$s</string>
     <string name="editor_end_time">End: %1$s</string>
+    <string name="editor_enable_alarm">Enable Alarm</string>
+    <string name="editor_time_dial">Use clock dial</string>
+    <string name="editor_time_keyboard">Use keyboard</string>
+    <string name="editor_time_hour">Hour</string>
+    <string name="editor_time_minute">Minute</string>
+    <string name="editor_time_invalid">Enter an hour from 00–23 and minutes from 00–59.</string>
+    <string name="editor_time_start_title">Start time</string>
+    <string name="editor_time_end_title">End time</string>
+    <string name="editor_time_confirm">Confirm</string>
     <string name="editor_time_step_minus_15">-15m</string>
     <string name="editor_time_step_plus_15">+15m</string>
     <string name="editor_trigger_radius">Trigger Radius</string>
