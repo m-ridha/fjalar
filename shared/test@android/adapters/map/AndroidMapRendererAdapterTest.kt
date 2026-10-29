@@ -6,6 +6,7 @@ import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.domain.service.HaversineCalculator
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.style.expressions.Expression
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,6 +16,30 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class AndroidMapRendererAdapterTest {
+    @Test
+    fun landmarkFilterRequiresNamedSupportedKindsAndSourceZoom() {
+        val expected = Expression.raw(
+            """["all",["has","name"],["in",["get","kind"],["literal",["hospital","school","university","college","station","railway_station","bus_station","government"]]],["<=",["coalesce",["get","min_zoom"],0],["zoom"]]]"""
+        )
+        assertEquals(expected.toString(), Expression.raw(AndroidMapRendererAdapter.LANDMARK_FILTER).toString())
+    }
+
+    @Test
+    fun liveFixAndPermissionLossNeverReplaceDestinationOrGeofence() {
+        val adapter = AndroidMapRendererAdapter()
+        val destination = GeoCoordinates(-33.86, 151.2)
+        adapter.placePin(destination)
+        adapter.showGeofence(destination, TriggerRadius(250))
+        adapter.showUserPosition(MapUserPosition(GeoCoordinates(-33.85, 151.21), 25.0))
+        adapter.showUserPosition(MapUserPosition(GeoCoordinates(-33.851, 151.211), 50.0))
+        assertEquals(destination, adapter.currentPin)
+        assertEquals(50.0, adapter.currentUserPosition?.accuracyMeters)
+        adapter.showUserPosition(null)
+        assertNull(adapter.currentUserPosition)
+        assertEquals(destination, adapter.currentPin)
+        assertEquals(destination to TriggerRadius(250), adapter.currentGeofence)
+    }
+
 
     @Test
     fun coordinateConversions_preservesPrecisionAndMapsCorrectly() {

@@ -45,7 +45,9 @@
     <!-- Ringing wake-up screen -->
     <string name="ringing_in_zone_badge">DALAM ZONA • %1$s dari titik tujuan</string>
     <string name="ringing_headline">Bangun! Mendekati %1$s</string>
-    <string name="ringing_snooze_action">Tunda (+2 mnt / 250m)</string>
+    <string name="ringing_snooze_action">Tunda (+2 mnt)</string>
+    <string name="ringing_accessible_prompt">Aktifkan untuk bersiap mematikan alarm</string>
+    <string name="ringing_accessible_confirm">Aktifkan lagi untuk mematikan alarm</string>
     <string name="ringing_slide_to_stop">Geser untuk Matikan Alarm</string>
 
     <!-- System notifications & background telemetry -->
@@ -58,8 +60,8 @@
     <string name="perm_location_body">Fjalar memeriksa jarak GPS di latar belakang hanya saat alarm aktif agar dapat membangunkan Anda meski layar terkunci. Lokasi Anda tidak pernah dikirim keluar dari ponsel ini.</string>
     <string name="perm_location_grant">Izinkan Akses</string>
     <string name="perm_location_dismiss">Abaikan</string>
-    <string name="perm_background_settings_body">Di setelan aplikasi, buka Izin &gt; Lokasi lalu pilih %s. Anda dapat melewati langkah ini dan tetap menggunakan peta, tetapi alarm terjadwal memerlukan lokasi latar belakang.</string>
-    <string name="perm_background_settings_action">Buka Setelan</string>
+    <string name="perm_background_settings_body">Pilih %s di setelan izin lokasi sistem. Anda dapat melewati langkah ini dan tetap menggunakan peta, tetapi alarm terjadwal memerlukan lokasi latar belakang.</string>
+    <string name="perm_background_settings_action">Lanjutkan</string>
 
     <!-- Search modal & station catalog -->
     <string name="search_placeholder">Cari stasiun, halte, atau tempat...</string>
@@ -101,4 +103,19 @@
     <string name="pinned_location">Titik Lokasi</string>
     <string name="location_not_set">📍 Belum ditentukan</string>
     <string name="operation_failed">Perubahan gagal disimpan. Silakan coba lagi.</string>
+    <string name="ringing_snooze_notifications_required">Aktifkan notifikasi dan suara di pengaturan sistem untuk menunda alarm, lalu coba lagi.</string>
+    <string name="ringing_operation_failed">Alarm gagal dihentikan. Silakan coba lagi.</string>
+    <string name="snooze_notification_body">Waktu tunda selesai. Buka aplikasi untuk menghentikan alarm.</string>
+    <string name="status_armed_scheduled_unknown">Aktif: %1$s • Lokasi tidak tersedia • %2$s–%3$s</string>
+    <string name="status_armed_one_time_unknown">Aktif: %1$s • Lokasi tidak tersedia</string>
+    <string name="distance_unavailable">Jarak tidak tersedia</string>
+    <string name="hud_compass_north">Arahkan peta ke utara</string>
+    <string name="nav_add_alarm">Tambah Alarm</string>
+    <string name="day_chip_monday">Sn</string>
+    <string name="day_chip_tuesday">Sl</string>
+    <string name="day_chip_wednesday">Rb</string>
+    <string name="day_chip_thursday">Km</string>
+    <string name="day_chip_friday">Jm</string>
+    <string name="day_chip_saturday">Sb</string>
+    <string name="day_chip_sunday">Mg</string>
 </resources>

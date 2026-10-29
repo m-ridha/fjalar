@@ -1,5 +1,6 @@
 package com.muhammadridha.fjalar.ui.components
 
+import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.PlaceCategory
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
@@ -36,7 +37,7 @@ class SearchPlacesSheetTest {
         ).roundToInt()
 
         // Distance between Manggarai and Sudirman is ~2.5 km
-        val formatted = formatDistance(distanceMeters)
+        val formatted = formatDistance(distanceMeters, AppLocale.EN)
         assertEquals("2.5 km", formatted)
     }
 }

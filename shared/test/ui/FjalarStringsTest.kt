@@ -10,6 +10,28 @@ import kotlin.test.assertTrue
 class FjalarStringsTest {
 
     @Test
+    fun destructiveActionUsesShortRecognizableLabels() {
+        assertEquals("Delete", FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_CONFIRM, AppLocale.EN))
+        assertEquals("Hapus", FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_CONFIRM, AppLocale.ID))
+    }
+
+    @Test
+    fun placeholderSignaturesMatchForEveryTranslation() {
+        val placeholder = Regex("%(?:[0-9]+\\$)?[sd]")
+        for (key in FjalarStringKey.entries) {
+            val en = placeholder.findAll(FjalarStrings.get(key, AppLocale.EN)).map { it.value }.toList()
+            val id = placeholder.findAll(FjalarStrings.get(key, AppLocale.ID)).map { it.value }.toList()
+            assertEquals(en, id, "Placeholder signature differs for $key")
+        }
+    }
+
+    @Test
+    fun snoozeCopyPromisesOnlyTwoMinutes() {
+        assertEquals("Snooze (+2 min)", FjalarStrings.get(FjalarStringKey.RINGING_SNOOZE_ACTION, AppLocale.EN))
+        assertEquals("Tunda (+2 mnt)", FjalarStrings.get(FjalarStringKey.RINGING_SNOOZE_ACTION, AppLocale.ID))
+    }
+
+    @Test
     fun argumentPlaceholderTextRemainsLiteral() {
         for (locale in AppLocale.entries) {
             val label = "Station %s %2\$s %d"
@@ -24,10 +46,10 @@ class FjalarStringsTest {
         for (locale in AppLocale.entries) {
             val instructions = FjalarStrings.get(FjalarStringKey.PERM_BACKGROUND_SETTINGS_BODY, locale, label)
             assertTrue(instructions.contains(label))
-            assertTrue(instructions.contains(if (locale == AppLocale.EN) "Permissions > Location" else "Izin > Lokasi"))
+            assertTrue(instructions.contains(if (locale == AppLocale.EN) "system location permission settings" else "setelan izin lokasi sistem"))
         }
-        assertEquals("Open Settings", FjalarStrings.get(FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION, AppLocale.EN))
-        assertEquals("Buka Setelan", FjalarStrings.get(FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION, AppLocale.ID))
+        assertEquals("Continue", FjalarStrings.get(FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION, AppLocale.EN))
+        assertEquals("Lanjutkan", FjalarStrings.get(FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION, AppLocale.ID))
     }
 
     @Test

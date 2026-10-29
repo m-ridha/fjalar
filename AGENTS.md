@@ -71,7 +71,7 @@ Follow the [Product and UI Design Specification](https://app.notion.com/p/4030ee
 3. **Bilingual Layout & Text Expansion (`en` & `id`):**
    - Every user-facing string must live in multiplatform `Res.string` catalogs (`en` and `id`), with OS-owned display names localized via native iOS `InfoPlist.strings` and Android manifest resource files. Display app names: *"Wake Me at"* (EN) and *"Bangunkan Saya di"* (ID).
    - Bahasa Indonesia strings are `15%–25%` longer (e.g. *Geser untuk Matikan Alarm*, *Alarm Tersimpan & Terjadwal*, *Lewati Hari Ini*). UI pills, cards, and bottom sheets must use adaptive auto-wrapping and flexible widths without text clipping at `320 dp–390 dp`.
-   - Day chips must display `M T W T F S S` in English and `Sn Sl Rb Km Jm Sb Mg` in Bahasa Indonesia to avoid ambiguous single-letter duplicates (*Senin, Selasa, Sabtu*).
+   - Day chips must display `Mo Tu We Th Fr Sa Su` in English and `Sn Sl Rb Km Jm Sb Mg` in Bahasa Indonesia to avoid ambiguous single-letter duplicates (*Senin, Selasa, Sabtu*).
 4. **Ergonomics & Tabular Numerals:**
    - Use tabular numbers (`tnum`) for all distance readouts (`420m`), telemetry speeds (`34 km/h`), and time windows (`07:00 – 09:30`).
 
@@ -85,8 +85,8 @@ Read and strictly preserve these invariant behaviors:
    - Location coordinates, saved places (home/office), and commute schedules stay strictly in on-device storage.
    - Zero remote tracking, zero analytics harvesting location coordinates, zero external server sync.
 2. **0% Runaway GPS Battery Drain:**
-   - Active GPS polling runs **only** when an alarm is actively armed or within its active scheduled time window.
-   - Outside of active commute windows or immediately after alarm dismissal, background location polling must stop completely.
+   - Background GPS polling runs only for active alarm monitoring. A visible foreground Map may independently request location even without an armed alarm; its map-only request must stop when the Map is hidden or the app backgrounds.
+   - Outside active alarm monitoring or immediately after alarm dismissal, background location polling must stop completely.
 3. **Sleepy-Eyes Dismissal Safety:**
    - When the alarm triggers, it must display an unmistakable full-screen lock-screen alert with the oversized frosted **`Slide to Stop Alarm`** track.
    - Accidental single taps, pocket touches, or quick bounces must never dismiss an active alarm.
@@ -97,7 +97,9 @@ Read and strictly preserve these invariant behaviors:
 6. **Graceful GPS Degradation & Accuracy Filter:**
    - Reject inaccurate GPS fixes where `horizontalAccuracy > radius * 0.8` from transitioning an alarm to `RINGING`, preventing false wakeups.
    - In tunnels and subways without satellite lock, accept fused network/cell coarse updates for degraded telemetry and user notification rather than failing silently; only fixes meeting the accuracy threshold may trigger the alarm.
-7. **iOS Background Execution Boundary:**
+7. **Snooze:**
+   - Snooze persists a two-minute deadline. On iOS, its local notification is user-facing; suspended state is reconciled on the next execution on a best-effort basis.
+8. **iOS Background Execution Boundary:**
    - On Android, `AlarmManager.setExactAndAllowWhileIdle()` triggers a broadcast receiver with a `WakeLock` to invoke `syncSchedules()`.
    - On iOS, local notifications scheduled via `UNUserNotificationCenter` are strictly user-facing alerts; they do not afford background code execution to transition an alarm from `SCHEDULED_IDLE` to `ARMED_MONITORING` while the app is suspended without user interaction.
    - Background refresh on iOS via `BGAppRefreshTask` requires the `fetch` background mode (`UIBackgroundModes`) and the task identifier in `BGTaskSchedulerPermittedIdentifiers` in the app's Info.plist. It is strictly best-effort: `earliestBeginDate` serves only as a lower bound. If background execution is delayed or does not execute, the alarm remains in `SCHEDULED_IDLE` until schedule synchronization runs (either when the delayed background task executes or when the user foregrounds the application).

@@ -1,7 +1,13 @@
 package com.muhammadridha.fjalar.ui.screens
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +57,7 @@ fun formatActiveCountBadge(activeCount: Int, locale: AppLocale = AppLocale.EN): 
     return FjalarStrings.get(FjalarStringKey.SHEET_ACTIVE_COUNT, locale, activeCount)
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AlarmsScreen(
     alarms: List<LocationAlarm>,
@@ -70,7 +77,8 @@ fun AlarmsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(colors.canvas),
+            .background(colors.canvas)
+            .then(WindowInsetsLayoutHelper.safeDrawingPaddingModifier()),
     ) {
         if (hasOperationFailure) {
             Text(
@@ -80,17 +88,17 @@ fun AlarmsScreen(
             )
         }
         // Safe-area Top Header
-        Row(
+        FlowRow(
             modifier = WindowInsetsLayoutHelper
                 .hudTopPaddingModifier(Modifier)
                 .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                modifier = Modifier.weight(1f).widthIn(min = 200.dp),
             ) {
                 Text(
                     text = FjalarStrings.get(FjalarStringKey.SHEET_SAVED_TITLE, locale),
@@ -116,6 +124,7 @@ fun AlarmsScreen(
             // "+ New" action button
             Row(
                 modifier = Modifier
+                    .heightIn(min = 48.dp)
                     .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                     .clickable(role = Role.Button, onClick = { onNavigateToConfigure(null) })
                     .padding(horizontal = 14.dp, vertical = 6.dp),
@@ -139,7 +148,8 @@ fun AlarmsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(horizontal = 24.dp),
+                    .padding(start = 24.dp, end = 24.dp, bottom = bottomDockClearance)
+                    .verticalScroll(rememberScrollState()),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(

@@ -9,6 +9,15 @@ import kotlin.test.assertFailsWith
 class IosBackgroundSchedulerAdapterTest {
 
     @Test
+    fun snoozeRequiresAuthorizedAlertsAndConfiguredSound() {
+        kotlin.test.assertFalse(snoozeDeliveryAvailable(false, true, true, true))
+        kotlin.test.assertFalse(snoozeDeliveryAvailable(true, false, true, true))
+        kotlin.test.assertFalse(snoozeDeliveryAvailable(true, true, false, true))
+        kotlin.test.assertTrue(snoozeDeliveryAvailable(true, true, false, false))
+        kotlin.test.assertTrue(snoozeDeliveryAvailable(true, true, true, true))
+    }
+
+    @Test
     fun resolveNotificationBody_indonesianPrefix_returnsIndonesianString() {
         val adapter = IosBackgroundSchedulerAdapter()
         assertEquals("Jendela alarm perjalanan aktif", adapter.resolveNotificationBody("id-ID"))

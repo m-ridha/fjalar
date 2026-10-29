@@ -27,6 +27,66 @@ class AlarmStateTransitionTest {
     private suspend fun state() = repository.getAlarm("manggarai")!!.state
 
     @Test
+    fun editingSnoozedAlarmsRetainsDeadlineForBothScheduleTypes() = runTest {
+        clock.now = jakarta(2026, 10, 26, 8)
+        for (schedule in listOf(AlarmSchedule.ONE_TIME, manggaraiAlarm().schedule)) {
+            val ringing = manggaraiAlarm().copy(schedule = schedule, state = AlarmState.RINGING)
+            service.saveAlarm(ringing).getOrThrow()
+            service.snoozeAlarm(ringing.id).getOrThrow()
+            val before = repository.getAlarm(ringing.id)!!
+            val draft = com.muhammadridha.fjalar.ui.screens.ConfigureAlarmDraft.fromAlarm(before)
+            val edited = draft.copy(label = "Renamed").toLocationAlarm(before)
+            assertEquals(before.snoozedUntil, edited.snoozedUntil)
+            // The service protects the deadline even when an older caller omits it.
+            service.saveAlarm(edited.copy(snoozedUntil = null)).getOrThrow()
+            val saved = repository.getAlarm(ringing.id)!!
+            assertEquals(AlarmState.SNOOZED, saved.state)
+            assertEquals(before.snoozedUntil, saved.snoozedUntil)
+            service.deleteAlarm(ringing.id).getOrThrow()
+        }
+    }
+
+    @Test
+    fun snoozeExpiresAtOriginalWindowEndAndNextWindowUsesOriginalRadius() = runTest {
+        clock.now = jakarta(2026, 10, 26, 9, 29)
+        service.saveAlarm(manggaraiAlarm().copy(state = AlarmState.RINGING)).getOrThrow()
+        service.snoozeAlarm("manggarai").getOrThrow()
+        assertEquals(jakarta(2026, 10, 26, 9, 30), scheduler.wakeups["manggarai"])
+        // Simulate a delayed OS callback, after the timer and window have both elapsed.
+        clock.now = jakarta(2026, 10, 26, 9, 31)
+        service.syncSchedules()
+        assertEquals(AlarmState.SCHEDULED_IDLE, state())
+        assertTrue(ringer.ringingIds.isEmpty())
+        clock.now = jakarta(2026, 10, 27, 7)
+        service.syncSchedules()
+        assertEquals(AlarmState.ARMED_MONITORING, state())
+        assertEquals(manggaraiAlarm().radius, repository.getAlarm("manggarai")!!.radius)
+    }
+
+    @Test
+    fun snoozeRestoresFromPersistenceAndDoesNotRingInLaterWindow() = runTest {
+        clock.now = jakarta(2026, 10, 26, 9, 29)
+        service.saveAlarm(manggaraiAlarm().copy(state = AlarmState.RINGING)).getOrThrow()
+        service.snoozeAlarm("manggarai").getOrThrow()
+        clock.now = jakarta(2026, 10, 27, 7)
+        val restarted = AlarmService(repository, tracker, scheduler, ringer, ScheduleEvaluator(JAKARTA), clock)
+        restarted.syncSchedules()
+        assertEquals(AlarmState.ARMED_MONITORING, state())
+        assertTrue(ringer.ringingIds.isEmpty())
+    }
+
+    @Test
+    fun skippingSnoozedAlarmCompletesCurrentWindow() = runTest {
+        clock.now = jakarta(2026, 10, 26, 8)
+        service.saveAlarm(manggaraiAlarm().copy(state = AlarmState.RINGING)).getOrThrow()
+        service.snoozeAlarm("manggarai").getOrThrow()
+        service.skipToday("manggarai").getOrThrow()
+        assertEquals(AlarmState.COMPLETED_FOR_WINDOW, state())
+        assertEquals(jakarta(2026, 10, 26, 9, 30), repository.getAlarm("manggarai")!!.suppressedUntil)
+        kotlin.test.assertNull(repository.getAlarm("manggarai")!!.snoozedUntil)
+    }
+
+    @Test
     fun weekdayCommuteFromIdleToCompleted() = runTest {
         service.saveAlarm(manggaraiAlarm()).getOrThrow()
         service.toggleAlarm("manggarai", enabled = true).getOrThrow()

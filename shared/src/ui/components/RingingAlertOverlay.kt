@@ -24,6 +24,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,7 +33,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,7 +53,15 @@ fun RingingAlertOverlay(
     onSnooze: (id: String) -> Unit,
     modifier: Modifier = Modifier,
     distanceMeters: Int? = null,
+    isOperationPending: Boolean = false,
+    hasOperationFailure: Boolean = false,
+    snoozeDeliveryUnavailable: Boolean = false,
+    operationFailureId: Long = 0L,
 ) {
+    val slideState = remember(alarm.id) { SlideToStopState() }
+    LaunchedEffect(operationFailureId, hasOperationFailure, isOperationPending) {
+        if (hasOperationFailure && !isOperationPending) slideState.resetAfterFailure()
+    }
     val colors = LiquidGlassTheme.colors
     val transition = rememberInfiniteTransition()
 
@@ -68,19 +77,12 @@ fun RingingAlertOverlay(
     val pulse2 = (rawProgress + 0.333f) % 1f
     val pulse3 = (rawProgress + 0.667f) % 1f
 
-    val distanceText = formatDistance(distanceMeters ?: alarm.radius.meters)
+    val distanceText = ringingDistanceText(distanceMeters, LiquidGlassTheme.locale)
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .glassSurface(level = GlassLevel.MODAL, shape = RoundedCornerShape(0.dp))
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        awaitPointerEvent().changes.forEach { it.consume() }
-                    }
-                }
-            },
+            .glassSurface(level = GlassLevel.MODAL, shape = RoundedCornerShape(0.dp)),
     ) {
         Column(
             modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier.fillMaxSize())
@@ -140,7 +142,7 @@ fun RingingAlertOverlay(
 
                 // In-Zone Distance Pill Badge
                 Text(
-                    text = fjalarString(FjalarStringKey.RINGING_IN_ZONE_BADGE, distanceText),
+                    text = distanceText,
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontFeatureSettings = "tnum",
@@ -166,11 +168,22 @@ fun RingingAlertOverlay(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                if (isOperationPending) {
+                    androidx.compose.material3.CircularProgressIndicator()
+                }
+                if (hasOperationFailure) {
+                    Text(
+                        text = fjalarString(if (snoozeDeliveryUnavailable) FjalarStringKey.RINGING_SNOOZE_NOTIFICATIONS_REQUIRED else FjalarStringKey.RINGING_OPERATION_FAILED),
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+
                 // Snooze Button
                 Box(
                     modifier = Modifier
                         .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                        .clickable(role = Role.Button) { onSnooze(alarm.id) }
+                        .clickable(enabled = !isOperationPending, role = Role.Button) { onSnooze(alarm.id) }
                         .padding(horizontal = 20.dp, vertical = 10.dp),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -188,6 +201,8 @@ fun RingingAlertOverlay(
             // Bottom "Slide to Stop Alarm" track (sleepy-eyes dismissal safety)
             SlideToStopTrack(
                 onStopAlarm = { onDismiss(alarm.id) },
+                state = slideState,
+                enabled = !isOperationPending,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),

@@ -26,6 +26,7 @@ import com.muhammadridha.fjalar.ui.navigation.isBottomBarVisible
 import com.muhammadridha.fjalar.ui.navigation.isMapRoute
 import com.muhammadridha.fjalar.ui.navigation.resolveActiveTab
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
@@ -182,6 +183,7 @@ class EndToEndNavigationIntegrationTest {
         assertFalse(isBottomBarVisible("com.muhammadridha.fjalar.ui.navigation.MapPickerRoute/{initialLat}/{initialLon}"))
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun draftCoordinationFlow_fromMap_toConfigure_toPicker_andSave() = runTest {
         val vmScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
@@ -222,7 +224,7 @@ class EndToEndNavigationIntegrationTest {
             // 4. User navigates to MapPickerScreen to refine position
             val pickerRoute = MapPickerRoute(
                 initialLat = initialDraft.coordinates!!.latitude,
-                initialLon = initialDraft.coordinates!!.longitude,
+                initialLon = initialDraft.coordinates.longitude,
             )
             assertEquals(-6.2088, pickerRoute.initialLat)
             assertEquals(106.8456, pickerRoute.initialLon)

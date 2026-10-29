@@ -3,6 +3,11 @@ package com.muhammadridha.fjalar.ui.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,7 +57,7 @@ fun LanguageDropdown(
     Box(modifier = modifier) {
         Box(
             modifier = Modifier
-                .height(44.dp)
+                .heightIn(min = 48.dp)
                 .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                 .clickable(
                     role = Role.Button,
@@ -106,6 +111,7 @@ fun LanguageDropdown(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FloatingHudBar(
     onSearchClick: () -> Unit,
@@ -116,6 +122,9 @@ fun FloatingHudBar(
     locale: AppLocale = LiquidGlassTheme.locale,
     themeMode: ThemeMode = LiquidGlassTheme.themeMode,
     onSelectLocale: ((AppLocale) -> Unit)? = null,
+    bearing: Double = 0.0,
+    onResetNorth: () -> Unit = {},
+    armedStatus: (@Composable () -> Unit)? = null,
 ) {
     val colors = LiquidGlassTheme.colors
     val isDark = colors.isDark
@@ -124,91 +133,85 @@ fun FloatingHudBar(
         if (isDark) FjalarStringKey.HUD_THEME_SWITCH_LIGHT else FjalarStringKey.HUD_THEME_SWITCH_DARK
     )
     val searchPlaceholder = fjalarString(FjalarStringKey.HUD_SEARCH_PLACEHOLDER)
-    val recenterDescription = fjalarString(FjalarStringKey.HUD_RECENTER_LOCATION)
     val handleSelectLocale = onSelectLocale ?: { loc ->
         if (loc != locale) onToggleLocale()
     }
 
-    Row(
-        modifier = WindowInsetsLayoutHelper.hudTopPaddingModifier(modifier).fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // Search Pill
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .height(44.dp)
-                .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                .clickable(
-                    role = Role.Button,
-                    onClick = onSearchClick,
+    Column(modifier = WindowInsetsLayoutHelper.hudTopPaddingModifier(modifier).fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+            FlowRow(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // Search Pill
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .widthIn(min = 160.dp)
+                        .heightIn(min = 48.dp)
+                        .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                        .clickable(
+                            role = Role.Button,
+                            onClick = onSearchClick,
+                        )
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "🔍",
+                        fontSize = 14.sp,
+                        color = colors.textSecondary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = searchPlaceholder,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                // Locale Dropdown (🌐 EN ▾ / 🌐 ID ▾)
+                LanguageDropdown(
+                    selectedLocale = locale,
+                    onSelectLocale = handleSelectLocale,
                 )
-                .padding(horizontal = 14.dp),
+
+                // Theme Toggle Button (☀️ / 🌙)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                        .clickable(
+                            role = Role.Button,
+                            onClick = onToggleTheme,
+                        )
+                        .semantics {
+                            contentDescription = themeContentDesc
+                            role = Role.Button
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (isDark) "🌙" else "☀️",
+                        fontSize = 18.sp,
+                    )
+                }
+            }
+            MapRecenterControl(onRecenter)
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "🔍",
-                fontSize = 14.sp,
-                color = colors.textSecondary,
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = searchPlaceholder,
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-
-        // Locale Dropdown (🌐 EN ▾ / 🌐 ID ▾)
-        LanguageDropdown(
-            selectedLocale = locale,
-            onSelectLocale = handleSelectLocale,
-        )
-
-        // Theme Toggle Button (☀️ / 🌙)
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                .clickable(
-                    role = Role.Button,
-                    onClick = onToggleTheme,
-                )
-                .semantics {
-                    contentDescription = themeContentDesc
-                    role = Role.Button
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = if (isDark) "🌙" else "☀️",
-                fontSize = 18.sp,
-            )
-        }
-
-        // Recenter GPS Button (◎)
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                .clickable(
-                    role = Role.Button,
-                    onClick = onRecenter,
-                )
-                .semantics {
-                    contentDescription = recenterDescription
-                    role = Role.Button
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "◎",
-                fontSize = 20.sp,
-                color = colors.primary,
-            )
+            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                armedStatus?.invoke()
+            }
+            MapCompassControl(bearing, onResetNorth)
         }
     }
 }

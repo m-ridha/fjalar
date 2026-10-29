@@ -29,12 +29,12 @@ Contributor and agent development guidelines, architecture contracts, UI design 
 
 ## Features
 
-- **Instant One-Off & Recurring Scheduled Alarms:** Set a quick one-off alarm for an unfamiliar stop, or schedule recurring commute windows (e.g., *Office, Mon–Fri, 07:00–09:30*). Background GPS tracking runs *only* during active windows.
+- **Instant One-Off & Recurring Scheduled Alarms:** Set a quick one-off alarm for an unfamiliar stop, or schedule recurring commute windows (e.g., *Office, Mon–Fri, 07:00–09:30*). Background GPS tracking runs only for active alarm monitoring; the visible foreground Map can independently request location.
 - **Curated Transit & Station Search:** Instant, privacy-preserving station autocomplete across Greater Jakarta (113 stations across KRL Commuter Line, MRT Jakarta, LRT, and airport terminals) with zero-telemetry online geocoding fallback (OSM Photon on Android, Apple CLGeocoder on iOS).
 - **Hexagonal Architecture (Ports & Adapters):** Core domain logic is 100% pure Kotlin with zero platform SDK imports. Map providers, location trackers, audio ringers, place search, and persistence can be swapped without touching domain code.
 - **iPhone-Inspired Liquid Glass UI:** Layered translucent frosted surfaces (`blur(20px)` to `blur(40px)` with specular highlights) floating over full-bleed maps, with instant **Light (`Daylight Glass`)** and **Dark (`Nocturnal Obsidian Glass`)** mode switching.
 - **Accessibility & Reduce Transparency Fallback:** Seamless fallback to 92% opaque tinted surfaces (`#F4F3F8` Light / `#191B22` Dark) with 1.5 dp high-contrast rim borders when system **Reduce Transparency** is enabled, ensuring WCAG AA contrast compliance (> 15:1).
-- **Full Bilingual Localization (`English` & `Bahasa Indonesia`):** 100% of UI copy, display app names (*"Wake Me at"* / *"Bangunkan Saya di"*), day chips (`M–S` vs. `Sn–Mg`), permission disclosures, and OS notifications are translated with instant in-app switching (`🌐 EN | ID`).
+- **Full Bilingual Localization (`English` & `Bahasa Indonesia`):** 100% of UI copy, display app names (*"Wake Me at"* / *"Bangunkan Saya di"*), day chips (`Mo–Su` vs. `Sn–Mg`), permission disclosures, and OS notifications are translated with instant in-app switching (`🌐 EN | ID`).
 - **Sleepy-Eyes Dismissal Safety:** Rings loudly over locked screens with high-contrast pulsing alerts and a tactile **Slide to Stop Alarm** (`Geser untuk Matikan Alarm`) track—preventing accidental pocket touches or sleepy dismissals.
 - **Automated App Icon Pipeline:** Single reproducible command (`python3 scripts/generate_app_icons.py`) exports all Android adaptive densities (strictly preserving the 66 dp safe circle), Material You monochrome layer, Google Play 512×512 master, and iOS 18 Asset Catalog (`AppIcon.appiconset` with Light, Dark, and Tinted appearances).
 - **100% Local & Privacy-First:** No accounts, no sign-in, and no telemetry. Your GPS coordinates and commute habits never leave your device. Place search sends only the typed query to the public geocoder when fewer than 5 offline curated stations match.
@@ -135,11 +135,12 @@ fjalar/
 All contributors and automated agents must preserve these core invariants:
 
 1. **100% On-Device Privacy:** Zero coordinates or commute schedules sent off-device. No telemetry SDKs harvesting location data.
-2. **0% Runaway GPS Battery Drain:** Active GPS monitoring runs **only** when an alarm is in `ARMED_MONITORING`. Tracking stops immediately upon arrival, while ringing, after dismissal, or outside the scheduled time window.
+2. **0% Runaway GPS Battery Drain:** Background GPS monitoring runs only for active alarm monitoring and stops when that monitoring ends. The visible foreground Map may independently request location without an armed alarm; its map-only request stops when the Map is hidden or the app backgrounds.
 3. **Sleepy-Eyes Dismissal Safety:** Ringing displays a full-screen alert with the oversized frosted **Slide to Stop** handle. Accidental taps or pocket bounces must never dismiss an alarm.
 4. **Zero Ads on Ringing Screen:** Advertisements must never appear before, during, or obstructing the dismissal of an active wake-up alarm. (v1 is 100% ad-free).
 5. **Once-Per-Window Completion Guard:** Dismissed alarms mark their window completed (`COMPLETED_FOR_WINDOW`), preventing false re-triggering while the commuter remains at their destination.
 6. **Accuracy Filter:** Rejects coarse GPS fixes where `horizontalAccuracy > radius * 0.8` to prevent false jumps from triggering alarms.
+7. **Snooze and iOS execution:** Snooze persists a two-minute deadline. On iOS, its local notification is user-facing and suspended state reconciliation happens on the next execution on a best-effort basis. Scheduled background refresh is also best-effort.
 
 ---
 

@@ -21,6 +21,8 @@ import android.os.SystemClock
 import com.muhammadridha.fjalar.adapters.location.isFreshLocationFix
 import androidx.core.content.ContextCompat
 import com.muhammadridha.fjalar.adapters.location.AndroidFusedLocationAdapter
+import com.muhammadridha.fjalar.domain.model.LocationAvailability
+import kotlin.time.Instant
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +34,8 @@ import kotlinx.coroutines.launch
  * Android Foreground Service managing real-time GPS location updates for armed commute alarms.
  *
  * Implements 0% Runaway GPS Battery Drain (Safety Invariant 2) and 100% On-Device Privacy (Safety Invariant 1):
- * - Service runs and polls location ONLY while alarms are actively armed in ARMED_MONITORING.
+ * - Background polling is limited to armed alarms; a foreground map may own the same listener.
+ * - Map-only requests are non-sticky and never promote this service to a foreground service.
  * - Stops location updates and terminates immediately upon receiving [ACTION_STOP_TRACKING].
  * - Fixes are evaluated solely in-memory on-device and never transmitted across network boundaries.
  */
@@ -77,12 +80,12 @@ class FjalarLocationService : Service() {
         override fun onProviderEnabled(provider: String) {
             synchronized(trackingLock) {
                 if (isTracking && (provider == LocationManager.GPS_PROVIDER || provider == LocationManager.NETWORK_PROVIDER)) {
-                    registerProvider(provider, currentIntervalMillis)
+                    reportProviderAvailability()
                 }
             }
         }
 
-        override fun onProviderDisabled(provider: String) {}
+        override fun onProviderDisabled(provider: String) { reportProviderAvailability() }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -122,8 +125,23 @@ class FjalarLocationService : Service() {
                     DEFAULT_INTERVAL_MILLIS,
                 )
 
-                val started = startForegroundTracking(interval)
-                return if (started) START_STICKY else START_NOT_STICKY
+                val alarmOwned = intent.getBooleanExtra(AndroidFusedLocationAdapter.EXTRA_ALARM_OWNED, true)
+                val started = if (alarmOwned) {
+                    startForegroundTracking(interval)
+                } else {
+                    // Map-only work is a regular service, bounded by the foreground UI owner.
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    if (hasLocationPermission()) {
+                        isServiceRunning = true
+                        startLocationUpdates(interval)
+                        true
+                    } else {
+                        reportAvailability(LocationAvailability.PERMISSION_DENIED)
+                        stopTrackingAndSelf(startId)
+                        false
+                    }
+                }
+                return if (started && alarmOwned) START_STICKY else START_NOT_STICKY
             }
             else -> {
                 return START_NOT_STICKY
@@ -145,6 +163,7 @@ class FjalarLocationService : Service() {
 
     private fun startForegroundTracking(intervalMillis: Long): Boolean {
         if (!hasLocationPermission()) {
+            reportAvailability(LocationAvailability.PERMISSION_DENIED)
             stopTrackingAndSelf()
             return false
         }
@@ -184,6 +203,7 @@ class FjalarLocationService : Service() {
 
             registerProvider(LocationManager.GPS_PROVIDER, intervalMillis)
             registerProvider(LocationManager.NETWORK_PROVIDER, intervalMillis)
+            reportProviderAvailability()
         }
     }
 
@@ -201,12 +221,17 @@ class FjalarLocationService : Service() {
                 manager.requestLocationUpdates(
                     provider,
                     intervalMillis,
+                    // Preserve the 10-second alarm cadence and zero displacement filter: a
+                    // stationary commuter still needs fresh accuracy updates near a destination.
                     0f,
                     locationListener,
                     looper,
                 )
             } catch (_: SecurityException) {
-            } catch (_: Exception) {}
+                reportAvailability(LocationAvailability.PERMISSION_DENIED)
+            } catch (_: Exception) {
+                reportProviderAvailability()
+            }
         }
     }
 
@@ -242,12 +267,14 @@ class FjalarLocationService : Service() {
 
     private fun handleFix(location: Location) {
         if (!isTracking) return
-        val isFresh = isFreshLocationFix(
-            location.elapsedRealtimeNanos / 1_000_000L,
-            SystemClock.elapsedRealtime(),
-        )
+        val nowElapsedMillis = SystemClock.elapsedRealtime()
+        val observationElapsedMillis = location.elapsedRealtimeNanos / 1_000_000L
+        val isFresh = isFreshLocationFix(observationElapsedMillis, nowElapsedMillis)
         if (!isFresh) return
 
+        if (!location.hasAccuracy() || !location.accuracy.isFinite() || location.accuracy < 0f) return
+        if (!location.latitude.isFinite() || location.latitude !in -90.0..90.0 ||
+            !location.longitude.isFinite() || location.longitude !in -180.0..180.0) return
         val coordinates = GeoCoordinates(
             latitude = location.latitude,
             longitude = location.longitude,
@@ -256,17 +283,35 @@ class FjalarLocationService : Service() {
 
         locationUpdateHook?.invoke(coordinates, accuracy)
 
-        serviceScope.launch {
-            try {
-                val container = resolveContainer()
-                val tracker = container?.locationTracker as? AndroidFusedLocationAdapter
-                if (tracker != null) {
-                    tracker.dispatchLocationUpdate(coordinates, accuracy)
-                } else {
-                    container?.alarmService?.handleLocationUpdate(coordinates, accuracy)
-                }
-            } catch (_: Exception) {}
+        val container = resolveContainer()
+        val tracker = container?.locationTracker as? AndroidFusedLocationAdapter
+        if (tracker != null) {
+            tracker.submitLocationUpdate(
+                coordinates,
+                accuracy,
+                Instant.fromEpochMilliseconds(location.time),
+                observationAgeMillis = nowElapsedMillis - observationElapsedMillis,
+            )
+        } else {
+            serviceScope.launch {
+                container?.alarmService?.handleLocationUpdate(coordinates, accuracy)
+            }
         }
+    }
+
+    private fun reportAvailability(value: LocationAvailability) {
+        (resolveContainer()?.locationTracker as? AndroidFusedLocationAdapter)?.reportAvailability(value)
+    }
+
+    private fun reportProviderAvailability() {
+        if (!hasLocationPermission()) {
+            reportAvailability(LocationAvailability.PERMISSION_DENIED)
+            return
+        }
+        val enabled = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER).any {
+            try { locationManager?.isProviderEnabled(it) == true } catch (_: Exception) { false }
+        }
+        if (!enabled) reportAvailability(LocationAvailability.PROVIDER_UNAVAILABLE)
     }
 
     private fun resolveContainer(): FjalarAppContainer? {

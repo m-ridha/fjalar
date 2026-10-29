@@ -48,6 +48,9 @@ object LocationAlarmJsonCodec {
         if (alarm.suppressedUntil != null) {
             append(",\"suppressedUntil\":").append(escapeJsonString(alarm.suppressedUntil.toString()))
         }
+        if (alarm.snoozedUntil != null) {
+            append(",\"snoozedUntil\":").append(escapeJsonString(alarm.snoozedUntil.toString()))
+        }
         append("}")
     }
 
@@ -143,6 +146,7 @@ object LocationAlarmJsonCodec {
                 state = state,
                 addressLabel = addressLabel,
                 suppressedUntil = suppressedUntil,
+                snoozedUntil = obj.getString("snoozedUntil")?.let { Instant.parse(it) },
             )
         }.getOrNull()
     }

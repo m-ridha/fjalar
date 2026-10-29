@@ -6,14 +6,17 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioFocusRequest
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.provider.Settings
+import android.util.Log
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 
@@ -26,6 +29,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
  */
 class AndroidSystemAlarmRingerAdapter(
     private val context: Context? = null,
+    private val reportFailure: (String, Exception) -> Unit = { message, error -> Log.e("FjalarAlarm", message, error) },
     private val gateway: RingerPlatformGateway = DefaultAndroidRingerPlatformGateway(
         context = requireNotNull(context) { "Context is required when gateway is not provided" },
     ),
@@ -48,7 +52,11 @@ class AndroidSystemAlarmRingerAdapter(
 
         // 1. Audio stream playback on USAGE_ALARM
         if (alarm.soundConfig.soundEnabled) {
-            gateway.startAudio(volume = alarm.soundConfig.volume)
+            try {
+                gateway.startAudio(volume = alarm.soundConfig.volume)
+            } catch (error: Exception) {
+                reportFailure("Alarm audio failed; continuing haptics and alert", error)
+            }
         }
 
         // 2. Repeating tactile haptics waveform
@@ -133,6 +141,10 @@ open class DefaultAndroidRingerPlatformGateway(
     private val activityClass: Class<*>? = AndroidSystemAlarmRingerAdapter.resolveDefaultActivity(),
 ) : RingerPlatformGateway {
 
+    private companion object {
+        const val TAG = "FjalarAlarm"
+    }
+
     private val notificationManager: NotificationManager? by lazy {
         context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
     }
@@ -148,8 +160,60 @@ open class DefaultAndroidRingerPlatformGateway(
         }
     }
 
-    private var mediaPlayer: MediaPlayer? = null
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private val attributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_ALARM)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        .build()
     private val mediaLock = Any()
+    private var focusRequest: AudioFocusRequest? = null
+    private var hasFocus = false
+    private var focusListener: AudioManager.OnAudioFocusChangeListener? = null
+    private val focusOwnership = AlarmAudioFocusOwnership(mediaLock)
+
+    private fun handleFocusChange(change: Int) {
+        when (change) {
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                Log.w(TAG, "Alarm audio focus lost; stopping playback")
+                stopAudio()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> playback.setPaused(true)
+            AudioManager.AUDIOFOCUS_GAIN -> playback.setPaused(false)
+        }
+    }
+    private val playback = AlarmAudioPlayback(
+        createPlayer = {
+            val nativePlayer = MediaPlayer()
+            object : AlarmAudioPlayer {
+                override fun start(source: String, volume: Float, initiallyPaused: Boolean, onError: () -> Unit) {
+                    nativePlayer.setAudioAttributes(attributes)
+                    nativePlayer.setOnErrorListener { _, what, extra ->
+                        Log.e(TAG, "Alarm MediaPlayer error what=$what extra=$extra")
+                        onError()
+                        true
+                    }
+                    nativePlayer.setDataSource(context, Uri.parse(source))
+                    nativePlayer.isLooping = true
+                    val level = volume.coerceIn(0f, 1f)
+                    nativePlayer.setVolume(level, level)
+                    nativePlayer.prepare()
+                    if (!initiallyPaused) nativePlayer.start()
+                }
+
+                override fun setPaused(paused: Boolean) {
+                    if (paused) nativePlayer.pause() else nativePlayer.start()
+                }
+
+                override fun release() {
+                    nativePlayer.release()
+                }
+            }
+        },
+        reportFailure = { message, error -> Log.e(TAG, message, error) },
+        onExhausted = { abandonFocus() },
+        lock = mediaLock,
+    )
 
     init {
         createNotificationChannelIfNeeded()
@@ -157,54 +221,79 @@ open class DefaultAndroidRingerPlatformGateway(
 
     override fun startAudio(volume: Float) {
         synchronized(mediaLock) {
-            stopAudioInternal()
+            stopAudio()
             try {
-                val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                    ?: Settings.System.DEFAULT_ALARM_ALERT_URI
-
-                val attributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
-
-                val player = MediaPlayer().apply {
-                    setAudioAttributes(attributes)
-                    setDataSource(context, alarmUri)
-                    isLooping = true
-                    val clampedVolume = volume.coerceIn(0f, 1f)
-                    setVolume(clampedVolume, clampedVolume)
-                    prepare()
-                    start()
+                val sources = alarmSources()
+                val callback = focusOwnership.beginRequest(::handleFocusChange)
+                val listener = AudioManager.OnAudioFocusChangeListener { callback(it) }
+                focusListener = listener
+                val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                        .setAudioAttributes(attributes)
+                        .setOnAudioFocusChangeListener(listener)
+                        .build()
+                    focusRequest = request
+                    audioManager.requestAudioFocus(request)
+                } else {
+                    @Suppress("DEPRECATION")
+                    audioManager.requestAudioFocus(listener, AudioManager.STREAM_ALARM, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                 }
-                mediaPlayer = player
-            } catch (_: Exception) {
-                // Defensive degradation: ensure vibration and notifications still trigger
+                hasFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+                if (!hasFocus) {
+                    Log.w(TAG, "Alarm audio focus denied; haptics and alert remain available")
+                    abandonFocus()
+                    return
+                }
+                playback.start(sources, volume)
+            } catch (error: Exception) {
+                Log.e(TAG, "Initializing alarm playback failed", error)
+                stopAudio()
             }
         }
     }
 
+    private fun alarmSources(): List<String> {
+        val primary = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        // Use a real installed alarm as fallback: symbolic default URIs may resolve to a missing file.
+        val manager = RingtoneManager(context)
+        manager.setType(RingtoneManager.TYPE_ALARM)
+        val fallback = try {
+            manager.cursor.use { cursor ->
+                (0 until cursor.count).firstNotNullOfOrNull { index ->
+                    manager.getRingtoneUri(index)?.takeIf { it != primary }
+                }
+            }
+        } catch (error: Exception) {
+            Log.e(TAG, "Resolving fallback alarm tone failed", error)
+            null
+        }
+        return listOfNotNull(primary, fallback).map { it.toString() }
+    }
+
     override fun stopAudio() {
         synchronized(mediaLock) {
-            stopAudioInternal()
+            playback.stop()
+            abandonFocus()
         }
     }
 
-    private fun stopAudioInternal() {
-        mediaPlayer?.let { player ->
-            try {
-                if (player.isPlaying) {
-                    player.stop()
-                }
-            } catch (_: Exception) {}
-            try {
-                player.reset()
-            } catch (_: Exception) {}
-            try {
-                player.release()
-            } catch (_: Exception) {}
+    private fun abandonFocus() {
+        focusOwnership.invalidate()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                focusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+            } else if (hasFocus) {
+                @Suppress("DEPRECATION")
+                focusListener?.let { audioManager.abandonAudioFocus(it) }
+            }
+        } catch (error: Exception) {
+            Log.e(TAG, "Abandoning alarm audio focus failed", error)
+        } finally {
+            focusListener = null
+            focusRequest = null
+            hasFocus = false
         }
-        mediaPlayer = null
     }
 
     override fun startVibration(pattern: LongArray, repeatIndex: Int) {
@@ -219,15 +308,17 @@ open class DefaultAndroidRingerPlatformGateway(
                 @Suppress("DEPRECATION")
                 vib.vibrate(pattern, repeatIndex)
             }
-        } catch (_: Exception) {
-            // Defensive degradation
+        } catch (error: Exception) {
+            Log.e(TAG, "Alarm platform operation failed", error)
         }
     }
 
     override fun stopVibration() {
         try {
             vibrator?.cancel()
-        } catch (_: Exception) {}
+        } catch (error: Exception) {
+            Log.e(TAG, "Alarm platform cleanup failed", error)
+        }
     }
 
     override fun postAlarmNotification(
@@ -298,15 +389,17 @@ open class DefaultAndroidRingerPlatformGateway(
 
             val notification = builder.build()
             manager.notify(notificationId, notification)
-        } catch (_: Exception) {
-            // Defensive degradation
+        } catch (error: Exception) {
+            Log.e(TAG, "Alarm platform operation failed", error)
         }
     }
 
     override fun cancelAlarmNotification(notificationId: Int) {
         try {
             notificationManager?.cancel(notificationId)
-        } catch (_: Exception) {}
+        } catch (error: Exception) {
+            Log.e(TAG, "Alarm platform cleanup failed", error)
+        }
     }
 
     private fun createNotificationChannelIfNeeded() {
@@ -341,7 +434,9 @@ open class DefaultAndroidRingerPlatformGateway(
                     }
                     manager.createNotificationChannel(channel)
                 }
-            } catch (_: Exception) {}
+            } catch (error: Exception) {
+                Log.e(TAG, "Creating alarm notification channel failed", error)
+            }
         }
     }
 }

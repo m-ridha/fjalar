@@ -14,12 +14,33 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalForeignApi::class)
 class IosMapKitDelegateTest {
     @Test
+    fun compassReceivesTheLiveNativeHeading() {
+        val headings = mutableListOf<Double>()
+        val delegate = FjalarMapKitDelegate(false, null, null)
+        delegate.onBearingChanged = { headings.add(it) }
+        val map = MKMapView(frame = CGRectMake(0.0, 0.0, 390.0, 844.0))
+        val adapter = IosMapKitAdapter()
+        adapter.attachMap(map)
+        adapter.setViewport(GeoCoordinates(51.5, -0.1), 15.0)
+        val camera = map.camera
+        camera.heading = 120.0
+        map.setCamera(camera, animated = false)
+        delegate.mapViewDidChangeVisibleRegion(map)
+        assertEquals(120.0, headings.last(), 0.001)
+        adapter.detachMap()
+    }
+
+    @Test
     fun visibleRegionChangesReportEachCenterWithoutWaitingForMovementToEnd() {
         val reportedCenters = mutableListOf<GeoCoordinates>()
+        val userGestures = mutableListOf<Boolean>()
         val delegate = FjalarMapKitDelegate(
             isDarkTheme = false,
             onPinDrag = null,
-            onCameraCenterChanged = { reportedCenters.add(it) },
+            onCameraCenterChanged = { coordinates, isUserGesture ->
+                reportedCenters.add(coordinates)
+                userGestures.add(isUserGesture)
+            },
         )
         assertTrue(
             delegate.respondsToSelector(sel_registerName("mapViewDidChangeVisibleRegion:")),
@@ -39,5 +60,6 @@ class IosMapKitDelegateTest {
             assertEquals(center.longitude, reportedCenters.last().longitude, 0.000001)
         }
         assertEquals(centers.size, reportedCenters.size)
+        assertTrue(userGestures.none { it }, "Programmatic camera initialization cannot select a destination")
     }
 }

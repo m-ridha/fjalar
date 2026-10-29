@@ -11,6 +11,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
+import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -79,6 +80,7 @@ class LocationRecenterTest {
     private fun TestScope.createTestViewModel(
         initialAlarms: List<LocationAlarm> = emptyList(),
         mapRendererPort: MapRendererPort? = null,
+        locationTrackerPort: LocationTrackerPort? = null,
     ): Triple<FjalarViewModel, FakeMapRendererPort?, CoroutineScope> {
         val testDispatcher = UnconfinedTestDispatcher(testScheduler)
         val vmScope = CoroutineScope(testDispatcher + Job())
@@ -91,6 +93,7 @@ class LocationRecenterTest {
             skipTodayPort = FakeSkipTodayPort(),
             preferencesPort = PersistentPreferencesAdapter(InMemoryKeyValueStorage()),
             mapRendererPort = mapRendererPort,
+            locationTrackerPort = locationTrackerPort,
             coroutineScope = vmScope,
         )
         return Triple(viewModel, fakeMapRenderer, vmScope)
@@ -98,7 +101,8 @@ class LocationRecenterTest {
 
     @Test
     fun recenterRequestsNewFixAndCentersOnDelayedResult() = runTest {
-        val (viewModel, _, vmScope) = createTestViewModel()
+        val tracker = UiLocationTracker()
+        val (viewModel, _, vmScope) = createTestViewModel(locationTrackerPort = tracker)
         try {
             var requests = 0
             viewModel.requestCurrentLocation = { requests++ }
@@ -106,11 +110,11 @@ class LocationRecenterTest {
             assertEquals(1, requests)
             assertNull(viewModel.uiState.value.userLocation)
             val first = GeoCoordinates(51.5, -0.12)
-            viewModel.onCurrentLocationReceived(first)
+            tracker.emit(first)
             assertEquals(first, viewModel.uiState.value.mapViewportCenter)
             viewModel.onRecenterMap()
             val moved = GeoCoordinates(51.6, -0.2)
-            viewModel.onCurrentLocationReceived(moved)
+            tracker.emit(moved)
             assertEquals(2, requests)
             assertEquals(moved, viewModel.uiState.value.userLocation)
             assertEquals(moved, viewModel.uiState.value.mapViewportCenter)
@@ -135,14 +139,15 @@ class LocationRecenterTest {
 
     @Test
     fun onUserLocationChanged_updatesUserLocationAndInitialMapViewport() = runTest {
+        val tracker = UiLocationTracker()
         val fakeRenderer = FakeMapRendererPort()
-        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeRenderer)
+        val (viewModel, _, vmScope) = createTestViewModel(locationTrackerPort = tracker, mapRendererPort = fakeRenderer)
         try {
             assertNull(viewModel.uiState.value.userLocation)
             assertNull(viewModel.uiState.value.mapViewportCenter)
 
             val initialLocation = GeoCoordinates(-6.1754, 106.8272)
-            viewModel.onUserLocationChanged(initialLocation)
+            tracker.emit(initialLocation)
 
             assertEquals(initialLocation, viewModel.uiState.value.userLocation)
             assertEquals(initialLocation, viewModel.uiState.value.mapViewportCenter)
@@ -152,7 +157,7 @@ class LocationRecenterTest {
             val userMovedViewport = GeoCoordinates(-6.2000, 106.8000)
             viewModel.onRecenterMap() // or user pans; let's explicitly change center via onRecenter
             val secondLocation = GeoCoordinates(-6.1800, 106.8300)
-            viewModel.onUserLocationChanged(secondLocation)
+            tracker.emit(secondLocation)
 
             assertEquals(secondLocation, viewModel.uiState.value.userLocation)
         } finally {
@@ -162,11 +167,12 @@ class LocationRecenterTest {
 
     @Test
     fun onRecenterMap_centersOnUserLocationWhenAvailable() = runTest {
+        val tracker = UiLocationTracker()
         val fakeRenderer = FakeMapRendererPort()
-        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeRenderer)
+        val (viewModel, _, vmScope) = createTestViewModel(locationTrackerPort = tracker, mapRendererPort = fakeRenderer)
         try {
             val userLocation = GeoCoordinates(-6.1754, 106.8272)
-            viewModel.onUserLocationChanged(userLocation)
+            tracker.emit(userLocation)
 
             viewModel.onRecenterMap()
 
@@ -180,22 +186,23 @@ class LocationRecenterTest {
 
     @Test
     fun onRecenterMap_fallsBackInPriorityOrder() = runTest {
+        val tracker = UiLocationTracker()
         val fakeRenderer = FakeMapRendererPort()
         val savedAlarm = manggaraiAlarm()
         val (viewModel, _, vmScope) = createTestViewModel(
+            locationTrackerPort = tracker,
             initialAlarms = listOf(savedAlarm),
             mapRendererPort = fakeRenderer,
         )
         try {
-            // Priority 4 fallback: userLocation == null, selectedCoordinates == null, no alarms
-            // But here we have an alarm, so Priority 3 applies:
+            // An unselected saved alarm does not provide a recenter destination.
             assertNull(viewModel.uiState.value.userLocation)
             assertNull(viewModel.uiState.value.selectedCoordinates)
 
             viewModel.onRecenterMap()
-            assertEquals(savedAlarm.coordinates, viewModel.uiState.value.mapViewportCenter)
-            assertEquals(15.0, viewModel.uiState.value.mapViewportZoom)
-            assertEquals(savedAlarm.coordinates to 15.0, fakeRenderer.lastViewport)
+            assertEquals(GeoCoordinates(0.0, 0.0), viewModel.uiState.value.mapViewportCenter)
+            assertEquals(2.0, viewModel.uiState.value.mapViewportZoom)
+            assertEquals(GeoCoordinates(0.0, 0.0) to 2.0, fakeRenderer.lastViewport)
 
             // Priority 2: selectedCoordinates overrides alarms
             val selectedCoords = GeoCoordinates(-6.2024, 106.8232)
@@ -206,7 +213,7 @@ class LocationRecenterTest {
 
             // Priority 1: userLocation overrides selectedCoordinates and alarms
             val liveGpsCoords = GeoCoordinates(-6.1754, 106.8272)
-            viewModel.onUserLocationChanged(liveGpsCoords)
+            tracker.emit(liveGpsCoords)
             viewModel.onRecenterMap()
             assertEquals(liveGpsCoords, viewModel.uiState.value.mapViewportCenter)
             assertEquals(liveGpsCoords to 15.0, fakeRenderer.lastViewport)
@@ -238,12 +245,13 @@ class LocationRecenterTest {
     }
     @Test
     fun firstLocationRequestsNativeCameraMoveButLaterFixesPreserveUserPanning() = runTest {
-        val (vm, _, scope) = createTestViewModel()
+        val tracker = UiLocationTracker()
+        val (vm, _, scope) = createTestViewModel(locationTrackerPort = tracker)
         try {
-            vm.onUserLocationChanged(GeoCoordinates(51.5, -0.1))
+            tracker.emit(GeoCoordinates(51.5, -0.1))
             assertEquals(1L, vm.uiState.value.viewportRequestId)
             assertEquals(GeoCoordinates(51.5, -0.1), vm.uiState.value.mapViewportCenter)
-            vm.onUserLocationChanged(GeoCoordinates(51.6, -0.2))
+            tracker.emit(GeoCoordinates(51.6, -0.2))
             assertEquals(1L, vm.uiState.value.viewportRequestId)
             assertEquals(GeoCoordinates(51.5, -0.1), vm.uiState.value.mapViewportCenter)
         } finally { scope.cancel() }

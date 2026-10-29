@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,6 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -64,7 +68,9 @@ fun FrostedBottomNavigationBar(
     onNavigateToAlarms: () -> Unit,
     onAddAlarmClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onDockHeightChanged: (Dp) -> Unit = {},
 ) {
+    val density = LocalDensity.current
     val colors = LiquidGlassTheme.colors
     val activeTab = resolveActiveTab(currentRoute)
 
@@ -76,6 +82,11 @@ fun FrostedBottomNavigationBar(
         modifier = modifier
             .fillMaxWidth()
             .then(WindowInsetsLayoutHelper.navigationBottomPaddingModifier())
+            // Measure only the dock and its margins inside the safe rectangle.
+            // Screens already consume system/fold insets and must not reserve them twice.
+            .onSizeChanged { size ->
+                onDockHeightChanged(with(density) { size.height.toDp() })
+            }
             .padding(horizontal = 24.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -83,7 +94,7 @@ fun FrostedBottomNavigationBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .heightIn(min = 64.dp)
                 .glassSurface(
                     level = GlassLevel.SHEET,
                     shape = RoundedCornerShape(24.dp),
@@ -158,6 +169,7 @@ private fun NavTabItem(
 
     Column(
         modifier = modifier
+            .heightIn(min = 48.dp)
             .clickable(
                 role = Role.Tab,
                 interactionSource = remember { MutableInteractionSource() },
@@ -183,7 +195,6 @@ private fun NavTabItem(
             color = accentColor,
             fontSize = 12.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            maxLines = 1,
         )
     }
 }

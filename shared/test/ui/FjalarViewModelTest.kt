@@ -18,6 +18,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
+import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import kotlinx.coroutines.CoroutineScope
@@ -151,7 +152,10 @@ class FjalarViewModelTest {
         deleteAlarmPort: DeleteAlarmPort? = null,
         syncSchedulesPort: SyncSchedulesPort? = null,
         mapRendererPort: MapRendererPort? = null,
+        locationTrackerPort: LocationTrackerPort? = null,
         searchPlacesPort: SearchPlacesPort? = null,
+        snoozePort: com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort? = null,
+        clock: kotlin.time.Clock = kotlin.time.Clock.System,
         storage: InMemoryKeyValueStorage = InMemoryKeyValueStorage(),
     ): Triple<FjalarViewModel, PersistentPreferencesAdapter, CoroutineScope> {
         val testDispatcher = UnconfinedTestDispatcher(testScheduler)
@@ -166,11 +170,134 @@ class FjalarViewModelTest {
             preferencesPort = preferencesPort,
             syncSchedulesPort = syncSchedulesPort,
             mapRendererPort = mapRendererPort,
+            locationTrackerPort = locationTrackerPort,
             searchPlacesPort = searchPlacesPort,
             deleteAlarmPort = deleteAlarmPort,
             coroutineScope = vmScope,
+            snoozeAlarmPort = snoozePort,
+            clock = clock,
         )
         return Triple(viewModel, preferencesPort, vmScope)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun foregroundSnoozeDeadlineSynchronizesWithoutLocationAndCancelsInBackground() = runTest {
+        val clock = com.muhammadridha.fjalar.fakes.FakeClock(kotlin.time.Clock.System.now())
+        val deadline = clock.now + kotlin.time.Duration.parse("2m")
+        val alarm = manggaraiAlarm().copy(
+            state = AlarmState.SNOOZED,
+            snoozedUntil = deadline,
+        )
+        val observe = FakeObserveAlarmsPort(listOf(alarm))
+        val sync = FakeSyncSchedulesPort()
+        val (vm, _, scope) = createTestViewModel(observePort = observe, syncSchedulesPort = sync, clock = clock)
+        try {
+            vm.onAppForegroundChanged(true)
+            testScheduler.advanceTimeBy(60_000)
+            vm.onAppForegroundChanged(false)
+            testScheduler.advanceTimeBy(120_000)
+            assertEquals(0, sync.syncCount)
+            vm.onAppForegroundChanged(true)
+            // A backward wall-clock change at the first wake must re-arm the timer.
+            clock.now = deadline - kotlin.time.Duration.parse("1.0005s")
+            testScheduler.advanceTimeBy(120_001)
+            testScheduler.runCurrent()
+            assertEquals(0, sync.syncCount)
+            clock.now = deadline
+            testScheduler.advanceTimeBy(1_002)
+            testScheduler.runCurrent()
+            assertEquals(1, sync.syncCount)
+            // A synchronization which saw an earlier clock emits no state change.
+            testScheduler.advanceTimeBy(1_001)
+            testScheduler.runCurrent()
+            assertEquals(2, sync.syncCount)
+            observe.flow.value = listOf(alarm.copy(state = AlarmState.RINGING, snoozedUntil = null))
+            testScheduler.advanceTimeBy(2_000)
+            assertEquals(2, sync.syncCount)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun ringingOwnerUsesSameIdOrderingAsPlaybackAndAdvances() = runTest {
+        val a = manggaraiAlarm().copy(id = "a", state = AlarmState.RINGING)
+        val b = a.copy(id = "b")
+        val observe = FakeObserveAlarmsPort(listOf(b, a))
+        val (vm, _, scope) = createTestViewModel(observePort = observe)
+        try {
+            assertEquals("a", vm.uiState.value.activeRingingAlarm?.id)
+            observe.flow.value = listOf(b, a.copy(state = AlarmState.SNOOZED))
+            assertEquals("b", vm.uiState.value.activeRingingAlarm?.id)
+        } finally { scope.cancel() }
+    }
+
+    @Test
+    fun notificationDenialExposesSnoozeSettingsGuidance() = runTest {
+        val port = object : com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort {
+            override suspend fun snoozeAlarm(alarmId: String): Result<Unit> = Result.failure(
+                com.muhammadridha.fjalar.domain.ports.outbound.SnoozeDeliveryUnavailableException()
+            )
+        }
+        val (vm, _, scope) = createTestViewModel(snoozePort = port)
+        try {
+            vm.onSnoozeRingingAlarm("a")
+            assertTrue(vm.uiState.value.hasOperationFailure)
+            assertTrue(vm.uiState.value.snoozeDeliveryUnavailable)
+        } finally { scope.cancel() }
+    }
+
+    @Test
+    fun snoozeShowsPendingThenFailureAndAllowsRetry() = runTest {
+        val completion = kotlinx.coroutines.CompletableDeferred<Result<Unit>>()
+        var calls = 0
+        val port = object : com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort {
+            override suspend fun snoozeAlarm(alarmId: String): Result<Unit> {
+                calls++
+                return if (calls == 1) completion.await() else Result.success(Unit)
+            }
+        }
+        val (vm, _, scope) = createTestViewModel(snoozePort = port)
+        try {
+            vm.onSnoozeRingingAlarm("a")
+            assertTrue(vm.uiState.value.isOperationPending)
+            vm.onSnoozeRingingAlarm("a")
+            assertEquals(1, calls)
+            completion.complete(Result.failure(IllegalStateException("stop failed")))
+            assertTrue(vm.uiState.value.hasOperationFailure)
+            assertFalse(vm.uiState.value.isOperationPending)
+            vm.onSnoozeRingingAlarm("a")
+            assertEquals(2, calls)
+            assertFalse(vm.uiState.value.hasOperationFailure)
+        } finally { scope.cancel() }
+    }
+
+    @Test
+    fun failedStopIsRetryableAndSuccessWaitsForServiceState() = runTest {
+        val alarm = manggaraiAlarm().copy(state = AlarmState.RINGING)
+        val observe = FakeObserveAlarmsPort(listOf(alarm))
+        var calls = 0
+        val port = object : DismissAlarmPort {
+            override suspend fun dismissAlarm(alarmId: String): Result<Unit> {
+                calls++
+                return if (calls <= 2) Result.failure(IllegalStateException("stop failed"))
+                else Result.success(Unit)
+            }
+        }
+        val (vm, _, scope) = createTestViewModel(observePort = observe, dismissPort = port)
+        try {
+            vm.onDismissRingingAlarm(alarm.id)
+            assertEquals(1L, vm.uiState.value.ringingOperationFailureId)
+            assertEquals(alarm, vm.uiState.value.activeRingingAlarm)
+            vm.onDismissRingingAlarm(alarm.id)
+            assertEquals(2L, vm.uiState.value.ringingOperationFailureId)
+            vm.onDismissRingingAlarm(alarm.id)
+            assertFalse(vm.uiState.value.hasOperationFailure)
+            assertEquals(alarm, vm.uiState.value.activeRingingAlarm)
+            observe.flow.value = listOf(alarm.copy(state = AlarmState.COMPLETED_FOR_WINDOW))
+            assertNull(vm.uiState.value.activeRingingAlarm)
+        } finally { scope.cancel() }
     }
 
     @Test
@@ -492,11 +619,12 @@ class FjalarViewModelTest {
 
     @Test
     fun onRecenterMap_centersOnUserLocationWhenAvailable() = runTest {
+        val tracker = UiLocationTracker()
         val fakeMapRenderer = FakeMapRendererPort()
-        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        val (viewModel, _, vmScope) = createTestViewModel(locationTrackerPort = tracker, mapRendererPort = fakeMapRenderer)
         try {
             val userLocation = GeoCoordinates(-6.1754, 106.8272)
-            viewModel.onUserLocationChanged(userLocation)
+            tracker.emit(userLocation)
 
             viewModel.onRecenterMap()
 
@@ -547,11 +675,12 @@ class FjalarViewModelTest {
 
     @Test
     fun onOpenNewAlarm_defaultsToUserLocationWhenSelectedCoordinatesNull() = runTest {
+        val tracker = UiLocationTracker()
         val fakeMapRenderer = FakeMapRendererPort()
-        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
+        val (viewModel, _, vmScope) = createTestViewModel(locationTrackerPort = tracker, mapRendererPort = fakeMapRenderer)
         try {
             val userLocation = GeoCoordinates(-6.1754, 106.8272)
-            viewModel.onUserLocationChanged(userLocation)
+            tracker.emit(userLocation)
             assertNull(viewModel.uiState.value.selectedCoordinates)
 
             viewModel.onOpenNewAlarm()
@@ -669,9 +798,10 @@ class FjalarViewModelTest {
 
     @Test
     fun onRecenterMap_incrementsViewportRequestId() = runTest {
-        val (viewModel, _, vmScope) = createTestViewModel()
+        val tracker = UiLocationTracker()
+        val (viewModel, _, vmScope) = createTestViewModel(locationTrackerPort = tracker)
         try {
-            viewModel.onUserLocationChanged(GeoCoordinates(51.5, -0.1))
+            tracker.emit(GeoCoordinates(51.5, -0.1))
             assertEquals(1L, viewModel.uiState.value.viewportRequestId)
 
             viewModel.onRecenterMap()

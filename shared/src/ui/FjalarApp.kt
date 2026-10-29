@@ -5,6 +5,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -27,8 +29,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -79,11 +79,17 @@ fun FjalarApp(
     onRequestPermission: (() -> Unit)? = null,
     navController: NavHostController = rememberNavController(),
 ) {
-    val density = LocalDensity.current
     var dockHeight by remember { mutableStateOf(100.dp) }
     val uiState by viewModel.uiState.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    androidx.compose.runtime.DisposableEffect(currentRoute, viewModel) {
+        viewModel.onMapVisibilityChanged(
+            currentRoute == null || com.muhammadridha.fjalar.ui.navigation.isMapRoute(currentRoute),
+        )
+        onDispose { viewModel.onMapVisibilityChanged(false) }
+    }
+
 
     // System back can pop Configure without invoking its toolbar callback. Clear
     // abandoned editor state when a top-level destination becomes current again.
@@ -104,11 +110,15 @@ fun FjalarApp(
         val isDarkTheme = uiState.themeMode == ThemeMode.DARK ||
             (uiState.themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
 
-        val activeAlarm = uiState.alarms.firstOrNull { it.state == AlarmState.ARMED_MONITORING }
+        val activeAlarm = uiState.nearestArmedAlarm
 
-        val pinLocation = activeAlarm?.coordinates ?: uiState.selectedCoordinates
+        val pinLocation = uiState.selectedCoordinates ?: activeAlarm?.coordinates
         val geofenceCenter = pinLocation
-        val geofenceRadius = activeAlarm?.radius ?: uiState.selectedRadius
+        val geofenceRadius = if (uiState.selectedCoordinates != null) {
+            uiState.selectedRadius
+        } else {
+            activeAlarm?.radius ?: uiState.selectedRadius
+        }
 
         val center = uiState.mapViewportCenter
             ?: uiState.userLocation
@@ -130,11 +140,19 @@ fun FjalarApp(
             ) {
                 // Screen 1: Living Map Canvas
                 composable<MapRoute> {
+                    SearchBackHandler(enabled = uiState.isSearchSheetVisible && uiState.activeRingingAlarm == null) {
+                        viewModel.onDismissSearch()
+                    }
+                    var mapBearing by remember { mutableStateOf(0.0) }
+                    var northRequestId by remember { mutableStateOf(0L) }
                     Box(modifier = Modifier.fillMaxSize()) {
                         PlatformMapView(
                             center = center,
                             zoom = uiState.mapViewportZoom,
                             pinLocation = pinLocation,
+                            userPosition = uiState.mapUserPosition(),
+                            onBearingChanged = { mapBearing = it },
+                            northRequestId = northRequestId,
                             geofenceCenter = geofenceCenter,
                             geofenceRadius = geofenceRadius,
                             isDarkTheme = isDarkTheme,
@@ -144,48 +162,56 @@ fun FjalarApp(
                             modifier = Modifier.fillMaxSize(),
                         )
 
-                        // Top Floating HUD & Armed Status Pill
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.TopCenter),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            FloatingHudBar(
-                                onSearchClick = viewModel::onOpenSearch,
-                                onToggleLocale = viewModel::onToggleLocale,
-                                onSelectLocale = viewModel::onSelectLocale,
-                                onToggleTheme = viewModel::onToggleTheme,
-                                onRecenter = viewModel::onRecenterMap,
-                                modifier = Modifier,
-                                locale = uiState.appLocale,
-                                themeMode = uiState.themeMode,
-                            )
-
-                            if (!uiState.hasLocationPermission && !permissionBannerDismissed) {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                LocationPermissionBanner(
-                                    onRequestPermission = { onRequestPermission?.invoke() },
-                                    onDismiss = { permissionBannerDismissed = true },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp),
-                                )
-                            }
-
-                            if (activeAlarm != null) {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                ArmedStatusPill(
-                                    alarm = activeAlarm,
-                                    onClick = {
-                                        viewModel.onStartConfiguringAlarm(
-                                            alarmId = activeAlarm.id,
-                                            defaultCoordinates = null,
-                                        )
-                                        navController.navigate(ConfigureRoute(activeAlarm.id))
+                        if (!uiState.isSearchSheetVisible) {
+                            // Top Floating HUD & Armed Status Pill
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.TopCenter)
+                                    .then(WindowInsetsLayoutHelper.safeDrawingPaddingModifier())
+                                    .padding(bottom = dockHeight)
+                                    .verticalScroll(rememberScrollState()),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                FloatingHudBar(
+                                    onSearchClick = viewModel::onOpenSearch,
+                                    onToggleLocale = viewModel::onToggleLocale,
+                                    onSelectLocale = viewModel::onSelectLocale,
+                                    onToggleTheme = viewModel::onToggleTheme,
+                                    onRecenter = viewModel::onRecenterMap,
+                                    bearing = mapBearing,
+                                    onResetNorth = { northRequestId++ },
+                                    modifier = Modifier,
+                                    locale = uiState.appLocale,
+                                    themeMode = uiState.themeMode,
+                                    armedStatus = activeAlarm?.let { alarm ->
+                                        {
+                                            ArmedStatusPill(
+                                                alarm = alarm,
+                                                distanceMeters = uiState.distanceMetersByAlarmId[alarm.id],
+                                                onClick = {
+                                                    viewModel.onStartConfiguringAlarm(
+                                                        alarmId = alarm.id,
+                                                        defaultCoordinates = null,
+                                                    )
+                                                    navController.navigate(ConfigureRoute(alarm.id))
+                                                },
+                                            )
+                                        }
                                     },
-                                    modifier = Modifier.padding(horizontal = 16.dp),
                                 )
+
+                                if (!uiState.hasLocationPermission && !permissionBannerDismissed) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    LocationPermissionBanner(
+                                        onRequestPermission = { onRequestPermission?.invoke() },
+                                        onDismiss = { permissionBannerDismissed = true },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .then(WindowInsetsLayoutHelper.horizontalSafeDrawingPaddingModifier())
+                                            .padding(horizontal = 16.dp),
+                                    )
+                                }
                             }
                         }
 
@@ -212,9 +238,9 @@ fun FjalarApp(
                                 isLoading = uiState.isSearching,
                                 userLocation = uiState.userLocation,
                                 locale = uiState.appLocale,
-                                modifier = WindowInsetsLayoutHelper.sheetBottomPaddingModifier()
+                                modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier()
                                     .imePadding()
-                                    .padding(bottom = 100.dp),
+                                    .padding(bottom = dockHeight),
                             )
                         }
                     }
@@ -305,6 +331,8 @@ fun FjalarApp(
                     MapPickerScreen(
                         initialCoordinates = GeoCoordinates(route.initialLat, route.initialLon),
                         initialZoom = if (uiState.activeDraft?.coordinates == null) 2.0 else 15.0,
+                        hasInitialSelection = uiState.activeDraft?.coordinates != null,
+                        userPosition = uiState.mapUserPosition(),
                         geofenceRadius = uiState.activeDraft
                             ?.let { TriggerRadius(it.radiusMeters) }
                             ?: TriggerRadius.DEFAULT,
@@ -345,9 +373,8 @@ fun FjalarApp(
                         )
                         navController.navigate(ConfigureRoute())
                     },
-                    modifier = Modifier.align(Alignment.BottomCenter).onSizeChanged { size ->
-                        dockHeight = with(density) { size.height.toDp() }
-                    },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    onDockHeightChanged = { dockHeight = it },
                 )
             }
 
@@ -366,9 +393,13 @@ fun FjalarApp(
                     ) {
                         RingingAlertOverlay(
                             alarm = ringingAlarm,
+                            distanceMeters = uiState.distanceMetersByAlarmId[ringingAlarm.id],
                             onDismiss = viewModel::onDismissRingingAlarm,
-                            // Snooze remains inert until a dedicated use case is available.
-                            onSnooze = {},
+                            onSnooze = viewModel::onSnoozeRingingAlarm,
+                            isOperationPending = uiState.isOperationPending,
+                            hasOperationFailure = uiState.hasOperationFailure,
+                            snoozeDeliveryUnavailable = uiState.snoozeDeliveryUnavailable,
+                            operationFailureId = uiState.ringingOperationFailureId,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }

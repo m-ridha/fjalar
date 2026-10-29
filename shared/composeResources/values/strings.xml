@@ -45,7 +45,9 @@
     <!-- Ringing wake-up screen -->
     <string name="ringing_in_zone_badge">IN ZONE • %1$s from target pin</string>
     <string name="ringing_headline">Wake Up! Approaching %1$s</string>
-    <string name="ringing_snooze_action">Snooze (+2 min / 250m)</string>
+    <string name="ringing_snooze_action">Snooze (+2 min)</string>
+    <string name="ringing_accessible_prompt">Activate to prepare to stop alarm</string>
+    <string name="ringing_accessible_confirm">Activate again to stop alarm</string>
     <string name="ringing_slide_to_stop">Slide to Stop Alarm</string>
 
     <!-- System notifications & background telemetry -->
@@ -58,8 +60,8 @@
     <string name="perm_location_body">Fjalar checks your GPS distance in the background only while an alarm is armed so it can wake you up even when your screen is locked. Your location never leaves your phone.</string>
     <string name="perm_location_grant">Grant Permission</string>
     <string name="perm_location_dismiss">Dismiss</string>
-    <string name="perm_background_settings_body">In app settings, open Permissions &gt; Location and select %s. You can skip this step and keep using the map, but scheduled alarms need background location.</string>
-    <string name="perm_background_settings_action">Open Settings</string>
+    <string name="perm_background_settings_body">Choose %s in the system location permission settings. You can skip this step and keep using the map, but scheduled alarms need background location.</string>
+    <string name="perm_background_settings_action">Continue</string>
 
     <!-- Search modal & station catalog -->
     <string name="search_placeholder">Search stations, stops, or places...</string>
@@ -101,4 +103,19 @@
     <string name="pinned_location">Pinned Location</string>
     <string name="location_not_set">📍 Not set</string>
     <string name="operation_failed">Could not save changes. Please try again.</string>
+    <string name="ringing_snooze_notifications_required">Enable notification alerts and sound in system settings to snooze, then try again.</string>
+    <string name="ringing_operation_failed">Could not stop the alarm. Please try again.</string>
+    <string name="snooze_notification_body">Snooze ended. Open the app to stop the alarm.</string>
+    <string name="status_armed_scheduled_unknown">Armed: %1$s • Location unavailable • %2$s–%3$s</string>
+    <string name="status_armed_one_time_unknown">Armed: %1$s • Location unavailable</string>
+    <string name="distance_unavailable">Distance unavailable</string>
+    <string name="hud_compass_north">Reset map north</string>
+    <string name="nav_add_alarm">Add Alarm</string>
+    <string name="day_chip_monday">Mo</string>
+    <string name="day_chip_tuesday">Tu</string>
+    <string name="day_chip_wednesday">We</string>
+    <string name="day_chip_thursday">Th</string>
+    <string name="day_chip_friday">Fr</string>
+    <string name="day_chip_saturday">Sa</string>
+    <string name="day_chip_sunday">Su</string>
 </resources>

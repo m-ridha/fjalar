@@ -30,10 +30,10 @@ class LocationPermissionsTest {
     }
 
     @Test
-    fun androidElevenAndLaterRequireTheSettingsFlow() {
+    fun androidElevenAndLaterRequestBackgroundAccessSeparately() {
         for (apiLevel in listOf(30, 31, 33, 37)) {
             assertEquals(
-                LocationPermissionStep.BACKGROUND_SETTINGS,
+                LocationPermissionStep.BACKGROUND_RUNTIME,
                 nextLocationPermissionStep(apiLevel, true, false),
             )
         }
@@ -110,5 +110,31 @@ class LocationPermissionsTest {
                 coarseLocationRationale = false,
             ),
         )
+    }
+
+    @Test
+    fun androidTenBackgroundDenialsWithRationaleKeepRuntimeRetryAvailable() {
+        assertFalse(shouldOpenBackgroundLocationSettings(29, false, true, true))
+        assertTrue(shouldOpenBackgroundLocationSettings(29, false, true, false))
+    }
+
+    @Test
+    fun androidElevenAndLaterCompletedBackgroundDenialsOpenSettingsRegardlessOfRationale() {
+        for (apiLevel in listOf(30, 31, 33, 37)) {
+            for (backgroundRationale in listOf(false, true)) {
+                assertTrue(shouldOpenBackgroundLocationSettings(apiLevel, false, true, backgroundRationale))
+            }
+        }
+    }
+
+    @Test
+    fun backgroundSettingsRecoveryRequiresACompletedDeniedRequest() {
+        for (apiLevel in listOf(29, 30, 31, 33, 37)) {
+            for (backgroundRationale in listOf(false, true)) {
+                assertFalse(shouldOpenBackgroundLocationSettings(apiLevel, false, false, backgroundRationale))
+                assertFalse(shouldOpenBackgroundLocationSettings(apiLevel, true, true, backgroundRationale))
+                assertFalse(shouldOpenBackgroundLocationSettings(apiLevel, true, false, backgroundRationale))
+            }
+        }
     }
 }

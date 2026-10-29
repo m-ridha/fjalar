@@ -5,6 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -73,6 +77,7 @@ import kotlin.time.Clock
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ConfigureAlarmSheet(
     onSave: (LocationAlarm) -> Unit,
@@ -117,7 +122,8 @@ fun ConfigureAlarmSheet(
 
     val isScheduleValid = scheduleType != ScheduleType.SCHEDULED ||
         (startMinute != endMinute && daysMask != 0)
-    val isSaveEnabled = label.isNotBlank() && isScheduleValid
+    val targetCoordinates = selectedCoordinates ?: initialAlarm?.coordinates
+    val isSaveEnabled = label.isNotBlank() && isScheduleValid && targetCoordinates != null
 
     Column(
         modifier = modifier
@@ -164,7 +170,7 @@ fun ConfigureAlarmSheet(
                         }
 
                         val id = initialAlarm?.id ?: "alarm-${Clock.System.now().toEpochMilliseconds()}"
-                        val coordinates = selectedCoordinates ?: initialAlarm?.coordinates ?: GeoCoordinates.DEFAULT_JAKARTA
+                        val coordinates = requireNotNull(targetCoordinates)
                         val updated = LocationAlarm(
                             id = id,
                             label = label.trim(),
@@ -185,6 +191,7 @@ fun ConfigureAlarmSheet(
                             },
                             addressLabel = initialAlarm?.addressLabel,
                             suppressedUntil = initialAlarm?.suppressedUntil,
+                            snoozedUntil = initialAlarm?.snoozedUntil,
                         )
                         onSave(updated)
                     }
@@ -253,7 +260,7 @@ fun ConfigureAlarmSheet(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = formatDistance(preset),
+                        text = formatDistance(preset, locale),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             fontFeatureSettings = "tnum",
@@ -372,10 +379,11 @@ fun ConfigureAlarmSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // 7 Day-of-week chips (M T W T F S S / Sn Sl Rb Km Jm Sb Mg)
-            Row(
+            // Day chips wrap on narrow panes and at larger text sizes.
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 val dayLabels = dayChipLabels(locale)
                 for (i in 0..6) {
@@ -384,6 +392,8 @@ fun ConfigureAlarmSheet(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .widthIn(min = 48.dp)
+                            .heightIn(min = 48.dp)
                             .clip(CircleShape)
                             .background(if (isDayActive) colors.primary else colors.glassPill)
                             .clickable(role = Role.Button) {

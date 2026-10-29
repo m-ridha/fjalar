@@ -6,7 +6,6 @@ import android.os.Build
 internal enum class LocationPermissionStep {
     FOREGROUND,
     BACKGROUND_RUNTIME,
-    BACKGROUND_SETTINGS,
     GRANTED,
 }
 
@@ -17,8 +16,7 @@ internal fun nextLocationPermissionStep(
 ): LocationPermissionStep = when {
     !foregroundGranted -> LocationPermissionStep.FOREGROUND
     apiLevel < Build.VERSION_CODES.Q || backgroundGranted -> LocationPermissionStep.GRANTED
-    apiLevel == Build.VERSION_CODES.Q -> LocationPermissionStep.BACKGROUND_RUNTIME
-    else -> LocationPermissionStep.BACKGROUND_SETTINGS
+    else -> LocationPermissionStep.BACKGROUND_RUNTIME
 }
 
 internal fun foregroundPermissions(apiLevel: Int): Array<String> = buildList {
@@ -35,3 +33,11 @@ internal fun shouldOpenForegroundLocationSettings(
     fineLocationRationale: Boolean,
     coarseLocationRationale: Boolean,
 ): Boolean = !foregroundGranted && requestCompleted && !fineLocationRationale && !coarseLocationRationale
+
+internal fun shouldOpenBackgroundLocationSettings(
+    apiLevel: Int,
+    backgroundGranted: Boolean,
+    requestCompleted: Boolean,
+    backgroundRationale: Boolean,
+): Boolean = !backgroundGranted && requestCompleted &&
+    (apiLevel >= Build.VERSION_CODES.R || !backgroundRationale)

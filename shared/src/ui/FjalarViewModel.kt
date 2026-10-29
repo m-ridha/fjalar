@@ -2,15 +2,21 @@ package com.muhammadridha.fjalar.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.muhammadridha.fjalar.adapters.location.isFreshLocationFix
 import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
+import com.muhammadridha.fjalar.domain.model.LocationFix
+import com.muhammadridha.fjalar.domain.model.LocationAvailability
+import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
+import com.muhammadridha.fjalar.domain.ports.outbound.SnoozeDeliveryUnavailableException
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.PlaceCategory
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.domain.ports.inbound.DeleteAlarmPort
+import com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
@@ -31,6 +37,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Observable UI state representation for the entire Fjalar application.
@@ -48,7 +56,11 @@ data class FjalarUiState(
     val isSearching: Boolean = false,
     val selectedCategoryFilter: PlaceCategory? = null,
     val initialAlarmLabel: String? = null,
+    val locationFix: LocationFix? = null,
+    val locationAvailability: LocationAvailability = LocationAvailability.PROVIDER_UNAVAILABLE,
     val userLocation: GeoCoordinates? = null,
+    val distanceMetersByAlarmId: Map<String, Int?> = emptyMap(),
+    val nearestArmedAlarm: LocationAlarm? = null,
     val selectedCoordinates: GeoCoordinates? = null,
     val mapViewportCenter: GeoCoordinates? = null,
     val mapViewportZoom: Double = 2.0,
@@ -59,6 +71,8 @@ data class FjalarUiState(
     val hasLocationPermission: Boolean = true,
     val hasOperationFailure: Boolean = false,
     val isOperationPending: Boolean = false,
+    val ringingOperationFailureId: Long = 0L,
+    val snoozeDeliveryUnavailable: Boolean = false,
 )
 
 /**
@@ -77,6 +91,9 @@ class FjalarViewModel(
     private val searchPlacesPort: SearchPlacesPort? = null,
     private val deleteAlarmPort: DeleteAlarmPort? = null,
     coroutineScope: CoroutineScope? = null,
+    private val locationTrackerPort: LocationTrackerPort? = null,
+    private val snoozeAlarmPort: SnoozeAlarmPort? = null,
+    private val clock: Clock = Clock.System,
 ) : ViewModel() {
 
     internal val scope: CoroutineScope = coroutineScope ?: viewModelScope
@@ -85,18 +102,89 @@ class FjalarViewModel(
     private val _uiState = MutableStateFlow(FjalarUiState())
     val uiState: StateFlow<FjalarUiState> = _uiState.asStateFlow()
 
+    private var snoozeDeadlineJob: Job? = null
+    private var fixExpiryJob: Job? = null
     private var searchJob: Job? = null
     private var unfilteredSearchResults: List<SearchResultPlace> = emptyList()
 
+    private val mapTrackingMutex = kotlinx.coroutines.sync.Mutex()
+    private var appForeground = false
+    private var mapVisible = false
+    private var pendingRecenter = false
+
+    fun onAppForegroundChanged(foreground: Boolean) {
+        appForeground = foreground
+        updateSnoozeDeadline(_uiState.value.alarms)
+        updateMapTracking()
+    }
+
+    private fun updateSnoozeDeadline(alarms: List<LocationAlarm>) {
+        snoozeDeadlineJob?.cancel()
+        if (!appForeground || syncSchedulesPort == null) return
+        val deadline = alarms.filter { it.state == AlarmState.SNOOZED }
+            .mapNotNull { alarm ->
+                alarm.snoozedUntil?.let { deadline ->
+                    alarm.suppressedUntil?.let { minOf(deadline, it) } ?: deadline
+                }
+            }.minOrNull() ?: return
+        snoozeDeadlineJob = scope.launch {
+            while (true) {
+                val remaining = deadline - clock.now()
+                if (remaining > kotlin.time.Duration.ZERO) {
+                    val wholeMillis = remaining.inWholeMilliseconds
+                    val waitMillis = wholeMillis + if (remaining > wholeMillis.milliseconds) 1 else 0
+                    delay(waitMillis.coerceAtLeast(1))
+                    continue
+                }
+                // Synchronization can observe an earlier clock than this timer. If it
+                // leaves the same snooze intact, retry without depending on a new emission.
+                syncSchedules().join()
+                val stillPending = _uiState.value.alarms.any { alarm ->
+                    alarm.state == AlarmState.SNOOZED &&
+                        (alarm.snoozedUntil == deadline || alarm.suppressedUntil == deadline)
+                }
+                if (!stillPending) return@launch
+                delay(1_000)
+            }
+        }
+    }
+
+    fun onMapVisibilityChanged(visible: Boolean) {
+        mapVisible = visible
+        updateMapTracking()
+    }
+
+    private fun updateMapTracking() {
+        scope.launch {
+            mapTrackingMutex.lock()
+            try {
+                locationTrackerPort?.setForegroundMapTracking(appForeground && mapVisible)
+            } finally {
+                mapTrackingMutex.unlock()
+            }
+        }
+    }
+
     init {
         scope.launch {
+            locationTrackerPort?.observeFixes()?.collect { fix ->
+                acceptLocationFix(fix)
+            }
+        }
+        scope.launch {
+            locationTrackerPort?.observeAvailability()?.collect { availability ->
+                updateLocationDisplay { it.copy(locationAvailability = availability) }
+            }
+        }
+        scope.launch {
             observeAlarmsPort.observeAlarms().collect { alarmsList ->
-                val ringing = alarmsList.firstOrNull { it.state == AlarmState.RINGING }
+                updateSnoozeDeadline(alarmsList)
+                val ringing = alarmsList.filter { it.state == AlarmState.RINGING }.minByOrNull { it.id }
                 _uiState.update { current ->
                     current.copy(
                         alarms = alarmsList,
                         activeRingingAlarm = ringing,
-                    )
+                    ).withLocationDistances()
                 }
             }
         }
@@ -115,6 +203,39 @@ class FjalarViewModel(
                     current.copy(appLocale = locale)
                 }
             }
+        }
+    }
+
+    private fun acceptLocationFix(fix: LocationFix) {
+        fixExpiryJob?.cancel()
+        val age = fix.monotonicObservation.elapsedNow()
+        if (!isFreshLocationFix(age)) {
+            updateLocationDisplay { it.copy(locationFix = null) }
+            return
+        }
+        updateLocationDisplay { it.copy(locationFix = fix) }
+        fixExpiryJob = scope.launch {
+            // The boundary itself remains valid. Expire at the first millisecond after it.
+            delay((30.seconds - age).inWholeMilliseconds + 1)
+            updateLocationDisplay { it.copy(locationFix = null) }
+        }
+    }
+
+    private fun updateLocationDisplay(transform: (FjalarUiState) -> FjalarUiState) {
+        val recenterRequested = pendingRecenter
+        _uiState.update { current ->
+            val updated = transform(current).withLocationDistances()
+            if (updated.userLocation != null && (current.mapViewportCenter == null || recenterRequested)) {
+                updated.copy(
+                    mapViewportCenter = updated.userLocation,
+                    mapViewportZoom = 15.0,
+                    viewportRequestId = current.viewportRequestId + 1,
+                )
+            } else updated
+        }
+        if (recenterRequested && _uiState.value.userLocation != null) {
+            pendingRecenter = false
+            _uiState.value.userLocation?.let { mapRendererPort?.setViewport(it, zoom = 15.0) }
         }
     }
 
@@ -288,15 +409,38 @@ class FjalarViewModel(
     }
 
     fun onDismissRingingAlarm(alarmId: String) {
+        performRingingOperation { dismissAlarmPort.dismissAlarm(alarmId) }
+    }
+
+    fun onSnoozeRingingAlarm(alarmId: String) {
+        performRingingOperation {
+            snoozeAlarmPort?.snoozeAlarm(alarmId)
+                ?: Result.failure(IllegalStateException("Snooze is unavailable"))
+        }
+    }
+
+    private fun performRingingOperation(operation: suspend () -> Result<Unit>) {
+        if (_uiState.value.isOperationPending) return
+        _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false, snoozeDeliveryUnavailable = false) }
         scope.launch {
-            dismissAlarmPort.dismissAlarm(alarmId)
+            try {
+                val result = operation()
+                _uiState.update {
+                    it.copy(
+                        hasOperationFailure = result.isFailure,
+                        snoozeDeliveryUnavailable = result.exceptionOrNull() is SnoozeDeliveryUnavailableException,
+                        ringingOperationFailureId = it.ringingOperationFailureId + if (result.isFailure) 1 else 0,
+                    )
+                }
+            } finally {
+                _uiState.update { it.copy(isOperationPending = false) }
+            }
         }
     }
 
     fun onOpenNewAlarm() {
         val target = _uiState.value.selectedCoordinates
             ?: _uiState.value.userLocation
-            ?: GeoCoordinates.DEFAULT_JAKARTA
         _uiState.update { current ->
             current.copy(
                 selectedAlarmForEdit = null,
@@ -306,8 +450,10 @@ class FjalarViewModel(
                 selectedRadius = TriggerRadius.DEFAULT,
             )
         }
-        mapRendererPort?.placePin(target)
-        mapRendererPort?.showGeofence(target, TriggerRadius.DEFAULT)
+        if (target != null) {
+            mapRendererPort?.placePin(target)
+            mapRendererPort?.showGeofence(target, TriggerRadius.DEFAULT)
+        }
     }
 
     fun onOpenEditAlarm(alarm: LocationAlarm) {
@@ -456,12 +602,8 @@ class FjalarViewModel(
     var requestCurrentLocation: (() -> Unit)? = null
 
     fun onRecenterMap() {
+        pendingRecenter = true
         requestCurrentLocation?.invoke()
-        recenterOnKnownLocation()
-    }
-
-    fun onCurrentLocationReceived(coordinates: GeoCoordinates) {
-        onUserLocationChanged(coordinates)
         recenterOnKnownLocation()
     }
 
@@ -469,7 +611,6 @@ class FjalarViewModel(
         val current = _uiState.value
         val knownTarget = current.userLocation
             ?: current.selectedCoordinates
-            ?: current.alarms.firstOrNull()?.coordinates
         val target = knownTarget ?: GeoCoordinates(0.0, 0.0)
         val zoom = if (knownTarget == null) 2.0 else 15.0
         _uiState.update { state ->
@@ -480,21 +621,6 @@ class FjalarViewModel(
             )
         }
         mapRendererPort?.setViewport(target, zoom = zoom)
-    }
-
-    fun onUserLocationChanged(coordinates: GeoCoordinates) {
-        _uiState.update { current ->
-            current.copy(
-                userLocation = coordinates,
-                mapViewportCenter = current.mapViewportCenter ?: coordinates,
-                mapViewportZoom = if (current.mapViewportCenter == null) 15.0 else current.mapViewportZoom,
-                viewportRequestId = if (current.mapViewportCenter == null) {
-                    current.viewportRequestId + 1L
-                } else {
-                    current.viewportRequestId
-                },
-            )
-        }
     }
 
     fun onMapClicked(coordinates: GeoCoordinates) {

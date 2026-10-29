@@ -9,18 +9,25 @@ class ComponentFormattersTest {
 
     @Test
     fun formatDistanceBelowKilometerFormatsMeters() {
-        assertEquals("100m", formatDistance(100))
-        assertEquals("420m", formatDistance(420))
-        assertEquals("999m", formatDistance(999))
+        assertEquals("100m", formatDistance(100, AppLocale.EN))
+        assertEquals("420m", formatDistance(420, AppLocale.EN))
+        assertEquals("999m", formatDistance(999, AppLocale.EN))
     }
 
     @Test
     fun formatDistanceKilometersFormatsRounded() {
-        assertEquals("1 km", formatDistance(1_000))
-        assertEquals("1.2 km", formatDistance(1_200))
-        assertEquals("2 km", formatDistance(2_000))
-        assertEquals("5 km", formatDistance(5_000))
-        assertEquals("10 km", formatDistance(10_000))
+        assertEquals("1 km", formatDistance(1_000, AppLocale.EN))
+        assertEquals("1.2 km", formatDistance(1_200, AppLocale.EN))
+        assertEquals("2 km", formatDistance(2_000, AppLocale.EN))
+        assertEquals("5 km", formatDistance(5_000, AppLocale.EN))
+        assertEquals("10 km", formatDistance(10_000, AppLocale.EN))
+    }
+
+    @Test
+    fun formatDistanceUsesIndonesianDecimalSeparator() {
+        assertEquals("420m", formatDistance(420, AppLocale.ID))
+        assertEquals("1 km", formatDistance(1_000, AppLocale.ID))
+        assertEquals("1,2 km", formatDistance(1_200, AppLocale.ID))
     }
 
     @Test
@@ -34,7 +41,7 @@ class ComponentFormattersTest {
     @Test
     fun dayChipLabelsReturnsLanguageSpecificAbbreviations() {
         assertEquals(
-            listOf("M", "T", "W", "T", "F", "S", "S"),
+            listOf("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"),
             dayChipLabels(AppLocale.EN),
         )
         assertEquals(

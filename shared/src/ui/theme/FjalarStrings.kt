@@ -21,10 +21,14 @@ enum class FjalarStringKey {
     HUD_THEME_SWITCH_DARK,
     HUD_LOCALE_LABEL,
     HUD_RECENTER_LOCATION,
+    HUD_COMPASS_NORTH,
 
     // Status Pill
     STATUS_ARMED_SCHEDULED,
     STATUS_ARMED_ONE_TIME,
+    STATUS_ARMED_SCHEDULED_UNKNOWN,
+    STATUS_ARMED_ONE_TIME_UNKNOWN,
+    DISTANCE_UNAVAILABLE,
 
     // Sheet & Cards
     SHEET_SAVED_TITLE,
@@ -53,12 +57,24 @@ enum class FjalarStringKey {
     EDITOR_STRONG_VIBRATE,
     EDITOR_EARPHONE_OVERRIDE,
     EDITOR_DELETE_ALARM,
+    DAY_CHIP_MONDAY,
+    DAY_CHIP_TUESDAY,
+    DAY_CHIP_WEDNESDAY,
+    DAY_CHIP_THURSDAY,
+    DAY_CHIP_FRIDAY,
+    DAY_CHIP_SATURDAY,
+    DAY_CHIP_SUNDAY,
+
 
     // Ringing Wake-up Screen
     RINGING_IN_ZONE_BADGE,
     RINGING_HEADLINE,
     RINGING_SNOOZE_ACTION,
+    RINGING_OPERATION_FAILED,
+    RINGING_SNOOZE_NOTIFICATIONS_REQUIRED,
     RINGING_SLIDE_TO_STOP,
+    RINGING_ACCESSIBLE_PROMPT,
+    RINGING_ACCESSIBLE_CONFIRM,
 
     // System Notifications
     NOTIF_MONITORING_TITLE,
@@ -114,6 +130,13 @@ enum class FjalarStringKey {
 object FjalarStrings {
 
     private val englishCatalog: Map<FjalarStringKey, String> = mapOf(
+        FjalarStringKey.DAY_CHIP_MONDAY to "Mo",
+        FjalarStringKey.DAY_CHIP_TUESDAY to "Tu",
+        FjalarStringKey.DAY_CHIP_WEDNESDAY to "We",
+        FjalarStringKey.DAY_CHIP_THURSDAY to "Th",
+        FjalarStringKey.DAY_CHIP_FRIDAY to "Fr",
+        FjalarStringKey.DAY_CHIP_SATURDAY to "Sa",
+        FjalarStringKey.DAY_CHIP_SUNDAY to "Su",
         FjalarStringKey.NAV_BACK to "← Back",
         FjalarStringKey.PINNED_LOCATION to "Pinned Location",
         FjalarStringKey.LOCATION_NOT_SET to "📍 Not set",
@@ -126,8 +149,12 @@ object FjalarStrings {
         FjalarStringKey.HUD_THEME_SWITCH_DARK to "Switch to dark mode",
         FjalarStringKey.HUD_LOCALE_LABEL to "Language: English (EN)",
         FjalarStringKey.HUD_RECENTER_LOCATION to "Recenter GPS",
+        FjalarStringKey.HUD_COMPASS_NORTH to "Reset map north",
 
         FjalarStringKey.STATUS_ARMED_SCHEDULED to "Armed: %1\$s • %2\$s away • %3\$s–%4\$s",
+        FjalarStringKey.STATUS_ARMED_SCHEDULED_UNKNOWN to "Armed: %1\$s • Location unavailable • %2\$s–%3\$s",
+        FjalarStringKey.STATUS_ARMED_ONE_TIME_UNKNOWN to "Armed: %1\$s • Location unavailable",
+        FjalarStringKey.DISTANCE_UNAVAILABLE to "Distance unavailable",
         FjalarStringKey.STATUS_ARMED_ONE_TIME to "Armed: %1\$s • %2\$s away",
 
         FjalarStringKey.SHEET_SAVED_TITLE to "Saved & Scheduled Alarms",
@@ -158,8 +185,12 @@ object FjalarStrings {
 
         FjalarStringKey.RINGING_IN_ZONE_BADGE to "IN ZONE • %1\$s from target pin",
         FjalarStringKey.RINGING_HEADLINE to "Wake Up! Approaching %1\$s",
-        FjalarStringKey.RINGING_SNOOZE_ACTION to "Snooze (+2 min / 250m)",
+        FjalarStringKey.RINGING_SNOOZE_NOTIFICATIONS_REQUIRED to "Enable notification alerts and sound in system settings to snooze, then try again.",
+        FjalarStringKey.RINGING_OPERATION_FAILED to "Could not stop the alarm. Please try again.",
+        FjalarStringKey.RINGING_SNOOZE_ACTION to "Snooze (+2 min)",
         FjalarStringKey.RINGING_SLIDE_TO_STOP to "Slide to Stop Alarm",
+        FjalarStringKey.RINGING_ACCESSIBLE_PROMPT to "Activate to prepare to stop alarm",
+        FjalarStringKey.RINGING_ACCESSIBLE_CONFIRM to "Activate again to stop alarm",
 
         FjalarStringKey.NOTIF_MONITORING_TITLE to "Monitoring commute destination",
         FjalarStringKey.NOTIF_MONITORING_BODY to "Active: %1\$s • %2\$s remaining",
@@ -169,8 +200,8 @@ object FjalarStrings {
         FjalarStringKey.PERM_LOCATION_BODY to "Fjalar checks your GPS distance in the background only while an alarm is armed so it can wake you up even when your screen is locked. Your location never leaves your phone.",
         FjalarStringKey.PERM_LOCATION_GRANT to "Grant Permission",
         FjalarStringKey.PERM_LOCATION_DISMISS to "Dismiss",
-        FjalarStringKey.PERM_BACKGROUND_SETTINGS_BODY to "In app settings, open Permissions > Location and select %s. You can skip this step and keep using the map, but scheduled alarms need background location.",
-        FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION to "Open Settings",
+        FjalarStringKey.PERM_BACKGROUND_SETTINGS_BODY to "Choose %s in the system location permission settings. You can skip this step and keep using the map, but scheduled alarms need background location.",
+        FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION to "Continue",
 
         FjalarStringKey.SEARCH_PLACEHOLDER to "Search stations, stops, or places...",
         FjalarStringKey.SEARCH_CATEGORY_ALL to "All",
@@ -205,6 +236,13 @@ object FjalarStrings {
     )
 
     private val indonesianCatalog: Map<FjalarStringKey, String> = mapOf(
+        FjalarStringKey.DAY_CHIP_MONDAY to "Sn",
+        FjalarStringKey.DAY_CHIP_TUESDAY to "Sl",
+        FjalarStringKey.DAY_CHIP_WEDNESDAY to "Rb",
+        FjalarStringKey.DAY_CHIP_THURSDAY to "Km",
+        FjalarStringKey.DAY_CHIP_FRIDAY to "Jm",
+        FjalarStringKey.DAY_CHIP_SATURDAY to "Sb",
+        FjalarStringKey.DAY_CHIP_SUNDAY to "Mg",
         FjalarStringKey.NAV_BACK to "← Kembali",
         FjalarStringKey.PINNED_LOCATION to "Titik Lokasi",
         FjalarStringKey.LOCATION_NOT_SET to "📍 Belum ditentukan",
@@ -216,9 +254,13 @@ object FjalarStrings {
         FjalarStringKey.HUD_THEME_SWITCH_LIGHT to "Beralih ke mode terang",
         FjalarStringKey.HUD_THEME_SWITCH_DARK to "Beralih ke mode gelap",
         FjalarStringKey.HUD_LOCALE_LABEL to "Bahasa: Indonesia (ID)",
+        FjalarStringKey.HUD_COMPASS_NORTH to "Arahkan peta ke utara",
         FjalarStringKey.HUD_RECENTER_LOCATION to "Pusatkan Ulang GPS",
 
         FjalarStringKey.STATUS_ARMED_SCHEDULED to "Aktif: %1\$s • %2\$s lagi • %3\$s–%4\$s",
+        FjalarStringKey.STATUS_ARMED_SCHEDULED_UNKNOWN to "Aktif: %1\$s • Lokasi tidak tersedia • %2\$s–%3\$s",
+        FjalarStringKey.STATUS_ARMED_ONE_TIME_UNKNOWN to "Aktif: %1\$s • Lokasi tidak tersedia",
+        FjalarStringKey.DISTANCE_UNAVAILABLE to "Jarak tidak tersedia",
         FjalarStringKey.STATUS_ARMED_ONE_TIME to "Aktif: %1\$s • %2\$s lagi",
 
         FjalarStringKey.SHEET_SAVED_TITLE to "Alarm Tersimpan & Terjadwal",
@@ -249,8 +291,12 @@ object FjalarStrings {
 
         FjalarStringKey.RINGING_IN_ZONE_BADGE to "DALAM ZONA • %1\$s dari titik tujuan",
         FjalarStringKey.RINGING_HEADLINE to "Bangun! Mendekati %1\$s",
-        FjalarStringKey.RINGING_SNOOZE_ACTION to "Tunda (+2 mnt / 250m)",
+        FjalarStringKey.RINGING_SNOOZE_NOTIFICATIONS_REQUIRED to "Aktifkan notifikasi dan suara di pengaturan sistem untuk menunda alarm, lalu coba lagi.",
+        FjalarStringKey.RINGING_OPERATION_FAILED to "Alarm gagal dihentikan. Silakan coba lagi.",
+        FjalarStringKey.RINGING_SNOOZE_ACTION to "Tunda (+2 mnt)",
         FjalarStringKey.RINGING_SLIDE_TO_STOP to "Geser untuk Matikan Alarm",
+        FjalarStringKey.RINGING_ACCESSIBLE_PROMPT to "Aktifkan untuk bersiap mematikan alarm",
+        FjalarStringKey.RINGING_ACCESSIBLE_CONFIRM to "Aktifkan lagi untuk mematikan alarm",
 
         FjalarStringKey.NOTIF_MONITORING_TITLE to "Memantau tujuan perjalanan",
         FjalarStringKey.NOTIF_MONITORING_BODY to "Aktif: %1\$s • %2\$s lagi",
@@ -260,8 +306,8 @@ object FjalarStrings {
         FjalarStringKey.PERM_LOCATION_BODY to "Fjalar memeriksa jarak GPS di latar belakang hanya saat alarm aktif agar dapat membangunkan Anda meski layar terkunci. Lokasi Anda tidak pernah dikirim keluar dari ponsel ini.",
         FjalarStringKey.PERM_LOCATION_GRANT to "Izinkan Akses",
         FjalarStringKey.PERM_LOCATION_DISMISS to "Abaikan",
-        FjalarStringKey.PERM_BACKGROUND_SETTINGS_BODY to "Di setelan aplikasi, buka Izin > Lokasi lalu pilih %s. Anda dapat melewati langkah ini dan tetap menggunakan peta, tetapi alarm terjadwal memerlukan lokasi latar belakang.",
-        FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION to "Buka Setelan",
+        FjalarStringKey.PERM_BACKGROUND_SETTINGS_BODY to "Pilih %s di setelan izin lokasi sistem. Anda dapat melewati langkah ini dan tetap menggunakan peta, tetapi alarm terjadwal memerlukan lokasi latar belakang.",
+        FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION to "Lanjutkan",
 
         FjalarStringKey.SEARCH_PLACEHOLDER to "Cari stasiun, halte, atau tempat...",
         FjalarStringKey.SEARCH_CATEGORY_ALL to "Semua",

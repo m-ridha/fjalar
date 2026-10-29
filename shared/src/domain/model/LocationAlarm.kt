@@ -13,7 +13,7 @@ data class AlarmSoundConfig(
     }
 }
 
-enum class AlarmState { DISABLED, SCHEDULED_IDLE, ARMED_MONITORING, RINGING, COMPLETED_FOR_WINDOW }
+enum class AlarmState { DISABLED, SCHEDULED_IDLE, ARMED_MONITORING, RINGING, SNOOZED, COMPLETED_FOR_WINDOW }
 
 data class LocationAlarm(
     val id: String,
@@ -25,8 +25,9 @@ data class LocationAlarm(
     val state: AlarmState = AlarmState.DISABLED,
     /** Optional human-readable reverse-geocoded address label (PRD 9.1). */
     val addressLabel: String? = null,
-    /** While [AlarmState.COMPLETED_FOR_WINDOW], stay silent until this instant (end of the dismissed/skipped window). */
+    /** Original window end: completion suppression, or the latest allowed snooze deadline. */
     val suppressedUntil: Instant? = null,
+    val snoozedUntil: Instant? = null,
 ) {
     init {
         require(id.isNotBlank()) { "id must not be blank" }

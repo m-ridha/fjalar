@@ -6,9 +6,14 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.muhammadridha.fjalar.adapters.map.MapUserPosition
+import com.muhammadridha.fjalar.ui.components.MapNavigationControls
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -49,15 +54,23 @@ fun MapPickerScreen(
     modifier: Modifier = Modifier,
     locale: AppLocale = LiquidGlassTheme.locale,
     initialZoom: Double = 15.0,
+    hasInitialSelection: Boolean = true,
+    userPosition: MapUserPosition? = null,
     geofenceRadius: TriggerRadius = TriggerRadius.DEFAULT,
 ) {
     val colors = LiquidGlassTheme.colors
     val isDarkTheme = LiquidGlassTheme.themeMode == ThemeMode.DARK ||
         (LiquidGlassTheme.themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
 
-    var currentCoordinates by remember(initialCoordinates) {
-        mutableStateOf(initialCoordinates)
+    var selection by remember(initialCoordinates, hasInitialSelection) {
+        mutableStateOf(MapPickerSelection(initialCoordinates.takeIf { hasInitialSelection }))
     }
+    var viewportRequestId by remember(initialCoordinates, hasInitialSelection) { mutableStateOf(0L) }
+    var cameraTarget by remember(initialCoordinates) { mutableStateOf(initialCoordinates) }
+    var cameraZoom by remember(initialZoom) { mutableStateOf(initialZoom) }
+    var preserveZoom by remember { mutableStateOf(true) }
+    var mapBearing by remember { mutableStateOf(0.0) }
+    var northRequestId by remember { mutableStateOf(0L) }
 
 
     Box(
@@ -67,24 +80,33 @@ fun MapPickerScreen(
     ) {
         // Layer 1: 100% Viewport Edge-to-Edge Map
         PlatformMapView(
-            center = currentCoordinates,
-            zoom = initialZoom,
-            // Crosshair-only selection: panning chooses the true camera center. A separate
-            // tappable/draggable pin would disagree with the crosshair after a gesture.
-            pinLocation = null,
-            geofenceCenter = currentCoordinates,
+            center = cameraTarget,
+            zoom = cameraZoom,
+            pinLocation = selection.coordinates,
+            userPosition = userPosition,
+            onBearingChanged = { mapBearing = it },
+            northRequestId = northRequestId,
+            geofenceCenter = selection.coordinates,
             geofenceRadius = geofenceRadius,
             isDarkTheme = isDarkTheme,
-            onMapClick = {},
-            onPinDrag = {},
-            onCameraCenterChanged = { currentCoordinates = it },
+            onMapClick = {
+                selection = selection.select(it)
+                cameraTarget = it
+                preserveZoom = true
+                viewportRequestId++
+            },
+            onPinDrag = { selection = selection.select(it) },
+            onCameraCenterChanged = { center, isUserGesture ->
+                selection = selection.onCameraCenterChanged(center, isUserGesture)
+            },
             // Selection follows gestures without issuing a camera reset to initialZoom.
-            viewportRequestId = 0L,
+            viewportRequestId = viewportRequestId,
+            preserveZoomOnViewportRequest = preserveZoom,
             modifier = Modifier.fillMaxSize(),
         )
 
-        // Layer 2: Dead-Center Crosshair Target Indicator
-        Box(
+        // A neutral crosshair invites deliberate selection; it never claims a user position.
+        if (selection.coordinates == null) Box(
             modifier = Modifier
                 .align(Alignment.Center),
             contentAlignment = Alignment.Center,
@@ -108,46 +130,66 @@ fun MapPickerScreen(
             }
         }
 
-        // Layer 3: Safe-Area Top Header (Back + Hint)
-        Row(
-            modifier = WindowInsetsLayoutHelper
-                .hudTopPaddingModifier(Modifier)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        // Header and map controls share the fold/cutout-safe scroll rectangle.
+        Column(
+            modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier)
+                .fillMaxWidth()
+                .padding(bottom = 100.dp)
+                .verticalScroll(rememberScrollState()),
         ) {
-            // Back Button
             Row(
-                modifier = Modifier
-                    .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                    .clickable(role = Role.Button, onClick = onBack)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                modifier = WindowInsetsLayoutHelper
+                    .hudTopPaddingModifier(Modifier)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = FjalarStrings.get(FjalarStringKey.NAV_BACK, locale),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
+                // Back Button
+                Row(
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                        .clickable(role = Role.Button, onClick = onBack)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = FjalarStrings.get(FjalarStringKey.NAV_BACK, locale),
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textPrimary,
+                        ),
+                    )
+                }
+
+                // Hint Pill
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = FjalarStrings.get(FjalarStringKey.PICKER_HINT, locale),
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                         color = colors.textPrimary,
-                    ),
-                )
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
 
-            // Hint Pill
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = FjalarStrings.get(FjalarStringKey.PICKER_HINT, locale),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                    color = colors.textPrimary,
-                    textAlign = TextAlign.Center,
-                )
-            }
+            MapNavigationControls(
+                onRecenter = {
+                    cameraTarget = userPosition?.coordinates ?: selection.coordinates ?: GeoCoordinates(0.0, 0.0)
+                    cameraZoom = if (userPosition != null || selection.coordinates != null) 15.0 else 2.0
+                    preserveZoom = false
+                    viewportRequestId++
+                },
+                bearing = mapBearing,
+                onResetNorth = { northRequestId++ },
+                modifier = Modifier.align(Alignment.End).padding(horizontal = 16.dp, vertical = 8.dp),
+            )
         }
 
         // Layer 4: Safe-Area Bottom Floating Action Pill (Confirm)
@@ -159,7 +201,8 @@ fun MapPickerScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
         ) {
             Button(
-                onClick = { onConfirmCoordinates(currentCoordinates) },
+                onClick = { selection.coordinates?.let(onConfirmCoordinates) },
+                enabled = selection.coordinates != null,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colors.primary,
                     contentColor = colors.onPrimary,
@@ -167,7 +210,7 @@ fun MapPickerScreen(
                 shape = CircleShape,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
+                    .heightIn(min = 52.dp),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
             ) {
                 Text(
