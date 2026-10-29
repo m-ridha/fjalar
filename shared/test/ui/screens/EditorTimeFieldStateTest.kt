@@ -33,6 +33,38 @@ class EditorTimeFieldStateTest {
     }
 
     @Test
+    fun tapAndFirstDigitArrivingTogetherReplaceThePrefilledValue() {
+        for (prefilled in listOf("07", "15", "7")) {
+            for (cursor in 0..prefilled.length) {
+                val field = EditorTimeFieldState(prefilled)
+                field.onFocusChanged(true)
+
+                // Some IMEs deliver the tap's new cursor and the digit in one batch.
+                assertTrue(
+                    edit(
+                        field,
+                        SetSelectionCommand(cursor, cursor),
+                        CommitTextCommand("1", 1),
+                    )
+                )
+                assertEquals(TextFieldValue("1", TextRange(1)), field.value)
+
+                assertTrue(edit(field, CommitTextCommand("2", 1)))
+                assertEquals(TextFieldValue("12", TextRange(2)), field.value)
+            }
+        }
+    }
+
+    @Test
+    fun firstEditPasteReplacesTheWholePrefilledValue() {
+        val field = EditorTimeFieldState("07")
+        field.onFocusChanged(true)
+
+        assertTrue(edit(field, CommitTextCommand("12", 1)))
+        assertEquals(TextFieldValue("12", TextRange(2)), field.value)
+    }
+
+    @Test
     fun cursorPlacementAfterFirstEditIsRespected() {
         val field = EditorTimeFieldState("07")
         field.onFocusChanged(true)
@@ -101,9 +133,9 @@ class EditorTimeFieldStateTest {
         assertEquals("12", field.value.text)
     }
 
-    private fun edit(field: EditorTimeFieldState, command: EditCommand): Boolean {
+    private fun edit(field: EditorTimeFieldState, vararg commands: EditCommand): Boolean {
         val processor = EditProcessor()
         processor.reset(field.value, null)
-        return field.onValueChange(processor.apply(listOf(command)))
+        return field.onValueChange(processor.apply(commands.toList()))
     }
 }
