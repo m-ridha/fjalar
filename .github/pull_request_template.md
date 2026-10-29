@@ -8,7 +8,8 @@
 - [ ] Bug fix
 - [ ] Refactoring / Hexagonal port decoupling
 - [ ] UI / Liquid Glass styling & design tokens
-- [ ] Localization / i18n (`en` / `id`)
+- [ ] Documentation update
+- [ ] Localization / i18n
 - [ ] Tests / Mock adapters
 - [ ] Build / Amper configuration
 
