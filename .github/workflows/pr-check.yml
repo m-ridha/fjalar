@@ -88,7 +88,9 @@ jobs:
         run: ./kotlin test
 
       - name: Test Release Version Handling
-        run: python3 scripts/test_release_metadata.py
+        run: |
+          python3 scripts/test_release_metadata.py
+          python3 scripts/test_upload_release_assets.py
 
       - name: Run Multiplatform Checks (./kotlin check)
         run: ./kotlin check

@@ -81,9 +81,19 @@ an exit trap, and excluded from uploaded artifacts. `zipalign` runs before
 
 If a job fails, correct its setup and re-run the failed jobs. The same workflow
 run retains its version code. Successful build artifacts are retained for seven
-days; if they expire, re-run all jobs. Upload uses `--clobber` to replace only the
-same named APK/checksum assets on retry, without changing the release notes or
-other assets. If a partial upload occurs, a successful retry replaces the pair.
+days; if they expire, re-run all jobs. Before uploading anything, the workflow
+downloads any existing matching APK/checksum assets and compares their SHA-256
+hashes with the local files. Identical assets are preserved; only missing files
+are uploaded, allowing a partial upload to finish safely. A differing asset stops
+the job without replacing or deleting anything. A rebuild may produce different
+bytes, so prefer retrying the upload job with its original build artifacts.
+
+For changed content, publish a new version/tag whenever possible. If an existing
+asset must be replaced, an administrator must explicitly back up the old APK and
+checksum, upload and verify the candidate pair under distinct names first, and
+then deliberately replace the canonical pair. Keep the backup/candidate available
+until the replacement is verified. The automated workflow never performs this
+destructive replacement procedure and never uses `--clobber`.
 
 This published-release trigger requires editable release assets. If GitHub
 immutable releases are enabled, use a future draft-build-then-publish flow instead;
