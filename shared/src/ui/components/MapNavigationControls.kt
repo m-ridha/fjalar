@@ -37,43 +37,54 @@ fun MapNavigationControls(
     onResetNorth: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        MapRecenterControl(onRecenter)
+        MapCompassControl(bearing, onResetNorth)
+    }
+}
+
+@Composable
+fun MapRecenterControl(onRecenter: () -> Unit) {
     val colors = LiquidGlassTheme.colors
     val recenterDescription = fjalarString(FjalarStringKey.HUD_RECENTER_LOCATION)
+    Box(
+        modifier = Modifier.size(48.dp)
+            .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+            .clickable(role = Role.Button, onClick = onRecenter)
+            .semantics { contentDescription = recenterDescription },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("◎", fontSize = 20.sp, color = colors.primary)
+    }
+}
+
+@Composable
+fun MapCompassControl(bearing: Double, onResetNorth: () -> Unit) {
+    val colors = LiquidGlassTheme.colors
     val compassDescription = fjalarString(FjalarStringKey.HUD_COMPASS_NORTH)
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(
-            modifier = Modifier.size(48.dp)
-                .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                .clickable(role = Role.Button, onClick = onRecenter)
-                .semantics { contentDescription = recenterDescription },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("◎", fontSize = 20.sp, color = colors.primary)
-        }
-        Box(
-            modifier = Modifier.size(48.dp)
-                .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                .clickable(role = Role.Button, onClick = onResetNorth)
-                .semantics { contentDescription = compassDescription },
-            contentAlignment = Alignment.Center,
-        ) {
-            Canvas(Modifier.size(28.dp).rotate(-bearing.toFloat())) {
-                val center = Offset(size.width / 2f, size.height / 2f)
-                val north = Path().apply {
-                    moveTo(center.x, 0f)
-                    lineTo(center.x - size.width * 0.2f, center.y)
-                    lineTo(center.x + size.width * 0.2f, center.y)
-                    close()
-                }
-                val south = Path().apply {
-                    moveTo(center.x, size.height)
-                    lineTo(center.x - size.width * 0.2f, center.y)
-                    lineTo(center.x + size.width * 0.2f, center.y)
-                    close()
-                }
-                drawPath(north, Color(0xFFFF3B30))
-                drawPath(south, colors.textPrimary)
+    Box(
+        modifier = Modifier.size(48.dp)
+            .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+            .clickable(role = Role.Button, onClick = onResetNorth)
+            .semantics { contentDescription = compassDescription },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.size(28.dp).rotate(-bearing.toFloat())) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val north = Path().apply {
+                moveTo(center.x, 0f)
+                lineTo(center.x - size.width * 0.2f, center.y)
+                lineTo(center.x + size.width * 0.2f, center.y)
+                close()
             }
+            val south = Path().apply {
+                moveTo(center.x, size.height)
+                lineTo(center.x - size.width * 0.2f, center.y)
+                lineTo(center.x + size.width * 0.2f, center.y)
+                close()
+            }
+            drawPath(north, Color(0xFFFF3B30))
+            drawPath(south, colors.textPrimary)
         }
     }
 }

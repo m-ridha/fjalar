@@ -41,7 +41,7 @@ class ComponentFormattersTest {
     @Test
     fun dayChipLabelsReturnsLanguageSpecificAbbreviations() {
         assertEquals(
-            listOf("M", "T", "W", "T", "F", "S", "S"),
+            listOf("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"),
             dayChipLabels(AppLocale.EN),
         )
         assertEquals(

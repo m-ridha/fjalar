@@ -184,6 +184,21 @@ fun FjalarApp(
                                     modifier = Modifier,
                                     locale = uiState.appLocale,
                                     themeMode = uiState.themeMode,
+                                    armedStatus = activeAlarm?.let { alarm ->
+                                        {
+                                            ArmedStatusPill(
+                                                alarm = alarm,
+                                                distanceMeters = uiState.distanceMetersByAlarmId[alarm.id],
+                                                onClick = {
+                                                    viewModel.onStartConfiguringAlarm(
+                                                        alarmId = alarm.id,
+                                                        defaultCoordinates = null,
+                                                    )
+                                                    navController.navigate(ConfigureRoute(alarm.id))
+                                                },
+                                            )
+                                        }
+                                    },
                                 )
 
                                 if (!uiState.hasLocationPermission && !permissionBannerDismissed) {
@@ -197,25 +212,7 @@ fun FjalarApp(
                                             .padding(horizontal = 16.dp),
                                     )
                                 }
-
-                                if (activeAlarm != null) {
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    ArmedStatusPill(
-                                        alarm = activeAlarm,
-                                        distanceMeters = uiState.distanceMetersByAlarmId[activeAlarm.id],
-                                        onClick = {
-                                            viewModel.onStartConfiguringAlarm(
-                                                alarmId = activeAlarm.id,
-                                                defaultCoordinates = null,
-                                            )
-                                            navController.navigate(ConfigureRoute(activeAlarm.id))
-                                        },
-                                        modifier = WindowInsetsLayoutHelper.horizontalSafeDrawingPaddingModifier()
-                                            .padding(horizontal = 16.dp),
-                                    )
-                                }
                             }
-
                         }
 
                         // Search Places Modal Sheet

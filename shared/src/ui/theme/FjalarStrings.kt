@@ -57,6 +57,14 @@ enum class FjalarStringKey {
     EDITOR_STRONG_VIBRATE,
     EDITOR_EARPHONE_OVERRIDE,
     EDITOR_DELETE_ALARM,
+    DAY_CHIP_MONDAY,
+    DAY_CHIP_TUESDAY,
+    DAY_CHIP_WEDNESDAY,
+    DAY_CHIP_THURSDAY,
+    DAY_CHIP_FRIDAY,
+    DAY_CHIP_SATURDAY,
+    DAY_CHIP_SUNDAY,
+
 
     // Ringing Wake-up Screen
     RINGING_IN_ZONE_BADGE,
@@ -122,6 +130,13 @@ enum class FjalarStringKey {
 object FjalarStrings {
 
     private val englishCatalog: Map<FjalarStringKey, String> = mapOf(
+        FjalarStringKey.DAY_CHIP_MONDAY to "Mo",
+        FjalarStringKey.DAY_CHIP_TUESDAY to "Tu",
+        FjalarStringKey.DAY_CHIP_WEDNESDAY to "We",
+        FjalarStringKey.DAY_CHIP_THURSDAY to "Th",
+        FjalarStringKey.DAY_CHIP_FRIDAY to "Fr",
+        FjalarStringKey.DAY_CHIP_SATURDAY to "Sa",
+        FjalarStringKey.DAY_CHIP_SUNDAY to "Su",
         FjalarStringKey.NAV_BACK to "← Back",
         FjalarStringKey.PINNED_LOCATION to "Pinned Location",
         FjalarStringKey.LOCATION_NOT_SET to "📍 Not set",
@@ -221,6 +236,13 @@ object FjalarStrings {
     )
 
     private val indonesianCatalog: Map<FjalarStringKey, String> = mapOf(
+        FjalarStringKey.DAY_CHIP_MONDAY to "Sn",
+        FjalarStringKey.DAY_CHIP_TUESDAY to "Sl",
+        FjalarStringKey.DAY_CHIP_WEDNESDAY to "Rb",
+        FjalarStringKey.DAY_CHIP_THURSDAY to "Km",
+        FjalarStringKey.DAY_CHIP_FRIDAY to "Jm",
+        FjalarStringKey.DAY_CHIP_SATURDAY to "Sb",
+        FjalarStringKey.DAY_CHIP_SUNDAY to "Mg",
         FjalarStringKey.NAV_BACK to "← Kembali",
         FjalarStringKey.PINNED_LOCATION to "Titik Lokasi",
         FjalarStringKey.LOCATION_NOT_SET to "📍 Belum ditentukan",

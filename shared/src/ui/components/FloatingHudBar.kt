@@ -3,6 +3,7 @@ package com.muhammadridha.fjalar.ui.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.heightIn
@@ -123,6 +124,7 @@ fun FloatingHudBar(
     onSelectLocale: ((AppLocale) -> Unit)? = null,
     bearing: Double = 0.0,
     onResetNorth: () -> Unit = {},
+    armedStatus: (@Composable () -> Unit)? = null,
 ) {
     val colors = LiquidGlassTheme.colors
     val isDark = colors.isDark
@@ -135,71 +137,81 @@ fun FloatingHudBar(
         if (loc != locale) onToggleLocale()
     }
 
-    FlowRow(
-        modifier = WindowInsetsLayoutHelper.hudTopPaddingModifier(modifier).fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // Search Pill
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .widthIn(min = 160.dp)
-                .heightIn(min = 48.dp)
-                .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                .clickable(
-                    role = Role.Button,
-                    onClick = onSearchClick,
+    Column(modifier = WindowInsetsLayoutHelper.hudTopPaddingModifier(modifier).fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+            FlowRow(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // Search Pill
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .widthIn(min = 160.dp)
+                        .heightIn(min = 48.dp)
+                        .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                        .clickable(
+                            role = Role.Button,
+                            onClick = onSearchClick,
+                        )
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "🔍",
+                        fontSize = 14.sp,
+                        color = colors.textSecondary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = searchPlaceholder,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                // Locale Dropdown (🌐 EN ▾ / 🌐 ID ▾)
+                LanguageDropdown(
+                    selectedLocale = locale,
+                    onSelectLocale = handleSelectLocale,
                 )
-                .padding(horizontal = 14.dp),
+
+                // Theme Toggle Button (☀️ / 🌙)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                        .clickable(
+                            role = Role.Button,
+                            onClick = onToggleTheme,
+                        )
+                        .semantics {
+                            contentDescription = themeContentDesc
+                            role = Role.Button
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (isDark) "🌙" else "☀️",
+                        fontSize = 18.sp,
+                    )
+                }
+            }
+            MapRecenterControl(onRecenter)
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "🔍",
-                fontSize = 14.sp,
-                color = colors.textSecondary,
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = searchPlaceholder,
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                armedStatus?.invoke()
+            }
+            MapCompassControl(bearing, onResetNorth)
         }
-
-        // Locale Dropdown (🌐 EN ▾ / 🌐 ID ▾)
-        LanguageDropdown(
-            selectedLocale = locale,
-            onSelectLocale = handleSelectLocale,
-        )
-
-        // Theme Toggle Button (☀️ / 🌙)
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                .clickable(
-                    role = Role.Button,
-                    onClick = onToggleTheme,
-                )
-                .semantics {
-                    contentDescription = themeContentDesc
-                    role = Role.Button
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = if (isDark) "🌙" else "☀️",
-                fontSize = 18.sp,
-            )
-        }
-
-        MapNavigationControls(
-            onRecenter = onRecenter,
-            bearing = bearing,
-            onResetNorth = onResetNorth,
-        )
     }
 }

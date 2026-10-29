@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
@@ -27,7 +26,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
@@ -157,23 +155,6 @@ fun AlarmCard(
                 )
             }
 
-            if (onDelete != null) {
-                OutlinedButton(
-                    onClick = { onDelete(alarm) },
-                    modifier = Modifier.heightIn(min = 48.dp),
-                    shape = CircleShape,
-                    border = BorderStroke(1.dp, colors.danger),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = colors.danger.copy(alpha = 0.12f),
-                        contentColor = colors.danger,
-                    ),
-                ) {
-                    Text(text = "🗑", fontSize = 18.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = deleteLabel, style = MaterialTheme.typography.labelMedium)
-                }
-            }
-
             // Skip Today control (for scheduled alarms)
             if (alarm.schedule.type == ScheduleType.SCHEDULED) {
                 if (alarm.state == AlarmState.COMPLETED_FOR_WINDOW) {
@@ -198,6 +179,22 @@ fun AlarmCard(
                             .heightIn(min = 48.dp)
                             .padding(horizontal = 12.dp, vertical = 14.dp),
                     )
+                }
+            }
+        }
+        if (onDelete != null) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                OutlinedButton(
+                    onClick = { onDelete(alarm) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, colors.danger),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = colors.danger.copy(alpha = 0.12f),
+                        contentColor = colors.danger,
+                    ),
+                ) {
+                    Text(text = deleteLabel, style = MaterialTheme.typography.labelMedium)
                 }
             }
         }

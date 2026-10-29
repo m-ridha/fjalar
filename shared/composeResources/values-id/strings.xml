@@ -111,4 +111,11 @@
     <string name="distance_unavailable">Jarak tidak tersedia</string>
     <string name="hud_compass_north">Arahkan peta ke utara</string>
     <string name="nav_add_alarm">Tambah Alarm</string>
+    <string name="day_chip_monday">Sn</string>
+    <string name="day_chip_tuesday">Sl</string>
+    <string name="day_chip_wednesday">Rb</string>
+    <string name="day_chip_thursday">Km</string>
+    <string name="day_chip_friday">Jm</string>
+    <string name="day_chip_saturday">Sb</string>
+    <string name="day_chip_sunday">Mg</string>
 </resources>

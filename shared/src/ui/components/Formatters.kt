@@ -49,13 +49,15 @@ fun formatMinuteOfDay(minute: Int): String {
     return "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}"
 }
 
-val ENGLISH_DAY_CHIPS = listOf("M", "T", "W", "T", "F", "S", "S")
-val INDONESIAN_DAY_CHIPS = listOf("Sn", "Sl", "Rb", "Km", "Jm", "Sb", "Mg")
-
-fun dayChipLabels(locale: AppLocale): List<String> = when (locale) {
-    AppLocale.EN -> ENGLISH_DAY_CHIPS
-    AppLocale.ID -> INDONESIAN_DAY_CHIPS
-}
+fun dayChipLabels(locale: AppLocale): List<String> = listOf(
+    FjalarStringKey.DAY_CHIP_MONDAY,
+    FjalarStringKey.DAY_CHIP_TUESDAY,
+    FjalarStringKey.DAY_CHIP_WEDNESDAY,
+    FjalarStringKey.DAY_CHIP_THURSDAY,
+    FjalarStringKey.DAY_CHIP_FRIDAY,
+    FjalarStringKey.DAY_CHIP_SATURDAY,
+    FjalarStringKey.DAY_CHIP_SUNDAY,
+).map { key -> FjalarStrings.get(key, locale) }
 
 fun formatDaysOfWeek(mask: Int, locale: AppLocale): String {
     if (mask == AlarmSchedule.WEEKDAYS) {

@@ -71,7 +71,7 @@ Follow the [Product and UI Design Specification](https://app.notion.com/p/4030ee
 3. **Bilingual Layout & Text Expansion (`en` & `id`):**
    - Every user-facing string must live in multiplatform `Res.string` catalogs (`en` and `id`), with OS-owned display names localized via native iOS `InfoPlist.strings` and Android manifest resource files. Display app names: *"Wake Me at"* (EN) and *"Bangunkan Saya di"* (ID).
    - Bahasa Indonesia strings are `15%–25%` longer (e.g. *Geser untuk Matikan Alarm*, *Alarm Tersimpan & Terjadwal*, *Lewati Hari Ini*). UI pills, cards, and bottom sheets must use adaptive auto-wrapping and flexible widths without text clipping at `320 dp–390 dp`.
-   - Day chips must display `M T W T F S S` in English and `Sn Sl Rb Km Jm Sb Mg` in Bahasa Indonesia to avoid ambiguous single-letter duplicates (*Senin, Selasa, Sabtu*).
+   - Day chips must display `Mo Tu We Th Fr Sa Su` in English and `Sn Sl Rb Km Jm Sb Mg` in Bahasa Indonesia to avoid ambiguous single-letter duplicates (*Senin, Selasa, Sabtu*).
 4. **Ergonomics & Tabular Numerals:**
    - Use tabular numbers (`tnum`) for all distance readouts (`420m`), telemetry speeds (`34 km/h`), and time windows (`07:00 – 09:30`).
 

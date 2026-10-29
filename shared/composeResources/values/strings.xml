@@ -111,4 +111,11 @@
     <string name="distance_unavailable">Distance unavailable</string>
     <string name="hud_compass_north">Reset map north</string>
     <string name="nav_add_alarm">Add Alarm</string>
+    <string name="day_chip_monday">Mo</string>
+    <string name="day_chip_tuesday">Tu</string>
+    <string name="day_chip_wednesday">We</string>
+    <string name="day_chip_thursday">Th</string>
+    <string name="day_chip_friday">Fr</string>
+    <string name="day_chip_saturday">Sa</string>
+    <string name="day_chip_sunday">Su</string>
 </resources>
