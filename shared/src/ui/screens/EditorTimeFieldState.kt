@@ -1,87 +1,64 @@
 package com.muhammadridha.fjalar.ui.screens
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.placeCursorAtEnd
+import androidx.compose.foundation.text.input.selectAll
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.TextFieldValue
 
-/** Keeps the initial selection through tap/IME selection updates until the first text edit. */
+/** Keeps replace-all intent through selection/IME batches without guessing from proposed text. */
+@OptIn(ExperimentalFoundationApi::class)
 internal class EditorTimeFieldState(text: String) {
-    var value by mutableStateOf(TextFieldValue(text))
-        private set
-
+    val state = TextFieldState(initialText = text)
+    val text: String get() = state.text.toString()
     private var focused = false
-    private var awaitingFirstEdit = false
+
+    val inputTransformation = InputTransformation {
+        val replacingPrefill = originalText.isNotEmpty() &&
+            originalSelection.min == 0 && originalSelection.max == originalText.length
+
+        if (changes.changeCount == 0) {
+            // The focus tap may collapse the select-all range before the first text edit.
+            if (replacingPrefill) selectAll()
+            return@InputTransformation
+        }
+
+        if (replacingPrefill && changes.changeCount == 1) {
+            val originalRange = changes.getOriginalRange(0)
+            val editedRange = changes.getRange(0)
+            val replacesWholeValue = originalRange.min == 0 && originalRange.max == originalText.length
+            // A full replacement (including paste) owns the whole proposed value. A batched
+            // cursor move + insertion owns exactly the inserted range, not surviving old digits.
+            val replacement = if (replacesWholeValue) {
+                asCharSequence().toString()
+            } else {
+                asCharSequence().subSequence(editedRange.min, editedRange.max).toString()
+            }
+            if (!isAccepted(replacement)) {
+                revertAllChanges()
+                return@InputTransformation
+            }
+            replace(0, length, replacement)
+            placeCursorAtEnd()
+        } else if (!isAccepted(asCharSequence())) {
+            revertAllChanges()
+        }
+    }
 
     fun onFocusChanged(isFocused: Boolean) {
-        if (isFocused && !focused) {
-            awaitingFirstEdit = true
-            value = value.copy(selection = TextRange(0, value.text.length))
-        }
-        if (!isFocused) awaitingFirstEdit = false
+        if (isFocused && !focused) state.edit { selectAll() }
         focused = isFocused
     }
 
-    /** Returns true only when an accepted edit changes the text. */
-    fun onValueChange(proposed: TextFieldValue): Boolean {
-        if (proposed.text == value.text) {
-            if (!isAccepted(proposed.text)) return false
-            // A tap can collapse the selection after focus is gained. Restore it before typing.
-            value = if (awaitingFirstEdit) {
-                proposed.copy(selection = TextRange(0, proposed.text.length))
-            } else {
-                proposed
-            }
-            return false
-        }
-
-        // Some IMEs batch the tap's collapsed cursor with the first digit. Keep only the
-        // typed characters so the prefilled value is replaced instead of appended to.
-        val editedText = if (awaitingFirstEdit) {
-            textInsertedInto(value.text, proposed.text)
-        } else {
-            proposed.text
-        }
-        if (!isAccepted(editedText)) return false
-
-        value = if (awaitingFirstEdit) {
-            TextFieldValue(editedText, TextRange(editedText.length))
-        } else {
-            proposed
-        }
-        awaitingFirstEdit = false
-        return true
-    }
-
-    private fun isAccepted(text: String): Boolean =
-        text.length <= 2 && text.all { it in '0'..'9' }
-
-    private fun textInsertedInto(previous: String, proposed: String): String {
-        if (previous.isEmpty()) return proposed
-        // A collapsed tap cursor makes the IME append or prepend to the prefilled value.
-        if (proposed.startsWith(previous)) return proposed.removePrefix(previous)
-        if (proposed.endsWith(previous)) return proposed.removeSuffix(previous)
-        // The IME already replaced the selection with a complete new value.
-        if (isAccepted(proposed)) return proposed
-        return textBetweenCommonEdges(previous, proposed)
-    }
-
-    /** Strips the characters that survived from [previous] when the first digit lands mid-value. */
-    private fun textBetweenCommonEdges(previous: String, proposed: String): String {
-        val commonPrefixLength = previous.commonPrefixWith(proposed).length
-        val remainingPrevious = previous.drop(commonPrefixLength)
-        val remainingProposed = proposed.drop(commonPrefixLength)
-        val commonSuffixLength = remainingPrevious.commonSuffixWith(remainingProposed).length
-        return remainingProposed.dropLast(commonSuffixLength)
-    }
-
     fun synchronize(text: String) {
-        if (text == value.text) return
-        awaitingFirstEdit = focused
-        value = TextFieldValue(
-            text = text,
-            selection = if (focused) TextRange(0, text.length) else TextRange.Zero,
-        )
+        if (text == this.text) return
+        state.edit {
+            replace(0, length, text)
+            selection = if (focused) TextRange(0, length) else TextRange.Zero
+        }
     }
+
+    private fun isAccepted(text: CharSequence): Boolean =
+        text.length <= 2 && text.all { it in '0'..'9' }
 }

@@ -23,8 +23,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -795,8 +795,18 @@ private fun EditorTimePickerDialog(
         is24Hour = true,
     )
     var keyboardMode by remember { mutableStateOf(false) }
-    var hourText by remember { mutableStateOf((initialMinuteOfDay / 60).toString().padStart(2, '0')) }
-    var minuteText by remember { mutableStateOf((initialMinuteOfDay % 60).toString().padStart(2, '0')) }
+    val hourField = remember { EditorTimeFieldState((initialMinuteOfDay / 60).toString().padStart(2, '0')) }
+    val minuteField = remember { EditorTimeFieldState((initialMinuteOfDay % 60).toString().padStart(2, '0')) }
+
+    fun synchronizeDialFromInput() {
+        hourField.text.toIntOrNull()?.takeIf { it in 0..23 }?.let { pickerState.hour = it }
+        minuteField.text.toIntOrNull()?.takeIf { it in 0..59 }?.let { pickerState.minute = it }
+    }
+
+    fun synchronizeInputFromDial() {
+        hourField.synchronize(pickerState.hour.toString().padStart(2, '0'))
+        minuteField.synchronize(pickerState.minute.toString().padStart(2, '0'))
+    }
     val pickerColors = TimePickerDefaults.colors(
         clockDialColor = colors.glassPill,
         clockDialSelectedContentColor = colors.onPrimary,
@@ -829,12 +839,13 @@ private fun EditorTimePickerDialog(
             val showKeyboard = compact || keyboardMode
             LaunchedEffect(showKeyboard) {
                 if (showKeyboard) {
-                    hourText = pickerState.hour.toString().padStart(2, '0')
-                    minuteText = pickerState.minute.toString().padStart(2, '0')
+                    synchronizeInputFromDial()
+                } else {
+                    synchronizeDialFromInput()
                 }
             }
             val selectedMinute = if (showKeyboard) {
-                editorMinuteOfDay(hourText, minuteText)
+                editorMinuteOfDay(hourField.text, minuteField.text)
             } else {
                 pickerState.hour * 60 + pickerState.minute
             }
@@ -859,17 +870,9 @@ private fun EditorTimePickerDialog(
                 Spacer(modifier = Modifier.height(12.dp))
                 if (showKeyboard) {
                     EditorTimeInput(
-                        hourText = hourText,
-                        minuteText = minuteText,
+                        hourField = hourField,
+                        minuteField = minuteField,
                         locale = locale,
-                        onHourChange = { value ->
-                            hourText = value
-                            value.toIntOrNull()?.takeIf { it in 0..23 }?.let { pickerState.hour = it }
-                        },
-                        onMinuteChange = { value ->
-                            minuteText = value
-                            value.toIntOrNull()?.takeIf { it in 0..59 }?.let { pickerState.minute = it }
-                        },
                     )
                 } else {
                     val typography = MaterialTheme.typography
@@ -888,7 +891,10 @@ private fun EditorTimePickerDialog(
                 }
                 if (!compact) {
                     TextButton(
-                        onClick = { keyboardMode = !keyboardMode },
+                        onClick = {
+                            if (showKeyboard) synchronizeDialFromInput() else synchronizeInputFromDial()
+                            keyboardMode = !keyboardMode
+                        },
                         modifier = Modifier.heightIn(min = 48.dp),
                     ) {
                         Text(
@@ -912,7 +918,16 @@ private fun EditorTimePickerDialog(
                         Text(FjalarStrings.get(FjalarStringKey.EDITOR_CANCEL, locale), color = colors.textPrimary)
                     }
                     Button(
-                        onClick = { selectedMinute?.let(onConfirm) },
+                        onClick = {
+                            // Read the authoritative state at activation, including an edit that
+                            // arrived after the last composition of the button.
+                            val confirmedMinute = if (showKeyboard) {
+                                editorMinuteOfDay(hourField.text, minuteField.text)
+                            } else {
+                                pickerState.hour * 60 + pickerState.minute
+                            }
+                            confirmedMinute?.let(onConfirm)
+                        },
                         enabled = selectedMinute != null,
                         modifier = Modifier.heightIn(min = 48.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -943,25 +958,12 @@ internal fun editorMinuteOfDay(hourText: String, minuteText: String): Int? {
 
 @Composable
 private fun EditorTimeInput(
-    hourText: String,
-    minuteText: String,
+    hourField: EditorTimeFieldState,
+    minuteField: EditorTimeFieldState,
     locale: AppLocale,
-    onHourChange: (String) -> Unit,
-    onMinuteChange: (String) -> Unit,
 ) {
     val colors = LiquidGlassTheme.colors
     val focusManager = LocalFocusManager.current
-    val hourField = remember { EditorTimeFieldState(hourText) }
-    val minuteField = remember { EditorTimeFieldState(minuteText) }
-
-    // Dial/mode changes can replace the text; ordinary typing keeps its selection and cursor.
-    LaunchedEffect(hourText) {
-        hourField.synchronize(hourText)
-    }
-    LaunchedEffect(minuteText) {
-        minuteField.synchronize(minuteText)
-    }
-
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = colors.textPrimary,
         unfocusedTextColor = colors.textPrimary,
@@ -980,19 +982,17 @@ private fun EditorTimeInput(
     Column {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(
-                value = hourField.value,
-                onValueChange = { value ->
-                    if (hourField.onValueChange(value)) onHourChange(hourField.value.text)
-                },
+                state = hourField.state,
+                inputTransformation = hourField.inputTransformation,
                 label = { Text(FjalarStrings.get(FjalarStringKey.EDITOR_TIME_HOUR, locale)) },
-                isError = editorMinuteOfDay(hourText, "00") == null,
-                singleLine = true,
+                isError = editorMinuteOfDay(hourField.text, "00") == null,
+                lineLimits = TextFieldLineLimits.SingleLine,
                 textStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum"),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Next,
                 ),
-                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) }),
+                onKeyboardAction = { focusManager.moveFocus(FocusDirection.Next) },
                 colors = fieldColors,
                 modifier = Modifier
                     .weight(1f)
@@ -1002,19 +1002,17 @@ private fun EditorTimeInput(
                     },
             )
             OutlinedTextField(
-                value = minuteField.value,
-                onValueChange = { value ->
-                    if (minuteField.onValueChange(value)) onMinuteChange(minuteField.value.text)
-                },
+                state = minuteField.state,
+                inputTransformation = minuteField.inputTransformation,
                 label = { Text(FjalarStrings.get(FjalarStringKey.EDITOR_TIME_MINUTE, locale)) },
-                isError = editorMinuteOfDay("00", minuteText) == null,
-                singleLine = true,
+                isError = editorMinuteOfDay("00", minuteField.text) == null,
+                lineLimits = TextFieldLineLimits.SingleLine,
                 textStyle = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = "tnum"),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Done,
                 ),
-                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                onKeyboardAction = { focusManager.clearFocus() },
                 colors = fieldColors,
                 modifier = Modifier
                     .weight(1f)
@@ -1024,7 +1022,7 @@ private fun EditorTimeInput(
                     },
             )
         }
-        if (editorMinuteOfDay(hourText, minuteText) == null) {
+        if (editorMinuteOfDay(hourField.text, minuteField.text) == null) {
             Text(
                 text = FjalarStrings.get(FjalarStringKey.EDITOR_TIME_INVALID, locale),
                 color = colors.textPrimary,
