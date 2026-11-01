@@ -1,7 +1,7 @@
 package com.muhammadridha.fjalar.ui
 
 import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
-import com.muhammadridha.fjalar.createDefaultViewModel
+import com.muhammadridha.fjalar.fakes.createTestViewModel
 import com.muhammadridha.fjalar.domain.model.*
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -33,7 +33,7 @@ class LocationDistanceTest {
 
     @Test fun movementReordersArmedAlarmsAndNeverUsesRadiusAsDistance() = runTest {
         val tracker = Tracker()
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         vm.onSaveAlarm(alarm("west", 0.0))
         vm.onSaveAlarm(alarm("east", 1.0))
         runCurrent()
@@ -53,7 +53,7 @@ class LocationDistanceTest {
     }
 
     @Test fun unknownDistancesUseStableIdAndExcludeNonArmedAlarms() = runTest {
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), coroutineScope = backgroundScope)
         vm.onSaveAlarm(alarm("z", 0.0))
         vm.onSaveAlarm(alarm("a", 1.0))
         vm.onSaveAlarm(alarm("0", 0.0).copy(state = AlarmState.DISABLED))
@@ -64,7 +64,7 @@ class LocationDistanceTest {
 
     @Test fun equalDistancesUseStableAlarmId() = runTest {
         val tracker = Tracker()
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         vm.onSaveAlarm(alarm("z", 1.0))
         vm.onSaveAlarm(alarm("a", -1.0))
         tracker.fixes.emit(fix(TestTimeSource()))
@@ -74,7 +74,7 @@ class LocationDistanceTest {
 
     @Test fun nearestUsesUnroundedDistanceBeforeIdTieBreak() = runTest {
         val tracker = Tracker()
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         vm.onSaveAlarm(alarm("a", 0.001001))
         vm.onSaveAlarm(alarm("z", 0.001000))
         tracker.fixes.emit(fix(TestTimeSource()))
@@ -86,7 +86,7 @@ class LocationDistanceTest {
 
     @Test fun accuracyCutoffsKeepApproximateDotSeparateFromNumericDistance() = runTest {
         val tracker = Tracker()
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         vm.onSaveAlarm(alarm("a", 1.0))
         val time = TestTimeSource()
         for ((accuracy, hasDistance, hasDot) in listOf(
@@ -102,7 +102,7 @@ class LocationDistanceTest {
 
     @Test fun fixExpiresAfterThirtySecondsWithoutAnotherCallbackOrWallClockUse() = runTest {
         val tracker = Tracker()
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         vm.onSaveAlarm(alarm("a", 1.0))
         val time = TestTimeSource()
         tracker.fixes.emit(fix(time))
@@ -123,14 +123,14 @@ class LocationDistanceTest {
         val time = TestTimeSource()
         tracker.fixes.emit(fix(time))
         time += 30_001.milliseconds
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         runCurrent()
         assertNull(vm.uiState.value.userLocation)
     }
 
     @Test fun recenterWaitsForNewSharedFixWithoutMovingTheSelectedDestination() = runTest {
         val tracker = Tracker()
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         val destination = GeoCoordinates(-33.9, 151.2)
         vm.onMapClicked(destination)
         vm.onRecenterMap()
@@ -144,7 +144,7 @@ class LocationDistanceTest {
     @Test fun availabilityArrivingAfterFirstFixStillCentersTheInitialViewport() = runTest {
         val tracker = Tracker()
         tracker.availability.value = LocationAvailability.PROVIDER_UNAVAILABLE
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         tracker.fixes.emit(fix(TestTimeSource(), longitude = -179.9))
         runCurrent()
         assertNull(vm.uiState.value.userLocation)
@@ -155,7 +155,7 @@ class LocationDistanceTest {
 
     @Test fun deniedProviderRemovesDistanceAndFutureObservationCannotRestoreIt() = runTest {
         val tracker = Tracker()
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         vm.onSaveAlarm(alarm("a", 1.0))
         val time = TestTimeSource()
         tracker.fixes.emit(fix(time))
@@ -177,7 +177,7 @@ class LocationDistanceTest {
         val time = TestTimeSource()
         tracker.fixes.emit(fix(time))
         time += 20_000.milliseconds
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         runCurrent()
         assertNotNull(vm.uiState.value.userLocation)
         time += 10_001.milliseconds

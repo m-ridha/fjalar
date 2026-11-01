@@ -21,7 +21,7 @@
 
 ---
 
-Fjalar (named after the mythical Norse rooster that heralds the dawn) solves a universal commuter problem: **traditional clock alarms fail on variable public transit commutes**. Whether riding commuter rail, metro trains, intercity buses, or ride-shares, commuters select a destination pin or search for a transit station, configure their trigger radius (250m – 5km), arm the alarm, and rest knowing that Fjalar will reliably wake them before their stop.
+Fjalar (named after the mythical Norse rooster that heralds the dawn) solves a universal commuter problem: **traditional clock alarms fail on variable public transit commutes**. Whether riding commuter rail, metro trains, intercity buses, or ride-shares, commuters select a destination pin or search for a transit station, configure their trigger radius (100m – 10km), arm the alarm, and rest knowing that Fjalar will reliably wake them before their stop.
 
 Contributor and agent development guidelines, architecture contracts, UI design tokens, and safety invariants live in [AGENTS.md](AGENTS.md). Production-ready 2D flat vector icon assets reside in [`assets/icons/`](assets/icons/).
 
@@ -65,7 +65,7 @@ flowchart TD
 
     subgraph DomainCore["Core Domain (Pure Kotlin — shared/src/domain)"]
         Entities["Entities & Value Objects:\nLocationAlarm, AlarmSchedule,\nGeoCoordinates, TriggerRadius,\nSearchResultPlace, PlaceCategory"]
-        StateMachine["AlarmState Lifecycle:\nDISABLED, SCHEDULED_IDLE,\nARMED_MONITORING, RINGING,\nCOMPLETED_FOR_WINDOW"]
+        StateMachine["AlarmState Lifecycle:\nDISABLED, SCHEDULED_IDLE,\nARMED_MONITORING, RINGING,\nCOMPLETED_FOR_WINDOW, SNOOZED"]
         Evaluators["AlarmEvaluator & ScheduleEvaluator"]
         GeoMath["HaversineCalculator & Accuracy Filter"]
     end
@@ -86,8 +86,8 @@ flowchart TD
         A_Ring["AndroidSystemAlarmRingerAdapter\nIosCriticalAudioRingerAdapter"]
         A_Map["OpenStreetMapLibreAdapter (Android)\nAppleMapKitAdapter (iOS)"]
         A_Search["HybridPlaceSearchAdapter\n(TransitCatalog + Photon/CLGeocoder)"]
-        A_Repo["SqlDelightAlarmRepositoryAdapter"]
-        A_Pref["DataStorePreferencesAdapter"]
+        A_Repo["PersistentAlarmRepository\n(JSON in platform key-value storage)"]
+        A_Pref["PersistentPreferencesAdapter\n(SharedPreferences / NSUserDefaults)"]
     end
 
     DrivingAdapters --> InboundPorts
@@ -114,6 +114,7 @@ fjalar/
 │   │   │   ├── ports/inbound/   # Use cases: Observe, Save, Toggle, HandleLocation, Dismiss, Skip
 │   │   │   ├── ports/outbound/  # SPIs: LocationTracker, AlarmScheduler, AlarmRinger, Map, Search, Repo
 │   │   │   └── service/         # AlarmEvaluator, ScheduleEvaluator, HaversineCalculator, AlarmService
+│   │   ├── di/                  # Koin modules and application bootstrap
 │   │   ├── ui/                  # Compose Multiplatform UI (FjalarApp, sheets, HUD, LiquidGlassTheme)
 │   │   └── adapters/            # Platform implementations (location, ringer, scheduler, map, search, repo)
 │   ├── src@android/             # Android-specific adapters (FusedLocation, AlarmManager, MapLibre, Photon)
@@ -148,7 +149,7 @@ All contributors and automated agents must preserve these core invariants:
 
 - **JDK 17+** (e.g. Temurin or OpenJDK)
 - **Android SDK** with build-tools (API 34+)
-- **macOS with Xcode 16+** (required for iOS 18 Asset Catalog and compiling iOS target / simulator)
+- **macOS with Xcode 26.4+** (required for iOS 18 Asset Catalog and compiling iOS target / simulator)
 - **Python 3 with Pillow** (for automated icon pipeline: `pip install pillow`)
 - **JetBrains Amper** (`./kotlin` CLI wrapper bundled in repository)
 
@@ -182,6 +183,8 @@ python3 scripts/generate_app_icons.py
 # Verify generated icon assets and safe-zone constraints
 python3 scripts/test_generated_icons.py
 ```
+
+For dependency registration and platform initialization, see [Dependency injection](docs/dependency-injection.md). For the Android keyguard boundary and security regression/manual checks, see [Security](docs/security.md).
 
 For version-tagged GitHub Releases, see the [release assets guide](docs/releasing.md)
 for Android signing secrets, publication steps, and the current iOS signing limitation.

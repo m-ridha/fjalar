@@ -15,6 +15,10 @@ The general form is `vX.Y.Z` with an optional hyphen suffix containing letters,
 digits, dots, or hyphens. Numeric version components cannot have leading zeroes.
 Malformed tags fail validation before either build job starts.
 
+The macOS verification job uses `macos-26` and explicitly selects Xcode 26.4
+through `DEVELOPER_DIR`, matching the Kotlin/Native 2.4.20 Apple SDK baseline.
+The same toolchain is selected in PR checks; Xcode 16 lacks required frameworks.
+
 ## Assets and versions
 
 After the signed Android build and multiplatform verification both pass, the

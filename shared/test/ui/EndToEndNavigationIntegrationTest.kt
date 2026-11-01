@@ -262,6 +262,7 @@ class EndToEndNavigationIntegrationTest {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun draftCoordinationFlow_editExistingAlarm_preservesExistingIdAndSchedule() = runTest {
         val vmScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
@@ -303,6 +304,7 @@ class EndToEndNavigationIntegrationTest {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun safetyInvariant3_ringingAlarmPrecedence_overAllScreens() = runTest {
         val vmScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())

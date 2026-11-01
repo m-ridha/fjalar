@@ -1,6 +1,8 @@
 package com.muhammadridha.fjalar
 
 import android.Manifest
+import org.koin.android.ext.android.inject
+import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -40,6 +42,9 @@ import kotlinx.coroutines.launch
  * - Fixes are evaluated solely in-memory on-device and never transmitted across network boundaries.
  */
 class FjalarLocationService : Service() {
+
+    private val tracker: AndroidFusedLocationAdapter by inject()
+    private val syncSchedules: SyncSchedulesPort by inject()
 
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(serviceJob + Dispatchers.Default)
@@ -96,8 +101,7 @@ class FjalarLocationService : Service() {
             // Service restarted by system (e.g. START_STICKY) with null intent.
             // Reconcile with active alarms first; stop only if none are armed and no newer start command arrived.
             serviceScope.launch {
-                val container = resolveContainer()
-                val alarms = container?.alarmService?.syncSchedules() ?: emptyList()
+                val alarms = syncSchedules.syncSchedules()
                 if (alarms.none { it.state == com.muhammadridha.fjalar.domain.model.AlarmState.ARMED_MONITORING }) {
                     if (latestStartId == startId) {
                         stopTrackingAndSelf(startId)
@@ -283,24 +287,16 @@ class FjalarLocationService : Service() {
 
         locationUpdateHook?.invoke(coordinates, accuracy)
 
-        val container = resolveContainer()
-        val tracker = container?.locationTracker as? AndroidFusedLocationAdapter
-        if (tracker != null) {
-            tracker.submitLocationUpdate(
-                coordinates,
-                accuracy,
-                Instant.fromEpochMilliseconds(location.time),
-                observationAgeMillis = nowElapsedMillis - observationElapsedMillis,
-            )
-        } else {
-            serviceScope.launch {
-                container?.alarmService?.handleLocationUpdate(coordinates, accuracy)
-            }
-        }
+        tracker.submitLocationUpdate(
+            coordinates,
+            accuracy,
+            Instant.fromEpochMilliseconds(location.time),
+            observationAgeMillis = nowElapsedMillis - observationElapsedMillis,
+        )
     }
 
     private fun reportAvailability(value: LocationAvailability) {
-        (resolveContainer()?.locationTracker as? AndroidFusedLocationAdapter)?.reportAvailability(value)
+        tracker.reportAvailability(value)
     }
 
     private fun reportProviderAvailability() {
@@ -312,10 +308,6 @@ class FjalarLocationService : Service() {
             try { locationManager?.isProviderEnabled(it) == true } catch (_: Exception) { false }
         }
         if (!enabled) reportAvailability(LocationAvailability.PROVIDER_UNAVAILABLE)
-    }
-
-    private fun resolveContainer(): FjalarAppContainer? {
-        return containerOverride ?: (applicationContext as? FjalarApplication)?.container
     }
 
     private fun buildOngoingNotification(): Notification {
@@ -413,7 +405,6 @@ class FjalarLocationService : Service() {
         @Volatile
         var isServiceRunning: Boolean = false
 
-        var containerOverride: FjalarAppContainer? = null
         var locationUpdateHook: ((GeoCoordinates, Float) -> Unit)? = null
     }
 }

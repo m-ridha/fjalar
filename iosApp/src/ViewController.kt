@@ -2,7 +2,7 @@ package com.muhammadridha.fjalar
 
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.window.ComposeUIViewController
-import com.muhammadridha.fjalar.di.FjalarIosContainer
+import org.koin.compose.viewmodel.koinViewModel
 import com.muhammadridha.fjalar.ui.FjalarViewModel
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
@@ -13,20 +13,8 @@ import platform.UIKit.UIApplication
 import platform.UIKit.UIApplicationState
 import platform.UIKit.UIViewController
 
-fun ViewController(): UIViewController = ViewController(FjalarIosContainer())
-
-fun ViewController(
-    container: FjalarIosContainer,
-    viewModel: FjalarViewModel = createDefaultViewModel(
-        keyValueStorage = container.keyValueStorage,
-        tracker = container.locationTracker,
-        scheduler = container.alarmScheduler,
-        ringer = container.alarmRinger,
-        alarmService = container.alarmService,
-        preferencesPort = container.preferences,
-        syncSchedulesPort = container.syncSchedulesPort,
-    ),
-): UIViewController = ComposeUIViewController {
+fun ViewController(): UIViewController = ComposeUIViewController {
+    val viewModel: FjalarViewModel = koinViewModel()
     DisposableEffect(viewModel) {
         viewModel.onAppForegroundChanged(UIApplication.sharedApplication.applicationState == UIApplicationState.UIApplicationStateActive)
         viewModel.syncSchedules()
@@ -65,7 +53,6 @@ fun ViewController(
     }
 
     App(
-        container = container,
         viewModel = viewModel,
     )
 }

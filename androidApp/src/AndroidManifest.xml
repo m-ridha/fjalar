@@ -29,15 +29,23 @@
             android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
                 android:exported="true"
-                android:name=".MainActivity"
-                android:showWhenLocked="true"
-                android:turnScreenOn="true">
+                android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- A separate task contains only alarm actions; finishing it never exposes app navigation. -->
+        <activity
+                android:name=".AlarmActivity"
+                android:exported="false"
+                android:excludeFromRecents="true"
+                android:launchMode="singleTask"
+                android:taskAffinity="com.muhammadridha.fjalar.alarm"
+                android:showWhenLocked="true"
+                android:turnScreenOn="true" />
 
         <service
                 android:name=".FjalarLocationService"

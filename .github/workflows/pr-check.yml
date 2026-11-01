@@ -28,8 +28,11 @@ jobs:
     name: Verify Multiplatform Builds & Tests
     # Avoid running expensive macOS runners on draft pull requests until marked ready for review
     if: github.event.pull_request.draft == false || github.event_name != 'pull_request'
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
+    env:
+      # Kotlin/Native 2.4.20 uses Apple platform libraries from the Xcode 26.4 SDK.
+      DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
 
     steps:
       - name: Checkout repository
@@ -44,7 +47,12 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
         shell: bash
         run: |
-          echo "PR Title: $PR_TITLE"
+          # Titles are untrusted log data, including legacy ##[...] commands.
+          # Disable runner command interpretation only while printing that data.
+          command_token=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
+          printf '::stop-commands::%s\n' "$command_token"
+          printf 'PR Title: %s\n' "$PR_TITLE"
+          printf '::%s::\n' "$command_token"
           if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore)\([a-zA-Z0-9_-]+\):\ .+ ]]; then
             echo "::warning title=Conventional Commit Format::PR title does not strictly follow '<type>(<scope>): <subject>' as documented in AGENTS.md"
           else
@@ -57,18 +65,11 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Select Xcode 16
+      - name: Verify selected Xcode and simulator SDK
         shell: bash
         run: |
-          XCODE_16=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1 || true)
-          if [ -n "$XCODE_16" ]; then
-            echo "Selecting $XCODE_16"
-            sudo xcode-select -s "$XCODE_16"
-          elif [ -d "/Applications/Xcode.app" ]; then
-            echo "Selecting /Applications/Xcode.app"
-            sudo xcode-select -s /Applications/Xcode.app
-          fi
           xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
 
       - name: Cache Kotlin Toolchain, Konan & Dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -77,15 +78,20 @@ jobs:
             ~/.konan
             ~/Library/Caches/JetBrains/Kotlin/cli
             ~/.m2/repository
-          key: ${{ runner.os }}-kotlin-${{ hashFiles('**/module.yaml', 'libs.versions.toml', 'kotlin') }}
+          key: ${{ runner.os }}-xcode26.4-kotlin-${{ hashFiles('**/module.yaml', 'libs.versions.toml', 'kotlin') }}
           restore-keys: |
-            ${{ runner.os }}-kotlin-
+            ${{ runner.os }}-xcode26.4-kotlin-
 
       - name: Grant execute permission for Kotlin CLI runner
         run: chmod +x ./kotlin
 
       - name: Run Unit Tests (./kotlin test)
         run: ./kotlin test
+
+      - name: Test Security Boundaries
+        run: |
+          python3 scripts/test_workflow_command_safety.py
+          python3 scripts/test_android_alarm_security.py
 
       - name: Test Release Version Handling
         run: |

@@ -64,8 +64,10 @@ jobs:
 
   verify:
     name: Verify multiplatform source
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
     needs: validate
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -76,8 +78,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Show selected Xcode
-        run: xcodebuild -version
+      - name: Verify selected Xcode and simulator SDK
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
       - name: Test release source
         run: ./kotlin test
       - name: Check multiplatform source

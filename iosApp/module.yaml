@@ -1,6 +1,8 @@
 product: ios/app
 
 dependencies:
+  - $libs.koin.core
+  - $libs.koin.compose.viewmodel
   - //shared
   - $compose.ui
 

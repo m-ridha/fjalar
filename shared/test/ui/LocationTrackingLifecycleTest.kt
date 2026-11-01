@@ -1,6 +1,6 @@
 package com.muhammadridha.fjalar.ui
 
-import com.muhammadridha.fjalar.createDefaultViewModel
+import com.muhammadridha.fjalar.fakes.createTestViewModel
 import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationFix
@@ -29,7 +29,7 @@ class LocationTrackingLifecycleTest {
 
     @Test fun mapRequestRequiresBothVisibleMapAndForegroundApp() = runTest {
         val tracker = Tracker()
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         vm.onMapVisibilityChanged(true)
         runCurrent()
         assertFalse(tracker.mapRequested)
@@ -49,7 +49,7 @@ class LocationTrackingLifecycleTest {
 
     @Test fun sharedFixAndAvailabilityReachUiWithoutOverwritingDestination() = runTest {
         val tracker = Tracker()
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         val destination = vm.uiState.value.selectedCoordinates
         val fix = LocationFix(GeoCoordinates(-33.0, 151.0), 12f, Instant.parse("2026-10-27T00:00:00Z"))
         tracker.fixes.emit(fix)
@@ -60,7 +60,7 @@ class LocationTrackingLifecycleTest {
         assertEquals(LocationAvailability.PERMISSION_DENIED, vm.uiState.value.locationAvailability)
     }
     @Test fun noLocationNewAlarmRequiresASelectedDestination() = runTest {
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), coroutineScope = backgroundScope)
         vm.onOpenNewAlarm()
         assertTrue(vm.uiState.value.isConfigureSheetVisible)
         assertNull(vm.uiState.value.selectedCoordinates)
@@ -70,7 +70,7 @@ class LocationTrackingLifecycleTest {
 
     @Test fun permissionDenialRemovesUserPositionWithoutChangingDestination() = runTest {
         val tracker = Tracker()
-        val vm = createDefaultViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
+        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         val destination = GeoCoordinates(51.5, -0.1)
         vm.onMapClicked(destination)
         tracker.availability.value = LocationAvailability.AVAILABLE
