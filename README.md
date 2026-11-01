@@ -149,7 +149,7 @@ All contributors and automated agents must preserve these core invariants:
 
 - **JDK 17+** (e.g. Temurin or OpenJDK)
 - **Android SDK** with build-tools (API 34+)
-- **macOS with Xcode 16+** (required for iOS 18 Asset Catalog and compiling iOS target / simulator)
+- **macOS with Xcode 26.4+** (required for iOS 18 Asset Catalog and compiling iOS target / simulator)
 - **Python 3 with Pillow** (for automated icon pipeline: `pip install pillow`)
 - **JetBrains Amper** (`./kotlin` CLI wrapper bundled in repository)
 

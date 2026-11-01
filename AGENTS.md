@@ -16,7 +16,7 @@ Read the user's current instructions and inspect affected code before relying on
 
 ## Setup and checks
 
-Preserve module `com.muhammadridha.fjalar`, Kotlin 2.x, Compose Multiplatform, and JetBrains Amper project structure (`project.yaml`, `module.yaml`). Prerequisites: JDK 17+, Android SDK, macOS Xcode 16+ (for iOS targets), and Python 3.10+ with Pillow (for icon generation and verification). Do not silently add third-party dependencies or replace Amper with custom Gradle without task authorization.
+Preserve module `com.muhammadridha.fjalar`, Kotlin 2.x, Compose Multiplatform, and JetBrains Amper project structure (`project.yaml`, `module.yaml`). Prerequisites: JDK 17+, Android SDK, macOS Xcode 26.4+ (for iOS targets), and Python 3.10+ with Pillow (for icon generation and verification). Do not silently add third-party dependencies or replace Amper with custom Gradle without task authorization.
 
 ```sh
 ./kotlin test           # Run all unit tests across commonTest and platform tests

@@ -109,6 +109,17 @@ class WorkflowCommandSafetyTest(unittest.TestCase):
             tokens.append(token)
         self.assertEqual(len(set(tokens)), 3)
 
+    def test_apple_verification_jobs_select_the_supported_sdk(self):
+        # The Kotlin/Native platform libraries require frameworks absent from Xcode 16.
+        for workflow in (WORKFLOW, WORKFLOW.with_name("release-assets.yml")):
+            with self.subTest(workflow=workflow.name):
+                source = workflow.read_text()
+                job = re.search(r"(?ms)^  verify:\n(.*?)(?=^  \w+:|\Z)", source)[1]
+                self.assertIn("runs-on: macos-26", job)
+                self.assertIn("DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer", job)
+                self.assertIn("xcrun --sdk iphonesimulator --show-sdk-version", job)
+                self.assertNotIn("sudo xcode-select", job)
+
     def test_model_detects_original_legacy_prefix_bypass(self):
         commands, _ = processed_commands("PR Title: feat(ci): ##[add-mask]diagnostic\n")
         self.assertEqual(commands, [("add-mask", "diagnostic")])
