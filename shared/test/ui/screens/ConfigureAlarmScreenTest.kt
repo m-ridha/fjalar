@@ -18,6 +18,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
 import com.muhammadridha.fjalar.ui.FjalarViewModel
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
 import com.muhammadridha.fjalar.ui.theme.FjalarStrings
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
@@ -223,6 +224,7 @@ class ConfigureAlarmScreenTest {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun viewModel_draftCoordination_roundtripMapPickerPreservesDraftState() = runTest {
         val testDispatcher = UnconfinedTestDispatcher(testScheduler)
