@@ -1,6 +1,8 @@
 product: android/app
 
 dependencies:
+  - $libs.koin.android
+  - $libs.koin.compose.viewmodel
   - //shared
   - $libs.androidx.activity.compose
   - $libs.androidx.window
@@ -12,3 +14,6 @@ settings:
   android:
     namespace: com.muhammadridha.fjalar
     applicationId: com.muhammadridha.fjalar
+
+test-dependencies:
+  - $libs.kotlinx.coroutines.test

@@ -53,6 +53,7 @@
 
     <!-- Ringing wake-up screen -->
     <string name="ringing_in_zone_badge">DALAM ZONA • %1$s dari titik tujuan</string>
+    <string name="ringing_private_headline">Bangun!</string>
     <string name="ringing_headline">Bangun! Mendekati %1$s</string>
     <string name="ringing_snooze_action">Tunda (+2 mnt)</string>
     <string name="ringing_accessible_prompt">Aktifkan untuk bersiap mematikan alarm</string>

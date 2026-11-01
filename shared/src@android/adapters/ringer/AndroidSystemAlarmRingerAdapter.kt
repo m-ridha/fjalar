@@ -96,7 +96,7 @@ class AndroidSystemAlarmRingerAdapter(
         const val CHANNEL_NAME = "Fjalar Alarm"
         const val EXTRA_ALARM_ID = "com.muhammadridha.fjalar.extra.ALARM_ID"
         const val EXTRA_IS_RINGING = "com.muhammadridha.fjalar.extra.IS_RINGING"
-        const val DEFAULT_ACTIVITY_CLASS_NAME = "com.muhammadridha.fjalar.MainActivity"
+        const val DEFAULT_ACTIVITY_CLASS_NAME = "com.muhammadridha.fjalar.AlarmActivity"
 
         val DEFAULT_VIBRATION_PATTERN = longArrayOf(0L, 800L, 400L, 800L, 400L)
 
@@ -142,6 +142,7 @@ open class DefaultAndroidRingerPlatformGateway(
 ) : RingerPlatformGateway {
 
     private companion object {
+        const val ACTION_SHOW_ALARM = "com.muhammadridha.fjalar.action.SHOW_ALARM"
         const val TAG = "FjalarAlarm"
     }
 
@@ -331,12 +332,11 @@ open class DefaultAndroidRingerPlatformGateway(
             val manager = notificationManager ?: return
             createNotificationChannelIfNeeded()
 
-            val targetIntent = if (activityClass != null) {
-                Intent(context, activityClass)
-            } else {
-                context.packageManager.getLaunchIntentForPackage(context.packageName) ?: Intent()
-            }.apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            // Never fall back to the ordinary application on the locked device.
+            val alarmActivity = requireNotNull(activityClass) { "Restricted alarm activity is missing" }
+            val targetIntent = Intent(context, alarmActivity).apply {
+                action = ACTION_SHOW_ALARM
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra(AndroidSystemAlarmRingerAdapter.EXTRA_ALARM_ID, alarmId)
                 putExtra(AndroidSystemAlarmRingerAdapter.EXTRA_IS_RINGING, true)
             }
@@ -372,11 +372,26 @@ open class DefaultAndroidRingerPlatformGateway(
                 "Approaching $alarmLabel"
             }
 
+            val publicBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Notification.Builder(context, channelId)
+            } else {
+                @Suppress("DEPRECATION")
+                Notification.Builder(context)
+            }
+            val appNameId = context.resources.getIdentifier("app_name", "string", context.packageName)
+            val publicTitle = if (appNameId != 0) context.getString(appNameId) else "Wake Me at"
+            val publicNotification = publicBuilder
+                .setContentTitle(publicTitle)
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setCategory(Notification.CATEGORY_ALARM)
+                .build()
+
             builder.setContentTitle(alarmLabel)
+                .setPublicVersion(publicNotification)
                 .setContentText(contentText)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                 .setCategory(Notification.CATEGORY_ALARM)
-                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setVisibility(Notification.VISIBILITY_PRIVATE)
                 .setFullScreenIntent(fullScreenPendingIntent, true)
                 .setContentIntent(fullScreenPendingIntent)
                 .setOngoing(true)
@@ -427,7 +442,7 @@ open class DefaultAndroidRingerPlatformGateway(
                         NotificationManager.IMPORTANCE_HIGH,
                     ).apply {
                         description = channelDesc
-                        lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                        lockscreenVisibility = Notification.VISIBILITY_PRIVATE
                         setBypassDnd(true)
                         enableVibration(false)
                         setSound(null, null)

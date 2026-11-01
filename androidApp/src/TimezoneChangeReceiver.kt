@@ -1,8 +1,11 @@
 package com.muhammadridha.fjalar
 
+import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.muhammadridha.fjalar.di.SystemTimeZone
+import org.koin.android.ext.android.getKoin
 
 /**
  * Re-evaluates alarm schedule windows when the user crosses time zones or manual system time changes.
@@ -23,7 +26,7 @@ class TimezoneChangeReceiver : BroadcastReceiver() {
                     context = context,
                     tag = "TimezoneChangeReceiver",
                     onBeforeSync = { ctx ->
-                        (ctx.applicationContext as? FjalarApplication)?.container?.onTimezoneChanged()
+                        (ctx.applicationContext as Application).getKoin().get<SystemTimeZone>().refresh()
                     },
                 )
             }

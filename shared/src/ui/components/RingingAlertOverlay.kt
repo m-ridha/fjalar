@@ -57,6 +57,7 @@ fun RingingAlertOverlay(
     hasOperationFailure: Boolean = false,
     snoozeDeliveryUnavailable: Boolean = false,
     operationFailureId: Long = 0L,
+    hideDestinationDetails: Boolean = false,
 ) {
     val slideState = remember(alarm.id) { SlideToStopState() }
     LaunchedEffect(operationFailureId, hasOperationFailure, isOperationPending) {
@@ -77,7 +78,7 @@ fun RingingAlertOverlay(
     val pulse2 = (rawProgress + 0.333f) % 1f
     val pulse3 = (rawProgress + 0.667f) % 1f
 
-    val distanceText = ringingDistanceText(distanceMeters, LiquidGlassTheme.locale)
+    val distanceText = ringingDistanceText(if (hideDestinationDetails) null else distanceMeters, LiquidGlassTheme.locale)
 
     Box(
         modifier = modifier
@@ -157,7 +158,11 @@ fun RingingAlertOverlay(
 
                 // Wake-Up Headline
                 Text(
-                    text = fjalarString(FjalarStringKey.RINGING_HEADLINE, alarm.label),
+                    text = if (hideDestinationDetails) {
+                        fjalarString(FjalarStringKey.RINGING_PRIVATE_HEADLINE)
+                    } else {
+                        fjalarString(FjalarStringKey.RINGING_HEADLINE, alarm.label)
+                    },
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.ExtraBold,
                     ),

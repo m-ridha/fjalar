@@ -3,6 +3,8 @@ product:
   platforms: [ android, iosArm64, iosSimulatorArm64 ]
 
 dependencies:
+  - $libs.koin.core
+  - $libs.koin.compose.viewmodel
   - $compose.runtime
   - $compose.foundation
   - $compose.material3
@@ -20,6 +22,7 @@ test-dependencies:
   - $libs.kotlinx.coroutines.test
 
 dependencies@android:
+  - $libs.koin.android
   - $compose.uiTooling
   - $libs.maplibre.android.sdk
 

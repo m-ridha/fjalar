@@ -53,6 +53,7 @@
 
     <!-- Ringing wake-up screen -->
     <string name="ringing_in_zone_badge">IN ZONE • %1$s from target pin</string>
+    <string name="ringing_private_headline">Wake Up!</string>
     <string name="ringing_headline">Wake Up! Approaching %1$s</string>
     <string name="ringing_snooze_action">Snooze (+2 min)</string>
     <string name="ringing_accessible_prompt">Activate to prepare to stop alarm</string>

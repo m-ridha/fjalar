@@ -8,7 +8,6 @@ import android.net.Uri
 import android.provider.Settings
 import android.os.Build
 import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -25,14 +24,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
-import com.muhammadridha.fjalar.adapters.storage.SharedPreferencesKeyValueStorage
 import com.muhammadridha.fjalar.ui.FjalarViewModel
 import com.muhammadridha.fjalar.ui.components.BackgroundLocationPermissionDialog
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
@@ -57,32 +53,11 @@ class MainActivity : ComponentActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        awakenScreenAndShowOverKeyguard()
         // Draw edge-to-edge behind system status and navigation bars; safe insets are handled via WindowInsetsLayoutHelper
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        val app = application as? FjalarApplication
-        val container = app?.container
         setContent {
-            val viewModel: FjalarViewModel = viewModel {
-                if (container != null) {
-                    createDefaultViewModel(
-                        keyValueStorage = container.keyValueStorage,
-                        tracker = container.locationTracker,
-                        scheduler = container.alarmScheduler,
-                        ringer = container.alarmRinger,
-                        alarmService = container.alarmService,
-                        preferencesPort = container.preferences,
-                        syncSchedulesPort = container.syncSchedulesPort,
-                        mapRendererPort = container.mapRendererPort,
-                        searchPlacesPort = container.searchPlacesPort,
-                    )
-                } else {
-                    createDefaultViewModel(
-                        keyValueStorage = SharedPreferencesKeyValueStorage(applicationContext),
-                    )
-                }
-            }
+            val viewModel: FjalarViewModel = koinViewModel()
 
             val permissionUiState by viewModel.uiState.collectAsState()
             val isDarkTheme = resolveLiquidGlassColors(
@@ -180,7 +155,6 @@ class MainActivity : ComponentActivity() {
 
             FoldAwareControls(this@MainActivity) {
                 App(
-                    container = container,
                     viewModel = viewModel,
                     onRequestPermission = {
                         when (locationPermissionStep()) {
@@ -271,34 +245,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        awakenScreenAndShowOverKeyguard()
-    }
-
-    private fun awakenScreenAndShowOverKeyguard() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
-        } else {
-            @Suppress("DEPRECATION")
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-            )
-        }
-    }
-
     private fun requestMapLocation(
         viewModel: FjalarViewModel,
     ) {
         // Permission recovery/recenter refresh the existing owner, never open a second listener.
         viewModel.onAppForegroundChanged(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
     }
-}
-
-@Preview
-@Composable
-fun AppAndroidPreview() {
-    App(keyValueStorage = remember { InMemoryKeyValueStorage() })
 }

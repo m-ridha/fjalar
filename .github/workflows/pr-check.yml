@@ -44,7 +44,12 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
         shell: bash
         run: |
-          echo "PR Title: $PR_TITLE"
+          # Titles are untrusted log data, including legacy ##[...] commands.
+          # Disable runner command interpretation only while printing that data.
+          command_token=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
+          printf '::stop-commands::%s\n' "$command_token"
+          printf 'PR Title: %s\n' "$PR_TITLE"
+          printf '::%s::\n' "$command_token"
           if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore)\([a-zA-Z0-9_-]+\):\ .+ ]]; then
             echo "::warning title=Conventional Commit Format::PR title does not strictly follow '<type>(<scope>): <subject>' as documented in AGENTS.md"
           else
@@ -86,6 +91,11 @@ jobs:
 
       - name: Run Unit Tests (./kotlin test)
         run: ./kotlin test
+
+      - name: Test Security Boundaries
+        run: |
+          python3 scripts/test_workflow_command_safety.py
+          python3 scripts/test_android_alarm_security.py
 
       - name: Test Release Version Handling
         run: |

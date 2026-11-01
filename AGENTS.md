@@ -53,6 +53,17 @@ Follow strict **Hexagonal Architecture (Ports and Adapters)** (reference: Alista
 
 ---
 
+## Dependency injection and Android security
+
+- Koin definitions belong in `shared/src/di/` and target-specific `di/` packages. Follow [Dependency injection](docs/dependency-injection.md) for module assembly, lifetimes, startup, and fake platform graphs.
+- Keep domain and ordinary application classes constructor-injected and Koin-free. Resolve dependencies only at framework composition boundaries. All inbound alarm ports must share one `AlarmService` and mutation mutex.
+- Do not restore manual production containers or silently fall back to fake adapters/storage. Tests use isolated Koin applications or explicit constructor-injected fakes.
+- Preserve Amper. The current classic DSL uses runtime graph tests; do not claim compiler-plugin verification without supported integration and actual build evidence.
+- `MainActivity` must never show ordinary navigation over the keyguard. Only the non-exported restricted `AlarmActivity` may show while locked, with generic alarm copy and dismiss/snooze actions. Keep it in its separate task and finish it when ringing ends. Follow [Security](docs/security.md) for regression and device checks.
+- Treat event text printed by CI as untrusted runner-command input. Use a fresh unpredictable stop/resume token around such output, keep values in environment variables, and run `python3 scripts/test_workflow_command_safety.py` after workflow changes.
+
+---
+
 ## UI Design Consistency (Liquid Glass & Bilingual Transit)
 
 Follow the [Product and UI Design Specification](https://app.notion.com/p/4030ee070c2381008ebeddc2ab6c654e) and Stitch project `12482101652095184669`.

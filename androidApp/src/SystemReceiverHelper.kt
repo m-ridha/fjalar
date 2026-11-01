@@ -1,8 +1,11 @@
 package com.muhammadridha.fjalar
 
+import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.os.PowerManager
+import android.util.Log
+import org.koin.android.ext.android.getKoin
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -10,8 +13,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 object SystemReceiverHelper {
-
-    var syncPortOverride: ((Context) -> SyncSchedulesPort?)? = null
 
     fun dispatchSync(
         receiver: BroadcastReceiver,
@@ -33,11 +34,9 @@ object SystemReceiverHelper {
         CoroutineScope(coroutineDispatcher).launch {
             try {
                 onBeforeSync?.invoke(context)
-                val port = syncPortOverride?.invoke(context)
-                    ?: (context.applicationContext as? FjalarApplication)?.container?.syncSchedulesPort
-                port?.syncSchedules()
-            } catch (_: Exception) {
-                // Defensive: prevent unhandled coroutine exceptions from crashing receiver
+                (context.applicationContext as Application).getKoin().get<SyncSchedulesPort>().syncSchedules()
+            } catch (error: Exception) {
+                Log.e("SystemReceiverHelper", "Schedule synchronization failed", error)
             } finally {
                 try {
                     if (wakeLock?.isHeld == true) {
