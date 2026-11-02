@@ -351,10 +351,14 @@ class ConfigureAlarmScreenTest {
 
         assertEquals("Pan map to position the crosshair", enPickerHint)
         assertEquals("Geser peta untuk menempatkan bidik silang", idPickerHint)
-        assertEquals("Set Location", enPickerConfirm)
-        assertEquals("Tetapkan Lokasi", idPickerConfirm)
-        assertEquals("Change Pin on Map", enChangePin)
-        assertEquals("Ubah Titik di Peta", idChangePin)
+        assertEquals("Choose destination", enPickerConfirm)
+        assertEquals("Pilih tujuan", idPickerConfirm)
+        assertEquals("Choose destination", enChangePin)
+        assertEquals("Pilih tujuan", idChangePin)
+        assertEquals("Destination", FjalarStrings.get(FjalarStringKey.PINNED_LOCATION, AppLocale.EN))
+        assertEquals("Tujuan", FjalarStrings.get(FjalarStringKey.PINNED_LOCATION, AppLocale.ID))
+        assertEquals("Scheduled", FjalarStrings.get(FjalarStringKey.EDITOR_MODE_SCHEDULED, AppLocale.EN))
+        assertEquals("Terjadwal", FjalarStrings.get(FjalarStringKey.EDITOR_MODE_SCHEDULED, AppLocale.ID))
 
         assertEquals("Enable Alarm", FjalarStrings.get(FjalarStringKey.EDITOR_ENABLE_ALARM, AppLocale.EN))
         assertEquals("Aktifkan Alarm", FjalarStrings.get(FjalarStringKey.EDITOR_ENABLE_ALARM, AppLocale.ID))

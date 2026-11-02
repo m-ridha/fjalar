@@ -319,17 +319,8 @@ class FjalarLocationService : Service() {
         }
         val pendingIntent = PendingIntent.getActivity(this, NOTIFICATION_ID, launchIntent, flags)
 
-        val title = try {
-            getString(R.string.notif_monitoring_title)
-        } catch (_: Throwable) {
-            "Monitoring commute destination"
-        }
-
-        val body = try {
-            getString(R.string.notif_monitoring_body)
-        } catch (_: Throwable) {
-            "Active destination monitoring"
-        }
+        val title = getString(R.string.notif_monitoring_title)
+        val body = getString(R.string.notif_monitoring_body)
 
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)

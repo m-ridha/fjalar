@@ -39,8 +39,6 @@ class CatalogParityTest {
         "editor_label_placeholder",
         "editor_start_time",
         "editor_end_time",
-        "editor_time_step_minus_15",
-        "editor_time_step_plus_15",
         "editor_trigger_radius",
         "editor_mode_one_time",
         "editor_mode_scheduled",
@@ -48,7 +46,6 @@ class CatalogParityTest {
         "editor_alert_and_haptics",
         "editor_loud_sound",
         "editor_strong_vibrate",
-        "editor_earphone_override",
         "ringing_in_zone_badge",
         "ringing_headline",
         "ringing_snooze_action",
@@ -66,7 +63,10 @@ class CatalogParityTest {
         "search_empty_title",
         "search_empty_body",
         "search_recent_title",
-        "search_clear"
+        "search_clear",
+        "pinned_location",
+        "picker_change_pin",
+        "picker_confirm"
     )
 
     private val placeholderRegex = Regex("""%(\d+\$)?[-\#+ 0,(]*\d*(\.\d+)?[a-zA-Z%]|\{[^}]+\}""")

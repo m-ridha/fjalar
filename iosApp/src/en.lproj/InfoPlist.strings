@@ -1,2 +1,4 @@
 /* Localized Display Name for English */
 "CFBundleDisplayName" = "Wake Me at";
+"NSLocationWhenInUseUsageDescription" = "Wake Me at uses your location to show your position on the map and check distance to an alarm destination.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Wake Me at checks distance to an alarm destination in the background while an alarm is armed.";

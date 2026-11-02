@@ -1,11 +1,8 @@
 <resources>
     <string name="app_name">Bangunkan Saya di</string>
-    <string name="click_me">Klik saya!</string>
-    <string name="compose_prefix">Compose: %1$s</string>
-    <string name="greeting">Halo, %1$s!</string>
 
     <!-- Top HUD and controls -->
-    <string name="hud_search_placeholder">Cari stasiun atau tujuan…</string>
+    <string name="hud_search_placeholder">Cari tempat…</string>
     <string name="hud_theme_switch_light">Beralih ke mode terang</string>
     <string name="hud_theme_switch_dark">Beralih ke mode gelap</string>
     <string name="hud_locale_label">Bahasa: Indonesia (ID)</string>
@@ -16,7 +13,7 @@
     <string name="status_armed_one_time">Aktif: %1$s • %2$s lagi</string>
 
     <!-- Bottom sheet and alarm cards -->
-    <string name="sheet_saved_title">Alarm Tersimpan &amp; Terjadwal</string>
+    <string name="sheet_saved_title">Alarm Tersimpan</string>
     <string name="sheet_active_count">%1$d Aktif</string>
     <string name="sheet_new_alarm">+ Baru</string>
     <string name="card_skip_today">Lewati Hari Ini</string>
@@ -54,7 +51,7 @@
     <string name="editor_time_step_plus_15">+15m</string>
     <string name="editor_trigger_radius">Radius Alarm</string>
     <string name="editor_mode_one_time">Sekali Jalan</string>
-    <string name="editor_mode_scheduled">Jendela Terjadwal</string>
+    <string name="editor_mode_scheduled">Terjadwal</string>
     <string name="editor_active_window">Waktu Aktif (%1$s – %2$s)</string>
     <string name="editor_alert_and_haptics">Suara &amp; Getaran</string>
     <string name="editor_loud_sound">Suara Keras</string>
@@ -71,16 +68,16 @@
     <string name="ringing_slide_to_stop">Geser untuk Matikan Alarm</string>
 
     <!-- System notifications & background telemetry -->
-    <string name="notif_monitoring_title">Memantau tujuan perjalanan</string>
+    <string name="notif_monitoring_title">Memantau tujuan alarm</string>
     <string name="notif_monitoring_body">Aktif: %1$s • %2$s lagi</string>
     <string name="notif_alarm_approaching">Mendekati %1$s</string>
 
     <!-- Permissions modal -->
     <string name="perm_location_title">Izinkan Lokasi Latar Belakang untuk Alarm Tujuan</string>
-    <string name="perm_location_body">Fjalar memeriksa jarak GPS di latar belakang hanya saat alarm aktif agar dapat membangunkan Anda meski layar terkunci. Lokasi Anda tidak pernah dikirim keluar dari ponsel ini.</string>
+    <string name="perm_location_body">Bangunkan Saya di memeriksa jarak ke tujuan di latar belakang hanya saat alarm aktif. Lokasimu tidak dikirim dari ponsel.</string>
     <string name="perm_location_grant">Izinkan Akses</string>
     <string name="perm_location_dismiss">Abaikan</string>
-    <string name="perm_background_settings_body">Pilih %s di setelan izin lokasi sistem. Anda dapat melewati langkah ini dan tetap menggunakan peta, tetapi alarm terjadwal memerlukan lokasi latar belakang.</string>
+    <string name="perm_background_settings_body">Pilih %s di pengaturan izin lokasi sistem. Peta tetap dapat digunakan tanpa izin ini, tetapi alarm terjadwal memerlukan lokasi latar belakang.</string>
     <string name="perm_background_settings_action">Lanjutkan</string>
 
     <!-- Search modal & station catalog -->
@@ -89,9 +86,9 @@
     <string name="search_category_train">Kereta</string>
     <string name="search_category_metro">Metro / MRT</string>
     <string name="search_category_transit">Transit</string>
-    <string name="search_empty_title">Stasiun tidak ditemukan</string>
-    <string name="search_empty_body">Coba cari berdasarkan nama stasiun, jalur, atau singkatan.</string>
-    <string name="search_recent_title">Stasiun Transit</string>
+    <string name="search_empty_title">Tempat tidak ditemukan</string>
+    <string name="search_empty_body">Coba nama lain atau periksa ejaannya.</string>
+    <string name="search_recent_title">Cari tempat</string>
     <string name="search_clear">Hapus pencarian</string>
 
     <!-- Bottom navigation tabs -->
@@ -101,28 +98,28 @@
 
     <!-- Delete confirmation dialog -->
     <string name="dialog_delete_title">Hapus Alarm?</string>
-    <string name="dialog_delete_message">Apakah Anda yakin ingin menghapus \'%1$s\'?</string>
+    <string name="dialog_delete_message">Hapus alarm \'%1$s\'?</string>
     <string name="dialog_delete_confirm">Hapus</string>
     <string name="dialog_delete_cancel">Batal</string>
     <string name="editor_delete_alarm">Hapus Alarm</string>
 
     <!-- Map pin picker -->
     <string name="picker_title">Pilih Titik Tujuan</string>
-    <string name="picker_confirm">Tetapkan Lokasi</string>
-    <string name="picker_change_pin">Ubah Titik di Peta</string>
+    <string name="picker_confirm">Pilih tujuan</string>
+    <string name="picker_change_pin">Pilih tujuan</string>
     <string name="picker_hint">Geser peta untuk menempatkan bidik silang</string>
 
     <!-- Empty alarms list -->
     <string name="alarms_empty_title">Belum Ada Alarm</string>
-    <string name="alarms_empty_body">Ketuk + Tambah untuk menyetel alarm bangun pertama Anda.</string>
+    <string name="alarms_empty_body">Ketuk + Tambah untuk membuat alarm pertama.</string>
 
     <!-- Languages -->
     <string name="lang_english">English (EN)</string>
     <string name="lang_indonesian">Bahasa Indonesia (ID)</string>
     <string name="nav_back">← Kembali</string>
-    <string name="pinned_location">Titik Lokasi</string>
+    <string name="pinned_location">Tujuan</string>
     <string name="location_not_set">📍 Belum ditentukan</string>
-    <string name="operation_failed">Perubahan gagal disimpan. Silakan coba lagi.</string>
+    <string name="operation_failed">Tindakan belum selesai. Coba lagi.</string>
     <string name="ringing_snooze_notifications_required">Aktifkan notifikasi dan suara di pengaturan sistem untuk menunda alarm, lalu coba lagi.</string>
     <string name="ringing_operation_failed">Alarm gagal dihentikan. Silakan coba lagi.</string>
     <string name="snooze_notification_body">Waktu tunda selesai. Buka aplikasi untuk menghentikan alarm.</string>

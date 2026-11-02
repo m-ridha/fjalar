@@ -46,7 +46,7 @@ class FjalarStringsTest {
         for (locale in AppLocale.entries) {
             val instructions = FjalarStrings.get(FjalarStringKey.PERM_BACKGROUND_SETTINGS_BODY, locale, label)
             assertTrue(instructions.contains(label))
-            assertTrue(instructions.contains(if (locale == AppLocale.EN) "system location permission settings" else "setelan izin lokasi sistem"))
+            assertTrue(instructions.contains(if (locale == AppLocale.EN) "system location permission settings" else "pengaturan izin lokasi sistem"))
         }
         assertEquals("Continue", FjalarStrings.get(FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION, AppLocale.EN))
         assertEquals("Lanjutkan", FjalarStrings.get(FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION, AppLocale.ID))
@@ -94,7 +94,7 @@ class FjalarStringsTest {
         val enDeleteMsg = FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_MESSAGE, AppLocale.EN, "Morning Commute")
         val idDeleteMsg = FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_MESSAGE, AppLocale.ID, "Morning Commute")
         assertEquals("Are you sure you want to delete 'Morning Commute'?", enDeleteMsg)
-        assertEquals("Apakah Anda yakin ingin menghapus 'Morning Commute'?", idDeleteMsg)
+        assertEquals("Hapus alarm 'Morning Commute'?", idDeleteMsg)
     }
 
     @Test
@@ -139,8 +139,8 @@ class FjalarStringsTest {
         assertEquals("Delete", FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_CONFIRM, AppLocale.EN))
         assertEquals("Hapus", FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_CONFIRM, AppLocale.ID))
 
-        assertEquals("Set Location", FjalarStrings.get(FjalarStringKey.PICKER_CONFIRM, AppLocale.EN))
-        assertEquals("Tetapkan Lokasi", FjalarStrings.get(FjalarStringKey.PICKER_CONFIRM, AppLocale.ID))
+        assertEquals("Choose destination", FjalarStrings.get(FjalarStringKey.PICKER_CONFIRM, AppLocale.EN))
+        assertEquals("Pilih tujuan", FjalarStrings.get(FjalarStringKey.PICKER_CONFIRM, AppLocale.ID))
 
         assertEquals("Grant Permission", FjalarStrings.get(FjalarStringKey.PERM_LOCATION_GRANT, AppLocale.EN))
         assertEquals("Izinkan Akses", FjalarStrings.get(FjalarStringKey.PERM_LOCATION_GRANT, AppLocale.ID))

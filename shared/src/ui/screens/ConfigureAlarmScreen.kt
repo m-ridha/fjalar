@@ -323,15 +323,19 @@ fun ConfigureAlarmScreen(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = if (draft.addressLabel.isNullOrBlank()) {
-                                FjalarStrings.get(FjalarStringKey.PINNED_LOCATION, locale)
-                            } else {
-                                draft.addressLabel
-                            },
+                            text = FjalarStrings.get(FjalarStringKey.PINNED_LOCATION, locale),
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                             color = colors.textPrimary,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
+                        if (!draft.addressLabel.isNullOrBlank()) {
+                            Text(
+                                text = draft.addressLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = colors.textPrimary,
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
                         val coords = draft.coordinates
                         val coordText = if (coords != null) {
                             val lat = (coords.latitude * 10000.0).roundToInt() / 10000.0
