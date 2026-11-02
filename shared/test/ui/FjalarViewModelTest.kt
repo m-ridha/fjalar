@@ -654,8 +654,86 @@ class FjalarViewModelTest {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun onOpenNewAlarm_preservesSelectedMapCoordinates() = runTest {
+    fun closedOrReplacedSearchIgnoresResponseThatOutlivesCancellation() = runTest {
+        for (nextContext in listOf(null, PlaceSearchContext.BROWSE)) {
+            val response = kotlinx.coroutines.CompletableDeferred<List<SearchResultPlace>>()
+            val oldPlace = SearchResultPlace(
+                id = "old", name = "Old picker result",
+                coordinates = GeoCoordinates(51.5, -0.1), category = PlaceCategory.GENERAL,
+            )
+            val currentPlace = oldPlace.copy(id = "current", name = "Current browse result")
+            val port = object : SearchPlacesPort {
+                var calls = 0
+                override suspend fun searchPlaces(
+                    query: String, locale: AppLocale, proximity: GeoCoordinates?,
+                ): List<SearchResultPlace> {
+                    calls++
+                    return if (calls == 1) {
+                        // Native/remote callbacks can finish even after their caller cancels.
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { response.await() }
+                    } else listOf(currentPlace)
+                }
+            }
+            val (viewModel, _, vmScope) = createTestViewModel(searchPlacesPort = port)
+            try {
+                viewModel.onStartConfiguringAlarm(null)
+                val originalDraft = viewModel.uiState.value.activeDraft
+                viewModel.onOpenSearch(PlaceSearchContext.PICKER)
+                if (nextContext == null) {
+                    viewModel.onDismissSearch()
+                } else {
+                    viewModel.onOpenSearch(nextContext)
+                }
+                response.complete(listOf(oldPlace))
+                testScheduler.runCurrent()
+
+                val state = viewModel.uiState.value
+                assertEquals(nextContext, state.searchContext)
+                assertEquals(nextContext != null, state.isSearchSheetVisible)
+                assertEquals(if (nextContext == null) emptyList() else listOf(currentPlace), state.searchResults)
+                assertFalse(state.isSearching)
+                assertEquals(originalDraft, state.activeDraft)
+                assertNull(state.selectedCoordinates)
+                assertNull(state.mapViewportCenter)
+                viewModel.onSelectCategoryFilter(PlaceCategory.GENERAL)
+                assertEquals(state.searchResults, viewModel.uiState.value.searchResults)
+            } finally {
+                response.complete(emptyList())
+                vmScope.cancel()
+            }
+        }
+    }
+
+    @Test
+    fun newAlarmDoesNotInheritUserOrBrowseCoordinates() = runTest {
+        val tracker = UiLocationTracker()
+        val savedAlarm = manggaraiAlarm()
+        val (viewModel, _, vmScope) = createTestViewModel(
+            locationTrackerPort = tracker,
+            observePort = FakeObserveAlarmsPort(listOf(savedAlarm)),
+        )
+        try {
+            tracker.emit(GeoCoordinates(-6.1754, 106.8272))
+            viewModel.onOpenSearch()
+            viewModel.onBrowsePlaceSelected(SearchResultPlace(
+                id = "browse", name = "Browse place",
+                coordinates = GeoCoordinates(51.5, -0.1), category = PlaceCategory.GENERAL,
+            ))
+            viewModel.onStartConfiguringAlarm(null)
+            assertNull(viewModel.uiState.value.activeDraft?.coordinates)
+            assertNull(viewModel.uiState.value.selectedCoordinates)
+
+            viewModel.onStartConfiguringAlarm(savedAlarm.id)
+            assertEquals(savedAlarm.coordinates, viewModel.uiState.value.activeDraft?.coordinates)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun onOpenNewAlarmClearsPriorDestinationSelection() = runTest {
         val fakeMapRenderer = FakeMapRendererPort()
         val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
         try {
@@ -667,14 +745,14 @@ class FjalarViewModelTest {
 
             assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
             assertNull(viewModel.uiState.value.selectedAlarmForEdit)
-            assertEquals(coords, viewModel.uiState.value.selectedCoordinates)
+            assertNull(viewModel.uiState.value.selectedCoordinates)
         } finally {
             vmScope.cancel()
         }
     }
 
     @Test
-    fun onOpenNewAlarm_defaultsToUserLocationWhenSelectedCoordinatesNull() = runTest {
+    fun onOpenNewAlarmDoesNotSelectUserLocation() = runTest {
         val tracker = UiLocationTracker()
         val fakeMapRenderer = FakeMapRendererPort()
         val (viewModel, _, vmScope) = createTestViewModel(locationTrackerPort = tracker, mapRendererPort = fakeMapRenderer)
@@ -688,10 +766,10 @@ class FjalarViewModelTest {
             val state = viewModel.uiState.value
             assertTrue(state.isConfigureSheetVisible)
             assertNull(state.selectedAlarmForEdit)
-            assertEquals(userLocation, state.selectedCoordinates)
+            assertNull(state.selectedCoordinates)
             assertEquals(TriggerRadius.DEFAULT, state.selectedRadius)
-            assertEquals(userLocation, fakeMapRenderer.lastPin)
-            assertEquals(userLocation to TriggerRadius.DEFAULT, fakeMapRenderer.lastGeofence)
+            assertNull(fakeMapRenderer.lastPin)
+            assertNull(fakeMapRenderer.lastGeofence)
         } finally {
             vmScope.cancel()
         }

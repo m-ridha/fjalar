@@ -1,6 +1,7 @@
 package com.muhammadridha.fjalar.ui.screens
 
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
+import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 
 /** The neutral initial camera position is framing, never a selected destination. */
 data class MapPickerSelection(val coordinates: GeoCoordinates?) {
@@ -12,6 +13,8 @@ data class MapPickerSelection(val coordinates: GeoCoordinates?) {
         if (!isUserGesture) return this
         return select(center)
     }
+
+    fun select(place: SearchResultPlace): MapPickerSelection = select(place.coordinates)
 
     fun select(coordinates: GeoCoordinates): MapPickerSelection = copy(coordinates = coordinates)
 }

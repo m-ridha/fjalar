@@ -14,6 +14,7 @@ import com.muhammadridha.fjalar.ui.components.MapNavigationControls
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -36,9 +37,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
+import com.muhammadridha.fjalar.domain.model.PlaceCategory
+import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.ui.WindowInsetsLayoutHelper
+import com.muhammadridha.fjalar.ui.SearchBackHandler
+import com.muhammadridha.fjalar.ui.components.SearchPlacesSheet
 import com.muhammadridha.fjalar.ui.components.PlatformMapView
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
 import com.muhammadridha.fjalar.ui.theme.FjalarStrings
@@ -51,6 +56,15 @@ fun MapPickerScreen(
     initialCoordinates: GeoCoordinates,
     onConfirmCoordinates: (GeoCoordinates) -> Unit,
     onBack: () -> Unit,
+    isSearchVisible: Boolean,
+    searchQuery: String,
+    searchResults: List<SearchResultPlace>,
+    selectedCategory: PlaceCategory?,
+    isSearching: Boolean,
+    onOpenSearch: () -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onSelectCategory: (PlaceCategory?) -> Unit,
+    onDismissSearch: () -> Unit,
     modifier: Modifier = Modifier,
     locale: AppLocale = LiquidGlassTheme.locale,
     initialZoom: Double = 15.0,
@@ -58,6 +72,7 @@ fun MapPickerScreen(
     userPosition: MapUserPosition? = null,
     geofenceRadius: TriggerRadius = TriggerRadius.DEFAULT,
 ) {
+    SearchBackHandler(enabled = isSearchVisible, onBack = onDismissSearch)
     val colors = LiquidGlassTheme.colors
     val isDarkTheme = LiquidGlassTheme.themeMode == ThemeMode.DARK ||
         (LiquidGlassTheme.themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
@@ -150,7 +165,9 @@ fun MapPickerScreen(
                     modifier = Modifier
                         .heightIn(min = 48.dp)
                         .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                        .clickable(role = Role.Button, onClick = onBack)
+                        .clickable(role = Role.Button, onClick = {
+                            if (isSearchVisible) onDismissSearch() else onBack()
+                        })
                         .padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -180,6 +197,23 @@ fun MapPickerScreen(
                 }
             }
 
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                    .clickable(role = Role.Button, onClick = onOpenSearch)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = FjalarStrings.get(FjalarStringKey.HUD_SEARCH_PLACEHOLDER, locale),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textPrimary,
+                )
+            }
+
             MapNavigationControls(
                 onRecenter = {
                     cameraTarget = userPosition?.coordinates ?: selection.coordinates ?: GeoCoordinates(0.0, 0.0)
@@ -203,7 +237,7 @@ fun MapPickerScreen(
         ) {
             Button(
                 onClick = { selection.coordinates?.let(onConfirmCoordinates) },
-                enabled = selection.coordinates != null,
+                enabled = selection.coordinates != null && !isSearchVisible,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colors.primary,
                     contentColor = colors.onPrimary,
@@ -219,6 +253,31 @@ fun MapPickerScreen(
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                 )
             }
+        }
+
+        if (isSearchVisible) {
+            SearchPlacesSheet(
+                query = searchQuery,
+                onQueryChange = onSearchQueryChange,
+                results = searchResults,
+                selectedCategory = selectedCategory,
+                onCategorySelect = onSelectCategory,
+                onPlaceSelect = { place ->
+                    selection = selection.select(place)
+                    cameraTarget = place.coordinates
+                    cameraZoom = 15.0
+                    preserveZoom = false
+                    viewportRequestId++
+                    onDismissSearch()
+                },
+                onDismiss = onDismissSearch,
+                isLoading = isSearching,
+                userLocation = userPosition?.coordinates,
+                locale = locale,
+                modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(
+                    Modifier.align(Alignment.BottomCenter),
+                ).imePadding(),
+            )
         }
     }
 }

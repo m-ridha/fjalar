@@ -40,6 +40,8 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Duration.Companion.milliseconds
 
+enum class PlaceSearchContext { BROWSE, PICKER }
+
 /**
  * Observable UI state representation for the entire Fjalar application.
  */
@@ -52,6 +54,7 @@ data class FjalarUiState(
     val isConfigureSheetVisible: Boolean = false,
     val searchQuery: String = "",
     val isSearchSheetVisible: Boolean = false,
+    val searchContext: PlaceSearchContext? = null,
     val searchResults: List<SearchResultPlace> = emptyList(),
     val isSearching: Boolean = false,
     val selectedCategoryFilter: PlaceCategory? = null,
@@ -105,6 +108,7 @@ class FjalarViewModel(
     private var snoozeDeadlineJob: Job? = null
     private var fixExpiryJob: Job? = null
     private var searchJob: Job? = null
+    private var searchSessionToken: Long = 0L
     private var unfilteredSearchResults: List<SearchResultPlace> = emptyList()
 
     private val mapTrackingMutex = kotlinx.coroutines.sync.Mutex()
@@ -239,20 +243,47 @@ class FjalarViewModel(
         }
     }
 
-    fun onOpenSearch() {
-        _uiState.update { it.copy(isSearchSheetVisible = true, isConfigureSheetVisible = false) }
-        if (_uiState.value.searchResults.isEmpty() && _uiState.value.searchQuery.isBlank()) {
-            onSearchQueryChanged("")
+    fun onOpenSearch(context: PlaceSearchContext = PlaceSearchContext.BROWSE) {
+        invalidateSearch()
+        _uiState.update {
+            it.copy(
+                searchContext = context,
+                isSearchSheetVisible = true,
+                isConfigureSheetVisible = false,
+                searchQuery = "",
+                searchResults = emptyList(),
+                selectedCategoryFilter = null,
+            )
         }
+        onSearchQueryChanged("")
+    }
+
+    private fun invalidateSearch() {
+        searchSessionToken++
+        searchJob?.cancel()
+        searchJob = null
+        unfilteredSearchResults = emptyList()
     }
 
     fun onDismissSearch() {
-        _uiState.update { it.copy(isSearchSheetVisible = false) }
+        invalidateSearch()
+        _uiState.update {
+            it.copy(
+                isSearchSheetVisible = false,
+                searchContext = null,
+                searchResults = emptyList(),
+                isSearching = false,
+            )
+        }
     }
 
     fun onSearchQueryChanged(query: String) {
-        _uiState.update { it.copy(searchQuery = query, isSearching = true) }
+        // A cancelled platform callback may still finish. Only the latest request
+        // in the current search session can publish results or filter input.
+        searchSessionToken++
+        val requestToken = searchSessionToken
         searchJob?.cancel()
+        _uiState.update { it.copy(searchQuery = query, isSearching = true) }
         searchJob = scope.launch {
             if (query.isNotBlank()) {
                 delay(SEARCH_DEBOUNCE_MILLIS)
@@ -260,6 +291,7 @@ class FjalarViewModel(
             val locale = _uiState.value.appLocale
             val proximity = _uiState.value.userLocation ?: _uiState.value.selectedCoordinates
             val places = searchPlacesPort?.searchPlaces(query, locale, proximity) ?: emptyList()
+            if (requestToken != searchSessionToken) return@launch
             unfilteredSearchResults = places
             val filtered = applyCategoryFilter(places, _uiState.value.selectedCategoryFilter)
             _uiState.update { it.copy(searchResults = filtered, isSearching = false) }
@@ -280,6 +312,8 @@ class FjalarViewModel(
         "alarm-${Clock.System.now().toEpochMilliseconds()}-${Random.nextLong().toString(16)}"
 
     fun onBrowsePlaceSelected(place: SearchResultPlace) {
+        if (_uiState.value.searchContext != PlaceSearchContext.BROWSE) return
+        onDismissSearch()
         _uiState.update { current ->
             current.copy(
                 isSearchSheetVisible = false,
@@ -425,21 +459,16 @@ class FjalarViewModel(
     }
 
     fun onOpenNewAlarm() {
-        val target = _uiState.value.selectedCoordinates
-            ?: _uiState.value.userLocation
         _uiState.update { current ->
             current.copy(
                 selectedAlarmForEdit = null,
                 initialAlarmLabel = null,
                 isConfigureSheetVisible = true,
-                selectedCoordinates = target,
+                selectedCoordinates = null,
                 selectedRadius = TriggerRadius.DEFAULT,
             )
         }
-        if (target != null) {
-            mapRendererPort?.placePin(target)
-            mapRendererPort?.showGeofence(target, TriggerRadius.DEFAULT)
-        }
+        mapRendererPort?.clearOverlays()
     }
 
     fun onOpenEditAlarm(alarm: LocationAlarm) {
@@ -474,22 +503,19 @@ class FjalarViewModel(
     }
 
     fun onStartConfiguringAlarm(alarmId: String?, defaultCoordinates: GeoCoordinates? = null) {
+        onDismissSearch()
         draftRevision++
         val draft = if (alarmId != null) {
             val alarm = _uiState.value.alarms.firstOrNull { it.id == alarmId }
             alarm?.let { ConfigureAlarmDraft.fromAlarm(it) }
                 ?: ConfigureAlarmDraft(
                     alarmId = alarmId,
-                    coordinates = defaultCoordinates
-                        ?: _uiState.value.selectedCoordinates
-                        ?: _uiState.value.userLocation,
+                    coordinates = defaultCoordinates,
                 )
         } else {
             ConfigureAlarmDraft(
                 alarmId = newDraftIdentity(),
-                coordinates = defaultCoordinates
-                    ?: _uiState.value.selectedCoordinates
-                    ?: _uiState.value.userLocation,
+                coordinates = defaultCoordinates,
             )
         }
         _uiState.update { current ->

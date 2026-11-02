@@ -170,7 +170,7 @@ fun FjalarApp(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 FloatingHudBar(
-                                    onSearchClick = viewModel::onOpenSearch,
+                                    onSearchClick = { viewModel.onOpenSearch(PlaceSearchContext.BROWSE) },
                                     onToggleLocale = viewModel::onToggleLocale,
                                     onSelectLocale = viewModel::onSelectLocale,
                                     onToggleTheme = viewModel::onToggleTheme,
@@ -213,7 +213,7 @@ fun FjalarApp(
 
                         // Search Places Modal Sheet
                         AnimatedVisibility(
-                            visible = uiState.isSearchSheetVisible,
+                            visible = uiState.isSearchSheetVisible && uiState.searchContext == PlaceSearchContext.BROWSE,
                             enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
                             exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
                             modifier = Modifier
@@ -271,10 +271,7 @@ fun FjalarApp(
                         if (existing != null) {
                             ConfigureAlarmDraft.fromAlarm(existing)
                         } else {
-                            ConfigureAlarmDraft(
-                                coordinates = uiState.selectedCoordinates
-                                    ?: uiState.userLocation,
-                            )
+                            ConfigureAlarmDraft()
                         }
                     }
 
@@ -321,15 +318,41 @@ fun FjalarApp(
                 // Screen 4: Map Location Picker Full-Screen Modal
                 mapPickerDestination { backStackEntry ->
                     val route = backStackEntry.toRoute<MapPickerRoute>()
+                    // Freeze initial framing for this visit so new GPS fixes cannot
+                    // reset a local, unconfirmed destination selection.
+                    val initialCenter = remember(backStackEntry) {
+                        uiState.activeDraft?.coordinates ?: uiState.userLocation
+                            ?: GeoCoordinates(route.initialLat, route.initialLon)
+                    }
+                    val initialZoom = remember(backStackEntry) {
+                        if (uiState.activeDraft?.coordinates != null || uiState.userLocation != null) 15.0 else 2.0
+                    }
+                    androidx.compose.runtime.DisposableEffect(backStackEntry) {
+                        onDispose {
+                            if (viewModel.uiState.value.searchContext == PlaceSearchContext.PICKER) {
+                                viewModel.onDismissSearch()
+                            }
+                        }
+                    }
                     MapPickerScreen(
-                        initialCoordinates = GeoCoordinates(route.initialLat, route.initialLon),
-                        initialZoom = if (uiState.activeDraft?.coordinates == null) 2.0 else 15.0,
+                        initialCoordinates = initialCenter,
+                        initialZoom = initialZoom,
                         hasInitialSelection = uiState.activeDraft?.coordinates != null,
                         userPosition = uiState.mapUserPosition(),
                         geofenceRadius = uiState.activeDraft
                             ?.let { TriggerRadius(it.radiusMeters) }
                             ?: TriggerRadius.DEFAULT,
+                        isSearchVisible = uiState.isSearchSheetVisible && uiState.searchContext == PlaceSearchContext.PICKER,
+                        searchQuery = uiState.searchQuery,
+                        searchResults = uiState.searchResults,
+                        selectedCategory = uiState.selectedCategoryFilter,
+                        isSearching = uiState.isSearching,
+                        onOpenSearch = { viewModel.onOpenSearch(PlaceSearchContext.PICKER) },
+                        onSearchQueryChange = viewModel::onSearchQueryChanged,
+                        onSelectCategory = viewModel::onSelectCategoryFilter,
+                        onDismissSearch = viewModel::onDismissSearch,
                         onConfirmCoordinates = { coords ->
+                            viewModel.onDismissSearch()
                             viewModel.onDraftCoordinatesChanged(coords)
                             navController.popBackStack()
                         },
@@ -362,7 +385,7 @@ fun FjalarApp(
                     onAddAlarmClick = {
                         viewModel.onStartConfiguringAlarm(
                             alarmId = null,
-                            defaultCoordinates = uiState.selectedCoordinates ?: uiState.userLocation,
+                            defaultCoordinates = null,
                         )
                         navController.navigate(ConfigureRoute())
                     },

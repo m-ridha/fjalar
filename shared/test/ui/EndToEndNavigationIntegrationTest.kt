@@ -222,6 +222,62 @@ class EndToEndNavigationIntegrationTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    fun pickerSearchSelectionRemainsUncommittedUntilConfirm() = runTest {
+        val vmScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        val savedAlarm = sampleAlarm()
+        val saves = FakeSaveAlarmPort()
+        val viewModel = FjalarViewModel(
+            observeAlarmsPort = FakeObserveAlarmsPort(listOf(savedAlarm)),
+            saveAlarmPort = saves,
+            toggleAlarmPort = FakeToggleAlarmPort(),
+            dismissAlarmPort = FakeDismissAlarmPort(),
+            skipTodayPort = FakeSkipTodayPort(),
+            preferencesPort = PersistentPreferencesAdapter(InMemoryKeyValueStorage()),
+            coroutineScope = vmScope,
+        )
+        try {
+            for (alarmId in listOf(null, savedAlarm.id)) {
+                viewModel.onStartConfiguringAlarm(alarmId)
+                val original = viewModel.uiState.value.activeDraft!!.copy(
+                    label = "My commute", radiusMeters = 300, vibrateEnabled = false,
+                )
+                viewModel.onUpdateDraft(original)
+                viewModel.onOpenSearch(PlaceSearchContext.PICKER)
+                val place = com.muhammadridha.fjalar.domain.model.SearchResultPlace(
+                    id = "sudirman", name = "Sudirman",
+                    coordinates = GeoCoordinates(-6.2000, 106.8228),
+                    category = com.muhammadridha.fjalar.domain.model.PlaceCategory.TRAIN_STATION,
+                )
+                val preview = com.muhammadridha.fjalar.ui.screens.MapPickerSelection(original.coordinates).select(place)
+                viewModel.onDismissSearch()
+                assertEquals(place.coordinates, preview.coordinates)
+                assertEquals(original, viewModel.uiState.value.activeDraft)
+                assertEquals(listOf(savedAlarm), viewModel.uiState.value.alarms)
+                assertTrue(saves.savedAlarms.isEmpty())
+                assertNull(viewModel.uiState.value.mapViewportCenter)
+
+                // Picker Back discards its preview; reopening starts from the unchanged draft.
+                val reopened = com.muhammadridha.fjalar.ui.screens.MapPickerSelection(
+                    viewModel.uiState.value.activeDraft!!.coordinates,
+                )
+                assertEquals(original.coordinates, reopened.coordinates)
+                assertEquals(original, viewModel.uiState.value.activeDraft)
+
+                // Only Confirm hands the local selection back to the existing editor session.
+                viewModel.onDraftCoordinatesChanged(preview.coordinates!!)
+                assertEquals(original.withNewCoordinates(place.coordinates), viewModel.uiState.value.activeDraft)
+                assertEquals(original.alarmId, viewModel.uiState.value.activeDraft?.alarmId)
+                assertEquals("My commute", viewModel.uiState.value.activeDraft?.label)
+                assertTrue(saves.savedAlarms.isEmpty())
+                assertEquals(listOf(savedAlarm), viewModel.uiState.value.alarms)
+            }
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun draftCoordinationFlow_fromMap_toConfigure_toPicker_andSave() = runTest {
         val vmScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
         val saveAlarmPort = FakeSaveAlarmPort()
