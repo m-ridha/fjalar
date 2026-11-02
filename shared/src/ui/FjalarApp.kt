@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -24,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -57,7 +61,10 @@ import com.muhammadridha.fjalar.ui.screens.AlarmsScreen
 import com.muhammadridha.fjalar.ui.screens.ConfigureAlarmDraft
 import com.muhammadridha.fjalar.ui.screens.ConfigureAlarmScreen
 import com.muhammadridha.fjalar.ui.screens.MapPickerScreen
+import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
+import com.muhammadridha.fjalar.ui.theme.FjalarStrings
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
+import kotlinx.coroutines.launch
 
 /**
  * Main Composable representing the root Fjalar application.
@@ -83,6 +90,9 @@ fun FjalarApp(
     val uiState by viewModel.uiState.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val editorSnackbarHostState = remember { SnackbarHostState() }
+    val editorNoticeScope = rememberCoroutineScope()
+    var lastQueuedEditorNoticeId by remember(viewModel) { mutableStateOf(0L) }
     androidx.compose.runtime.DisposableEffect(currentRoute, viewModel) {
         viewModel.onMapVisibilityChanged(
             currentRoute == null || com.muhammadridha.fjalar.ui.navigation.isMapRoute(currentRoute),
@@ -90,15 +100,6 @@ fun FjalarApp(
         onDispose { viewModel.onMapVisibilityChanged(false) }
     }
 
-
-    // System back can pop Configure without invoking its toolbar callback. Clear
-    // abandoned editor state when a top-level destination becomes current again.
-    // Returning from the picker keeps Configure current and preserves its draft.
-    LaunchedEffect(navBackStackEntry) {
-        if (isBottomBarVisible(currentRoute) && viewModel.uiState.value.activeDraft != null) {
-            viewModel.onClearDraft()
-        }
-    }
 
     LiquidGlassTheme(
         themeMode = uiState.themeMode,
@@ -121,6 +122,25 @@ fun FjalarApp(
             ?: GeoCoordinates(0.0, 0.0)
 
         var permissionBannerDismissed by remember { mutableStateOf(false) }
+
+        val editorNotice = uiState.pendingEditorNotice
+        val editorNoticeId = uiState.pendingEditorNoticeId
+        val canShowEditorNotice = editorNotice == AlarmEditorNotice.UPDATE_FAILED ||
+            isBottomBarVisible(currentRoute)
+        LaunchedEffect(editorNoticeId, editorNotice, canShowEditorNotice, uiState.appLocale) {
+            if (editorNotice != null && canShowEditorNotice && editorNoticeId > lastQueuedEditorNoticeId) {
+                lastQueuedEditorNoticeId = editorNoticeId
+                val message = FjalarStrings.get(editorNoticeStringKey(editorNotice), uiState.appLocale)
+                // Keep delivery alive if the pending value clears when another editor opens.
+                editorNoticeScope.launch {
+                    editorSnackbarHostState.showSnackbar(
+                        message = message,
+                        duration = SnackbarDuration.Long,
+                    )
+                    viewModel.onEditorNoticeShown(editorNoticeId)
+                }
+            }
+        }
 
         Box(
             modifier = modifier
@@ -275,10 +295,14 @@ fun FjalarApp(
                         }
                     }
 
+                    val isCurrentEditor = { navController.currentBackStackEntry == backStackEntry }
                     val handleBack: () -> Unit = {
-                        viewModel.onClearDraft()
-                        navController.popBackStack()
+                        exitEditorIfCurrent(viewModel, isCurrentEditor) {
+                            navController.popBackStack()
+                        }
                     }
+
+                    SearchBackHandler(enabled = navBackStackEntry == backStackEntry, onBack = handleBack)
 
                     ConfigureAlarmScreen(
                         draft = draft,
@@ -286,13 +310,6 @@ fun FjalarApp(
                         isOperationPending = uiState.isOperationPending,
                         hasOperationFailure = uiState.hasOperationFailure,
                         onDraftChange = viewModel::onUpdateDraft,
-                        onSave = { savedDraft ->
-                            viewModel.onSaveDraftAlarm(savedDraft) {
-                                if (navController.currentBackStackEntry == backStackEntry) {
-                                    navController.popBackStack()
-                                }
-                            }
-                        },
                         onBack = handleBack,
                         onNavigateToPicker = { coords ->
                             if (!viewModel.uiState.value.isOperationPending) {
@@ -306,6 +323,7 @@ fun FjalarApp(
                         },
                         onDelete = { id ->
                             viewModel.onDeleteAlarm(id) {
+                                viewModel.onClearDraft()
                                 if (navController.currentBackStackEntry == backStackEntry) {
                                     navController.popBackStack()
                                 }
@@ -363,6 +381,16 @@ fun FjalarApp(
                     )
                 }
             }
+
+            SnackbarHost(
+                hostState = editorSnackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .then(WindowInsetsLayoutHelper.sheetBottomPaddingModifier())
+                    .imePadding()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = if (isBottomBarVisible(currentRoute)) dockHeight + 8.dp else 16.dp),
+            )
 
             // Anchored Frosted Bottom Navigation Dock (Visible on top-level tabs)
             if (isBottomBarVisible(currentRoute)) {
@@ -423,4 +451,28 @@ fun FjalarApp(
             }
         }
     }
+}
+
+/** Ignore stale callbacks both before a save starts and after its asynchronous completion. */
+internal fun exitEditorIfCurrent(
+    viewModel: FjalarViewModel,
+    isCurrentEditor: () -> Boolean,
+    popEditor: () -> Unit,
+) {
+    if (!isCurrentEditor()) return
+    viewModel.onExitAlarmEditor {
+        if (isCurrentEditor()) popEditor()
+    }
+}
+
+internal fun editorNoticeStringKey(notice: AlarmEditorNotice): FjalarStringKey = when (notice) {
+    AlarmEditorNotice.NO_DESTINATION -> FjalarStringKey.EDITOR_NOT_SAVED_NO_DESTINATION
+    AlarmEditorNotice.NAME_REQUIRED -> FjalarStringKey.EDITOR_NOT_SAVED_NAME_REQUIRED
+    AlarmEditorNotice.TIME_INVALID -> FjalarStringKey.EDITOR_NOT_SAVED_TIME_INVALID
+    AlarmEditorNotice.DIFFERENT_TIMES_REQUIRED -> FjalarStringKey.EDITOR_NOT_SAVED_DIFFERENT_TIMES
+    AlarmEditorNotice.DAYS_REQUIRED -> FjalarStringKey.EDITOR_NOT_SAVED_DAYS_REQUIRED
+    AlarmEditorNotice.DAYS_INVALID -> FjalarStringKey.EDITOR_NOT_SAVED_DAYS_INVALID
+    AlarmEditorNotice.RADIUS_INVALID -> FjalarStringKey.EDITOR_NOT_SAVED_RADIUS_INVALID
+    AlarmEditorNotice.ALARM_DELETED -> FjalarStringKey.EDITOR_ALARM_DELETED
+    AlarmEditorNotice.UPDATE_FAILED -> FjalarStringKey.EDITOR_UPDATE_FAILED
 }

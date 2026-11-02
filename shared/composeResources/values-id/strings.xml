@@ -28,6 +28,16 @@
     <string name="editor_title">Atur Alarm</string>
     <string name="editor_cancel">Batal</string>
     <string name="editor_save">Simpan</string>
+    <string name="editor_back_saves_changes">Perubahan disimpan saat kembali.</string>
+    <string name="editor_not_saved_no_destination">Pilih tujuan sebelum kembali. Perubahan tidak disimpan.</string>
+    <string name="editor_not_saved_name_required">Isi nama alarm. Perubahan tidak disimpan.</string>
+    <string name="editor_not_saved_time_invalid">Masukkan waktu mulai dan selesai yang valid. Perubahan tidak disimpan.</string>
+    <string name="editor_not_saved_different_times">Waktu mulai dan selesai harus berbeda. Perubahan tidak disimpan.</string>
+    <string name="editor_not_saved_days_required">Pilih setidaknya satu hari. Perubahan tidak disimpan.</string>
+    <string name="editor_not_saved_days_invalid">Pilihan hari tidak didukung. Perubahan tidak disimpan.</string>
+    <string name="editor_not_saved_radius_invalid">Pilih radius antara 50 m dan 10 km. Perubahan tidak disimpan.</string>
+    <string name="editor_alarm_deleted">Alarm ini telah dihapus. Perubahan tidak disimpan.</string>
+    <string name="editor_update_failed">Perubahan gagal disimpan. Coba lagi.</string>
     <string name="editor_label_placeholder">cth. Stasiun Manggarai</string>
     <string name="editor_start_time">Mulai: %1$s</string>
     <string name="editor_end_time">Selesai: %1$s</string>

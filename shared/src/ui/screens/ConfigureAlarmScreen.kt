@@ -188,7 +188,6 @@ private const val RADIUS_SLIDER_MAX_METERS = 3000
 fun ConfigureAlarmScreen(
     draft: ConfigureAlarmDraft,
     onDraftChange: (ConfigureAlarmDraft) -> Unit,
-    onSave: (ConfigureAlarmDraft) -> Unit,
     onBack: () -> Unit,
     onNavigateToPicker: (GeoCoordinates) -> Unit,
     onDelete: ((String) -> Unit)? = null,
@@ -199,11 +198,6 @@ fun ConfigureAlarmScreen(
     persistedAlarm: LocationAlarm? = null,
 ) {
     val colors = LiquidGlassTheme.colors
-
-    val isScheduleValid = draft.scheduleType != ScheduleType.SCHEDULED ||
-        (draft.startMinuteOfDay != draft.endMinuteOfDay && draft.daysOfWeekMask != 0)
-    val isSaveEnabled = draft.label.isNotBlank() && draft.coordinates != null &&
-        isScheduleValid && !isOperationPending
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var editingTime by remember { mutableStateOf<EditorTimeField?>(null) }
@@ -248,29 +242,14 @@ fun ConfigureAlarmScreen(
                 color = colors.textPrimary,
             )
 
-            // Save CTA
-            Row(
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                    .clip(CircleShape)
-                    .clickable(
-                        role = Role.Button,
-                        enabled = isSaveEnabled,
-                        onClick = { if (isSaveEnabled) onSave(draft) },
-                    )
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = FjalarStrings.get(FjalarStringKey.EDITOR_SAVE, locale),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = if (isSaveEnabled) colors.primary else colors.textSecondary.copy(alpha = 0.4f),
-                    ),
-                )
-            }
         }
+
+        Text(
+            text = FjalarStrings.get(FjalarStringKey.EDITOR_BACK_SAVES_CHANGES, locale),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.textSecondary,
+        )
 
         // Scrollable Body
         Column(

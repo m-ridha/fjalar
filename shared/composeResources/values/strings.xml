@@ -28,6 +28,16 @@
     <string name="editor_title">Configure Alarm</string>
     <string name="editor_cancel">Cancel</string>
     <string name="editor_save">Save</string>
+    <string name="editor_back_saves_changes">Changes are saved when you go back.</string>
+    <string name="editor_not_saved_no_destination">Choose a destination before going back. Changes were not saved.</string>
+    <string name="editor_not_saved_name_required">Enter an alarm name. Changes were not saved.</string>
+    <string name="editor_not_saved_time_invalid">Enter valid start and end times. Changes were not saved.</string>
+    <string name="editor_not_saved_different_times">Start and end times must differ. Changes were not saved.</string>
+    <string name="editor_not_saved_days_required">Choose at least one day. Changes were not saved.</string>
+    <string name="editor_not_saved_days_invalid">Day selection is unsupported. Changes were not saved.</string>
+    <string name="editor_not_saved_radius_invalid">Choose a radius from 50 m to 10 km. Changes were not saved.</string>
+    <string name="editor_alarm_deleted">This alarm was deleted. Changes were not saved.</string>
+    <string name="editor_update_failed">Could not save changes. Try again.</string>
     <string name="editor_label_placeholder">e.g. Manggarai Station</string>
     <string name="editor_start_time">Start: %1$s</string>
     <string name="editor_end_time">End: %1$s</string>

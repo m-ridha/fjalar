@@ -379,6 +379,14 @@ class ConfigureAlarmScreenTest {
         assertEquals("Simpan", idSave)
         assertEquals("Delete Alarm", enDelete)
         assertEquals("Hapus Alarm", idDelete)
+        assertEquals(
+            "Changes are saved when you go back.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_BACK_SAVES_CHANGES, AppLocale.EN),
+        )
+        assertEquals(
+            "Perubahan disimpan saat kembali.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_BACK_SAVES_CHANGES, AppLocale.ID),
+        )
     }
     @Test
     fun missingDestinationCannotBecomeSavedAlarm() {

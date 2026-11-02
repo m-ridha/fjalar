@@ -73,6 +73,7 @@ data class FjalarUiState(
     val viewportRequestId: Long = 0L,
     val activeDraft: ConfigureAlarmDraft? = null,
     val pendingEditorNotice: AlarmEditorNotice? = null,
+    val pendingEditorNoticeId: Long = 0L,
     // Access required by the platform for background alarm monitoring.
     val hasLocationPermission: Boolean = true,
     val hasOperationFailure: Boolean = false,
@@ -106,6 +107,7 @@ class FjalarViewModel(
     private var draftRevision: Long = 0L
     private var editorBaseline: ConfigureAlarmDraft? = null
     private var editorPersistedId: String? = null
+    private var editorNoticeSequence: Long = 0L
 
     private val _uiState = MutableStateFlow(FjalarUiState())
     val uiState: StateFlow<FjalarUiState> = _uiState.asStateFlow()
@@ -636,7 +638,10 @@ class FjalarViewModel(
         val alarm = try {
             draft.toLocationAlarm(existing)
         } catch (_: IllegalArgumentException) {
-            _uiState.update { it.copy(pendingEditorNotice = AlarmEditorNotice.UPDATE_FAILED) }
+            val noticeId = ++editorNoticeSequence
+            _uiState.update {
+                it.copy(pendingEditorNotice = AlarmEditorNotice.UPDATE_FAILED, pendingEditorNoticeId = noticeId)
+            }
             return
         }
         val operationDraftRevision = draftRevision
@@ -663,22 +668,30 @@ class FjalarViewModel(
                 }
                 result.exceptionOrNull() is AlarmConfigurationRingingException -> Unit
                 else -> {
+                    val noticeId = ++editorNoticeSequence
                     _uiState.update {
-                        it.copy(hasOperationFailure = true, pendingEditorNotice = AlarmEditorNotice.UPDATE_FAILED)
+                        it.copy(
+                            hasOperationFailure = true,
+                            pendingEditorNotice = AlarmEditorNotice.UPDATE_FAILED,
+                            pendingEditorNoticeId = noticeId,
+                        )
                     }
                 }
             }
         }
     }
 
-    fun onEditorNoticeShown() {
-        _uiState.update { it.copy(pendingEditorNotice = null) }
+    fun onEditorNoticeShown(noticeId: Long = _uiState.value.pendingEditorNoticeId) {
+        _uiState.update { current ->
+            if (current.pendingEditorNoticeId == noticeId) current.copy(pendingEditorNotice = null) else current
+        }
     }
 
     private fun discardEditor(notice: AlarmEditorNotice?) {
         draftRevision++
         editorBaseline = null
         editorPersistedId = null
+        val noticeId = if (notice != null) ++editorNoticeSequence else _uiState.value.pendingEditorNoticeId
         _uiState.update { current ->
             current.copy(
                 activeDraft = null,
@@ -688,6 +701,7 @@ class FjalarViewModel(
                 selectedRadius = TriggerRadius.DEFAULT,
                 hasOperationFailure = false,
                 pendingEditorNotice = notice,
+                pendingEditorNoticeId = noticeId,
             )
         }
         mapRendererPort?.clearOverlays()
