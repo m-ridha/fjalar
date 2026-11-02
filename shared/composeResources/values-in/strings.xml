@@ -36,8 +36,8 @@
     <string name="editor_not_saved_days_required">Pilih setidaknya satu hari. Perubahan tidak disimpan.</string>
     <string name="editor_not_saved_days_invalid">Pilihan hari tidak didukung. Perubahan tidak disimpan.</string>
     <string name="editor_not_saved_radius_invalid">Pilih radius antara 50 m dan 10 km. Perubahan tidak disimpan.</string>
-    <string name="editor_alarm_deleted">Alarm ini telah dihapus. Perubahan tidak disimpan.</string>
-    <string name="editor_update_failed">Perubahan gagal disimpan. Coba lagi.</string>
+    <string name="editor_alarm_deleted">Alarm ini sudah tidak ada.</string>
+    <string name="editor_update_failed">Alarm belum berhasil diperbarui. Coba lagi.</string>
     <string name="editor_label_placeholder">cth. Stasiun Manggarai</string>
     <string name="editor_start_time">Mulai: %1$s</string>
     <string name="editor_end_time">Selesai: %1$s</string>

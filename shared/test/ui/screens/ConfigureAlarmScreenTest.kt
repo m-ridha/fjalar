@@ -387,6 +387,22 @@ class ConfigureAlarmScreenTest {
             "Perubahan disimpan saat kembali.",
             FjalarStrings.get(FjalarStringKey.EDITOR_BACK_SAVES_CHANGES, AppLocale.ID),
         )
+        assertEquals(
+            "This alarm no longer exists.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_ALARM_DELETED, AppLocale.EN),
+        )
+        assertEquals(
+            "Alarm ini sudah tidak ada.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_ALARM_DELETED, AppLocale.ID),
+        )
+        assertEquals(
+            "Could not finish updating the alarm. Try again.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_UPDATE_FAILED, AppLocale.EN),
+        )
+        assertEquals(
+            "Alarm belum berhasil diperbarui. Coba lagi.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_UPDATE_FAILED, AppLocale.ID),
+        )
     }
     @Test
     fun missingDestinationCannotBecomeSavedAlarm() {

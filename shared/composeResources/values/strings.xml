@@ -36,8 +36,8 @@
     <string name="editor_not_saved_days_required">Choose at least one day. Changes were not saved.</string>
     <string name="editor_not_saved_days_invalid">Day selection is unsupported. Changes were not saved.</string>
     <string name="editor_not_saved_radius_invalid">Choose a radius from 50 m to 10 km. Changes were not saved.</string>
-    <string name="editor_alarm_deleted">This alarm was deleted. Changes were not saved.</string>
-    <string name="editor_update_failed">Could not save changes. Try again.</string>
+    <string name="editor_alarm_deleted">This alarm no longer exists.</string>
+    <string name="editor_update_failed">Could not finish updating the alarm. Try again.</string>
     <string name="editor_label_placeholder">e.g. Manggarai Station</string>
     <string name="editor_start_time">Start: %1$s</string>
     <string name="editor_end_time">End: %1$s</string>
