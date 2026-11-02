@@ -9,7 +9,7 @@ Fjalar does not implement its own PIN or password screen.
 
 The alarm presentation uses a separate, non-exported `AlarmActivity` and task.
 Only this restricted activity may show above the keyguard. Its ViewModel retains
-in-flight actions across activity recreation; the task waits for action side
+in-flight actions across activity recreation. The task waits for action side
 effects to finish before closing. It must validate its
 explicit alarm intent against the current ringing state, present generic alarm
 copy instead of a saved destination or location, and expose only the existing
@@ -26,10 +26,10 @@ users may need to grant notification and full-screen alarm access in system sett
 ### Device verification matrix
 
 Use a PIN/password-protected test emulator or device. Verify on API 26 (legacy
-window flags), API 27–28 (activity APIs), and a current Android release. Do not
+window flags), API 27-28 (activity APIs), and a current Android release. Do not
 substitute source or JVM tests for keyguard/task-stack behavior.
 
-1. Save an alarm with a recognizable private label and destination; leave the
+1. Save an alarm with a recognizable private label and destination. Leave the
    normal app open, lock the device, and trigger the alarm using a simulated
    location entering its radius during its active window.
 2. Confirm only generic ringing UI is visible. No map, destination label,
@@ -38,7 +38,7 @@ substitute source or JVM tests for keyguard/task-stack behavior.
    expose normal application controls. A single tap must not dismiss ringing.
 4. Complete the slide-to-stop gesture. Audio/vibration must stop, scheduled-window
    suppression must remain intact, and the restricted task must close to the
-   system lock screen. Repeat with snooze; verify its two-minute deadline persists
+   system lock screen. Repeat with snooze. Verify its two-minute deadline persists
    and the next alarm still has only restricted actions.
 5. Unlock normally and confirm the main application remains usable. Repeat while
    the app was backgrounded or its process was recreated before the alarm.
@@ -48,7 +48,7 @@ substitute source or JVM tests for keyguard/task-stack behavior.
    An external `adb shell am start -n
    com.muhammadridha.fjalar/.AlarmActivity` must be rejected as non-exported.
 7. Repeat when another alarm becomes the ringing owner, and when dismiss/snooze
-   fails: stale UI must not control another alarm; failures must allow retry.
+   fails: stale UI must not control another alarm. Failures must allow retry.
 
 Record the device/API, secure-keyguard state, exact steps, and observed results.
 Device checks that have not been executed remain unverified.
@@ -68,7 +68,7 @@ source. Do not replace the token with a fixed value or print other untrusted
 metadata outside this boundary.
 
 The workflow audit covers all run scripts: event title is passed through the
-environment; concurrency metadata and action/cache inputs are not interpolated
+environment. Concurrency metadata and action/cache inputs are not interpolated
 into executable shell source. Permissions and build steps remain unchanged.
 
 ```sh
@@ -90,7 +90,7 @@ than execution on a hosted GitHub runner.
 - [Actions runner command parser](https://github.com/actions/runner/blob/main/src/Runner.Common/ActionCommand.cs)
 - [Actions runner command manager](https://github.com/actions/runner/blob/main/src/Runner.Worker/ActionCommandManager.cs)
 
-## Verification scope for this change
+## Recorded verification for PR #18
 
 On the API 37 emulator, the debug application started through the shipping
 Android Koin module, and an external attempt to launch `AlarmActivity` was
