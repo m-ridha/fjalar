@@ -269,6 +269,8 @@ class ConfigureAlarmScreenTest {
                 savedAlarm = alarm
                 return Result.success(Unit)
             }
+            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> =
+                saveAlarm(alarm)
         }
         val togglePort = object : ToggleAlarmPort {
             override suspend fun toggleAlarm(alarmId: String, enabled: Boolean): Result<Unit> = Result.success(Unit)

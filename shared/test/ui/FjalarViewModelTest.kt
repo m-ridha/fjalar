@@ -15,6 +15,8 @@ import com.muhammadridha.fjalar.domain.ports.inbound.DeleteAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
+import com.muhammadridha.fjalar.domain.ports.inbound.AlarmConfigurationMissingException
+import com.muhammadridha.fjalar.domain.model.AlarmSoundConfig
 import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
@@ -49,12 +51,17 @@ class FjalarViewModelTest {
         var shouldFail: Boolean = false,
     ) : SaveAlarmPort {
         val savedAlarms = mutableListOf<LocationAlarm>()
+        var configurationCalls = 0
         override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> {
             if (shouldFail) {
                 return Result.failure(IllegalStateException("Simulated save failure"))
             }
             savedAlarms.add(alarm)
             return Result.success(Unit)
+        }
+        override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> {
+            configurationCalls++
+            return saveAlarm(alarm)
         }
     }
 
@@ -1170,6 +1177,8 @@ class FjalarViewModelTest {
                 release.await()
                 return Result.success(Unit)
             }
+            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> =
+                saveAlarm(alarm)
         }
         val (viewModel, _, vmScope) = createTestViewModel(savePort = port)
         try {
@@ -1194,6 +1203,8 @@ class FjalarViewModelTest {
                 release.await()
                 return Result.success(Unit)
             }
+            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> =
+                saveAlarm(alarm)
         }
         val renderer = FakeMapRendererPort()
         val (viewModel, _, vmScope) = createTestViewModel(savePort = port, mapRendererPort = renderer)
@@ -1248,6 +1259,8 @@ class FjalarViewModelTest {
                 release.await()
                 return Result.success(Unit)
             }
+            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> =
+                saveAlarm(alarm)
         }
         val (viewModel, _, vmScope) = createTestViewModel(savePort = port)
         try {
@@ -1276,6 +1289,8 @@ class FjalarViewModelTest {
                 release.await()
                 return Result.success(Unit)
             }
+            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> =
+                saveAlarm(alarm)
         }
         val (viewModel, _, vmScope) = createTestViewModel(savePort = port)
         try {
@@ -1290,6 +1305,261 @@ class FjalarViewModelTest {
             assertEquals("London Bridge", viewModel.uiState.value.activeDraft?.label)
             assertEquals(1000, viewModel.uiState.value.activeDraft?.radiusMeters)
             assertEquals(GeoCoordinates(51.505, -0.09), viewModel.uiState.value.activeDraft?.coordinates)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun invalidEditorExitDiscardsNewAndExistingDraftsWithoutSaving() = runTest {
+        val existing = manggaraiAlarm()
+        val save = FakeSaveAlarmPort()
+        val (viewModel, _, vmScope) = createTestViewModel(
+            observePort = FakeObserveAlarmsPort(listOf(existing)), savePort = save,
+        )
+        try {
+            var exits = 0
+            viewModel.onStartConfiguringAlarm(null)
+            viewModel.onExitAlarmEditor { exits++ }
+            assertEquals(1, exits)
+            assertNull(viewModel.uiState.value.activeDraft)
+            assertEquals(AlarmEditorNotice.NO_DESTINATION, viewModel.uiState.value.pendingEditorNotice)
+            viewModel.onEditorNoticeShown()
+            assertNull(viewModel.uiState.value.pendingEditorNotice)
+
+            viewModel.onStartConfiguringAlarm(existing.id)
+            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(label = " "))
+            viewModel.onExitAlarmEditor { exits++ }
+            assertEquals(2, exits)
+            assertNull(viewModel.uiState.value.activeDraft)
+            assertEquals(AlarmEditorNotice.NAME_REQUIRED, viewModel.uiState.value.pendingEditorNotice)
+            assertEquals(0, save.configurationCalls)
+            assertEquals(existing, viewModel.uiState.value.alarms.single())
+
+            viewModel.onStartConfiguringAlarm(existing.id)
+            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(radiusMeters = 10_001))
+            viewModel.onExitAlarmEditor { exits++ }
+            assertEquals(3, exits)
+            assertEquals(AlarmEditorNotice.RADIUS_INVALID, viewModel.uiState.value.pendingEditorNotice)
+            assertEquals(0, save.configurationCalls)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun unchangedExistingDraftAndMissingExistingRecordExitWithoutWrites() = runTest {
+        val existing = manggaraiAlarm().copy(
+            radius = TriggerRadius(5_000), soundConfig = AlarmSoundConfig(volume = 0.4f),
+        )
+        val save = FakeSaveAlarmPort()
+        val (viewModel, _, vmScope) = createTestViewModel(
+            observePort = FakeObserveAlarmsPort(listOf(existing)), savePort = save,
+        )
+        try {
+            var exits = 0
+            viewModel.onStartConfiguringAlarm(existing.id)
+            viewModel.onExitAlarmEditor { exits++ }
+            assertEquals(1, exits)
+            assertEquals(0, save.configurationCalls)
+            assertNull(viewModel.uiState.value.pendingEditorNotice)
+
+            viewModel.onStartConfiguringAlarm("deleted-id")
+            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(
+                coordinates = GeoCoordinates(51.5, -0.1), label = "Deleted",
+            ))
+            viewModel.onExitAlarmEditor { exits++ }
+            assertEquals(2, exits)
+            assertEquals(AlarmEditorNotice.ALARM_DELETED, viewModel.uiState.value.pendingEditorNotice)
+            assertEquals(0, save.configurationCalls)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun repeatedBackWaitsForOneSuccessfulSaveAndOneExit() = runTest {
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val writes = mutableListOf<LocationAlarm>()
+        val port = object : SaveAlarmPort {
+            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> = Result.success(Unit)
+            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> {
+                writes += alarm
+                release.await()
+                return Result.success(Unit)
+            }
+        }
+        val (viewModel, _, vmScope) = createTestViewModel(savePort = port)
+        try {
+            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(label = "London"))
+            var exits = 0
+            viewModel.onExitAlarmEditor { exits++ }
+            viewModel.onExitAlarmEditor { exits++ }
+            assertEquals(1, writes.size)
+            assertEquals(0, exits)
+            assertTrue(viewModel.uiState.value.isOperationPending)
+            release.complete(Unit)
+            assertEquals(1, exits)
+            assertNull(viewModel.uiState.value.activeDraft)
+            viewModel.onExitAlarmEditor { exits++ }
+            assertEquals(1, exits)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun changedExistingExitUsesPersistedProvenanceAndNetEnableChoice() = runTest {
+        val existing = manggaraiAlarm().copy(state = AlarmState.ARMED_MONITORING)
+        val calls = mutableListOf<Pair<Boolean?, Boolean>>()
+        val port = object : SaveAlarmPort {
+            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> = Result.success(Unit)
+            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> {
+                assertEquals(existing.id, alarm.id)
+                assertEquals("Changed", alarm.label)
+                calls += enabled to requireExisting
+                return Result.success(Unit)
+            }
+        }
+        val (viewModel, _, vmScope) = createTestViewModel(
+            observePort = FakeObserveAlarmsPort(listOf(existing)), savePort = port,
+        )
+        try {
+            viewModel.onStartConfiguringAlarm(existing.id)
+            val changed = viewModel.uiState.value.activeDraft!!.copy(label = "Changed")
+                .withEnabled(false, displayedEnabled = true)
+            viewModel.onUpdateDraft(changed)
+            var exits = 0
+            viewModel.onExitAlarmEditor { exits++ }
+            assertEquals(listOf<Pair<Boolean?, Boolean>>(false to true), calls)
+            assertEquals(1, exits)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun failedSaveAfterStoreKeepsEditableIdentityAndRetry() = runTest {
+        val writes = mutableListOf<LocationAlarm>()
+        var fail = true
+        val port = object : SaveAlarmPort {
+            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> = Result.success(Unit)
+            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> {
+                writes += alarm
+                return if (fail) Result.failure(IllegalStateException("stored before failure")) else Result.success(Unit)
+            }
+        }
+        val (viewModel, _, vmScope) = createTestViewModel(savePort = port)
+        try {
+            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            val draft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
+            viewModel.onUpdateDraft(draft)
+            var exits = 0
+            viewModel.onExitAlarmEditor { exits++ }
+            assertEquals(0, exits)
+            assertEquals(draft, viewModel.uiState.value.activeDraft)
+            assertEquals(AlarmEditorNotice.UPDATE_FAILED, viewModel.uiState.value.pendingEditorNotice)
+            fail = false
+            viewModel.onExitAlarmEditor { exits++ }
+            assertEquals(1, exits)
+            assertEquals(2, writes.size)
+            assertEquals(writes.first().id, writes.last().id)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun saveReportingDeletedRecordExitsWithDeletedNotice() = runTest {
+        val existing = manggaraiAlarm()
+        val port = object : SaveAlarmPort {
+            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> = Result.success(Unit)
+            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> =
+                Result.failure(AlarmConfigurationMissingException(alarm.id))
+        }
+        val (viewModel, _, vmScope) = createTestViewModel(
+            observePort = FakeObserveAlarmsPort(listOf(existing)), savePort = port,
+        )
+        try {
+            viewModel.onStartConfiguringAlarm(existing.id)
+            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(label = "Changed"))
+            var exits = 0
+            viewModel.onExitAlarmEditor { exits++ }
+            assertEquals(1, exits)
+            assertNull(viewModel.uiState.value.activeDraft)
+            assertEquals(AlarmEditorNotice.ALARM_DELETED, viewModel.uiState.value.pendingEditorNotice)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun ringingAndPendingMutationBlockEditorExit() = runTest {
+        val alarm = manggaraiAlarm().copy(state = AlarmState.RINGING)
+        val save = FakeSaveAlarmPort()
+        val (viewModel, _, vmScope) = createTestViewModel(
+            observePort = FakeObserveAlarmsPort(listOf(alarm)), savePort = save,
+        )
+        try {
+            viewModel.onStartConfiguringAlarm(alarm.id)
+            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(label = "Edited"))
+            var exits = 0
+            viewModel.onExitAlarmEditor { exits++ }
+            assertEquals(0, exits)
+            assertNotNull(viewModel.uiState.value.activeDraft)
+            assertEquals(0, save.configurationCalls)
+        } finally {
+            vmScope.cancel()
+        }
+
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val heldPort = object : SaveAlarmPort {
+            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> = Result.success(Unit)
+            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> {
+                release.await()
+                return Result.success(Unit)
+            }
+        }
+        val (pendingVm, _, pendingScope) = createTestViewModel(savePort = heldPort)
+        try {
+            pendingVm.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            pendingVm.onUpdateDraft(pendingVm.uiState.value.activeDraft!!.copy(label = "London"))
+            var exits = 0
+            pendingVm.onExitAlarmEditor { exits++ }
+            pendingVm.onExitAlarmEditor { exits++ }
+            assertEquals(0, exits)
+            release.complete(Unit)
+            assertEquals(1, exits)
+        } finally {
+            pendingScope.cancel()
+        }
+    }
+
+    @Test
+    fun staleExitSaveCompletionNeverClearsNewerEditor() = runTest {
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val port = object : SaveAlarmPort {
+            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> = Result.success(Unit)
+            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> {
+                release.await()
+                return Result.success(Unit)
+            }
+        }
+        val (viewModel, _, vmScope) = createTestViewModel(savePort = port)
+        try {
+            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(label = "First"))
+            var exits = 0
+            viewModel.onExitAlarmEditor { exits++ }
+            viewModel.onClearDraft()
+            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(-6.2, 106.8))
+            val newer = viewModel.uiState.value.activeDraft!!.copy(label = "Second")
+            viewModel.onUpdateDraft(newer)
+            release.complete(Unit)
+            assertEquals(0, exits)
+            assertEquals(newer, viewModel.uiState.value.activeDraft)
+            assertFalse(viewModel.uiState.value.isOperationPending)
         } finally {
             vmScope.cancel()
         }

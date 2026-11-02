@@ -57,6 +57,8 @@ class EndToEndNavigationIntegrationTest {
             savedAlarms.add(alarm)
             return Result.success(Unit)
         }
+        override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> =
+            saveAlarm(alarm)
     }
 
     private class FakeToggleAlarmPort : ToggleAlarmPort {

@@ -5,6 +5,7 @@ import com.muhammadridha.fjalar.domain.model.AlarmSchedule
 import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
+import com.muhammadridha.fjalar.domain.model.AlarmSoundConfig
 import com.muhammadridha.fjalar.domain.model.ScheduleType
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.fakes.FakeAlarmRinger
@@ -13,8 +14,13 @@ import com.muhammadridha.fjalar.fakes.FakeClock
 import com.muhammadridha.fjalar.fakes.FakeLocationTracker
 import com.muhammadridha.fjalar.fakes.InMemoryAlarmRepository
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.async
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
+import com.muhammadridha.fjalar.domain.ports.inbound.AlarmConfigurationMissingException
+import com.muhammadridha.fjalar.domain.ports.inbound.AlarmConfigurationRingingException
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
@@ -44,6 +50,104 @@ class AlarmServiceTest {
         schedule = schedule,
         state = state,
     )
+
+    @Test
+    fun configurationSaveRequiresExistingRecordAndPreservesLatestVolume() = runTest {
+        val missing = createSampleAlarm(id = "deleted")
+        val missingResult = service.saveAlarmConfiguration(missing, null, requireExisting = true)
+        assertTrue(missingResult.exceptionOrNull() is AlarmConfigurationMissingException)
+        assertNull(repository.getAlarm(missing.id))
+
+        val original = createSampleAlarm(state = AlarmState.DISABLED).copy(
+            soundConfig = AlarmSoundConfig(volume = 0.4f),
+        )
+        repository.upsertAlarm(original)
+        val edited = original.copy(label = "Renamed", soundConfig = AlarmSoundConfig(volume = 1f))
+        service.saveAlarmConfiguration(edited, null, requireExisting = true).getOrThrow()
+        val stored = repository.getAlarm(original.id)!!
+        kotlin.test.assertEquals("Renamed", stored.label)
+        kotlin.test.assertEquals(0.4f, stored.soundConfig.volume)
+        kotlin.test.assertEquals(AlarmState.DISABLED, stored.state)
+    }
+
+    @Test
+    fun configurationSavePreservesCompletionAndSnoozeRuntimeGuards() = runTest {
+        val deadline = clock.now() + kotlin.time.Duration.parse("2h")
+        val completed = createSampleAlarm(
+            id = "completed", state = AlarmState.COMPLETED_FOR_WINDOW,
+            schedule = com.muhammadridha.fjalar.domain.WEEKDAY_COMMUTE,
+        ).copy(suppressedUntil = deadline)
+        val snoozed = createSampleAlarm(
+            id = "snoozed", state = AlarmState.SNOOZED,
+            schedule = com.muhammadridha.fjalar.domain.WEEKDAY_COMMUTE,
+        ).copy(suppressedUntil = deadline, snoozedUntil = clock.now() + kotlin.time.Duration.parse("2m"))
+        repository.upsertAlarm(completed)
+        repository.upsertAlarm(snoozed)
+
+        for (previous in listOf(completed, snoozed)) {
+            val staleEditorValue = previous.copy(
+                label = "Edited ${previous.id}", state = AlarmState.ARMED_MONITORING,
+                suppressedUntil = null, snoozedUntil = null,
+            )
+            service.saveAlarmConfiguration(staleEditorValue, null, requireExisting = true).getOrThrow()
+            val stored = repository.getAlarm(previous.id)!!
+            kotlin.test.assertEquals(previous.state, stored.state)
+            kotlin.test.assertEquals(previous.suppressedUntil, stored.suppressedUntil)
+            kotlin.test.assertEquals(previous.snoozedUntil, stored.snoozedUntil)
+            kotlin.test.assertEquals(staleEditorValue.label, stored.label)
+        }
+    }
+
+    @Test
+    fun configurationSaveRespectsExplicitEnableAndDisableButRejectsRinging() = runTest {
+        val disabled = createSampleAlarm(id = "disabled", state = AlarmState.DISABLED)
+        val armed = createSampleAlarm(id = "armed", state = AlarmState.ARMED_MONITORING)
+        val ringing = createSampleAlarm(id = "ringing", state = AlarmState.RINGING)
+        repository.upsertAlarm(disabled)
+        repository.upsertAlarm(armed)
+        repository.upsertAlarm(ringing)
+
+        service.saveAlarmConfiguration(disabled, true, requireExisting = true).getOrThrow()
+        service.saveAlarmConfiguration(armed, false, requireExisting = true).getOrThrow()
+        kotlin.test.assertEquals(AlarmState.ARMED_MONITORING, repository.getAlarm("disabled")!!.state)
+        kotlin.test.assertEquals(AlarmState.DISABLED, repository.getAlarm("armed")!!.state)
+        val result = service.saveAlarmConfiguration(ringing.copy(label = "Unsafe"), false, requireExisting = true)
+        assertTrue(result.exceptionOrNull() is AlarmConfigurationRingingException)
+        kotlin.test.assertEquals(ringing, repository.getAlarm("ringing"))
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun ringingTransitionWhileConfigurationWaitsForMutexRejectsExitSave() = runTest {
+        val releaseRingingWrite = CompletableDeferred<Unit>()
+        val ringingWriteStarted = CompletableDeferred<Unit>()
+        val guardedRepository = object : AlarmRepositoryPort by repository {
+            override suspend fun upsertAlarm(alarm: LocationAlarm) {
+                if (alarm.state == AlarmState.RINGING) {
+                    ringingWriteStarted.complete(Unit)
+                    releaseRingingWrite.await()
+                }
+                repository.upsertAlarm(alarm)
+            }
+        }
+        val guardedService = AlarmService(
+            guardedRepository, tracker, scheduler, ringer, ScheduleEvaluator(JAKARTA), clock,
+        )
+        val armed = createSampleAlarm(state = AlarmState.ARMED_MONITORING)
+        repository.upsertAlarm(armed)
+        val trigger = async { guardedService.handleLocationUpdate(armed.coordinates, 1f) }
+        ringingWriteStarted.await()
+        val save = async {
+            guardedService.saveAlarmConfiguration(armed.copy(label = "Edited"), null, requireExisting = true)
+        }
+        runCurrent()
+        releaseRingingWrite.complete(Unit)
+        trigger.await()
+        val result = save.await()
+        assertTrue(result.exceptionOrNull() is AlarmConfigurationRingingException)
+        kotlin.test.assertEquals(AlarmState.RINGING, repository.getAlarm(armed.id)!!.state)
+        kotlin.test.assertEquals(armed.label, repository.getAlarm(armed.id)!!.label)
+    }
 
     private suspend fun assertFailedWriteKeepsRingingOwner(
         operation: suspend (AlarmService) -> Result<Unit>,

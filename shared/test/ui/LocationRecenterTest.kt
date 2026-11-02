@@ -38,6 +38,8 @@ class LocationRecenterTest {
 
     private class FakeSaveAlarmPort : SaveAlarmPort {
         override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> = Result.success(Unit)
+        override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> =
+            saveAlarm(alarm)
     }
 
     private class FakeToggleAlarmPort : ToggleAlarmPort {

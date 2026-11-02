@@ -15,6 +15,8 @@ import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.HandleLocationUpdatePort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
+import com.muhammadridha.fjalar.domain.ports.inbound.AlarmConfigurationMissingException
+import com.muhammadridha.fjalar.domain.ports.inbound.AlarmConfigurationRingingException
 import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
@@ -64,23 +66,49 @@ class AlarmService(
 
     override suspend fun saveAlarm(alarm: LocationAlarm, enabled: Boolean?): Result<Unit> = resultOf {
         mutex.withLock {
-            val now = clock.now()
-            val previous = repository.getAlarm(alarm.id)
-            val prepared = when (enabled) {
-                true -> evaluator.enable(alarm, now)
-                false -> evaluator.disable(alarm)
-                null -> {
-                    val edited = if (previous == null) alarm else alarm.copy(
-                        state = previous.state,
-                        suppressedUntil = previous.suppressedUntil,
-                        snoozedUntil = previous.snoozedUntil,
-                    )
-                    evaluator.prepareSave(previous, edited, now)
-                }
-            }
-            persist(previous, prepared)
-            applySideEffects(now)
+            saveAlarmConfigurationLocked(alarm, enabled, requireExisting = false, rejectRinging = false)
         }
+    }
+
+    override suspend fun saveAlarmConfiguration(
+        alarm: LocationAlarm,
+        enabled: Boolean?,
+        requireExisting: Boolean,
+    ): Result<Unit> = resultOf {
+        mutex.withLock {
+            saveAlarmConfigurationLocked(alarm, enabled, requireExisting, rejectRinging = true)
+        }
+    }
+
+    private suspend fun saveAlarmConfigurationLocked(
+        alarm: LocationAlarm,
+        enabled: Boolean?,
+        requireExisting: Boolean,
+        rejectRinging: Boolean,
+    ) {
+        val now = clock.now()
+        val previous = repository.getAlarm(alarm.id)
+        if (requireExisting && previous == null) throw AlarmConfigurationMissingException(alarm.id)
+        if (rejectRinging && previous?.state == RINGING) throw AlarmConfigurationRingingException(alarm.id)
+        val editedAlarm = if (rejectRinging && previous != null) {
+            alarm.copy(soundConfig = alarm.soundConfig.copy(volume = previous.soundConfig.volume))
+        } else {
+            alarm
+        }
+        val prepared = when (enabled) {
+            true -> evaluator.enable(editedAlarm, now)
+            false -> evaluator.disable(editedAlarm)
+            null -> {
+                val edited = if (previous == null) editedAlarm else editedAlarm.copy(
+                    state = previous.state,
+                    suppressedUntil = previous.suppressedUntil,
+                    snoozedUntil = previous.snoozedUntil,
+                )
+                evaluator.prepareSave(previous, edited, now)
+            }
+        }
+        persist(previous, prepared)
+        applySideEffects(now)
     }
 
     override suspend fun toggleAlarm(alarmId: String, enabled: Boolean): Result<Unit> =
