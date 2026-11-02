@@ -1,7 +1,7 @@
 # Dependency injection
 
 Fjalar uses Koin 4.2.2 with explicit Kotlin DSL modules at the application composition
-boundary. Koin assembles the existing hexagonal architecture; it does not replace
+boundary. Koin assembles the existing hexagonal architecture. It does not replace
 ports, constructor injection, or the pure Kotlin domain. Domain entities,
 evaluators, services, and port interfaces have no Koin or platform imports.
 
@@ -64,12 +64,12 @@ isolated graph teardown.
 
 1. Add library coordinates/version entries to `libs.versions.toml` and reference
    them from the appropriate `module.yaml`. Preserve Amper and existing supported
-   targets; do not add a separate Gradle build to install a plugin.
+   targets. Do not add a separate Gradle build to install a plugin.
 2. Keep classes constructor-injected. Put bindings in the relevant module, expose
    ports at architectural boundaries, and include any new submodule through the
    application module. Do not add DI annotations/imports to `domain/`.
 3. Use singleton lifetime only for shared application state/platform resources.
-   Register ViewModels with `viewModel { ... }`; use factories for independent
+   Register ViewModels with `viewModel { ... }`. Use factories for independent
    short-lived objects. Never retain an Activity, view, or controller in an
    application singleton.
 4. Register each platform implementation in its platform module. Android
@@ -82,7 +82,7 @@ isolated graph teardown.
 6. Test shared graphs with isolated `koinApplication` instances and a fake
    platform module. Override required definitions explicitly and close each test
    graph. Resolve the actual repository/service/port/ViewModel dependencies and
-   check shared identity; do not start real GPS, notifications, or audio merely
+   check shared identity. Do not start real GPS, notifications, or audio merely
    to test wiring.
 
 ## Toolchain and verification
@@ -112,7 +112,7 @@ Android keyguard checks.
 - [Koin Compose integration](https://insert-koin.io/docs/reference/koin-compose/compose/)
 - [Koin modules](https://insert-koin.io/docs/reference/koin-core/modules/)
 
-The migration's fresh full `./kotlin test` run passed the Android application,
+The PR #18 migration verification ran `./kotlin test` and passed the Android application,
 shared Android, and iOS simulator suites, including fake overrides, shared port
 identity, the shipping iOS platform graph, and the parameterized restricted alarm
 ViewModel. Android API 37 startup also resolved the shipping Android graph.

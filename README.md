@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>A modern, privacy-first, location-based wake-up alarm for daily commuters.</strong><br>
+  <strong>A privacy-first, location-based wake-up alarm for daily commuters.</strong><br>
   <em>"Wake Me at" (English) • "Bangunkan Saya di" (Bahasa Indonesia)</em><br>
   Built with Kotlin Multiplatform (KMM / KMP), Hexagonal Architecture (Ports & Adapters), and an iPhone-inspired Liquid Glass UI for Android and iOS.
 </p>
@@ -21,7 +21,7 @@
 
 ---
 
-Fjalar (named after the mythical Norse rooster that heralds the dawn) solves a universal commuter problem: **traditional clock alarms fail on variable public transit commutes**. Whether riding commuter rail, metro trains, intercity buses, or ride-shares, commuters select a destination pin or search for a transit station, configure their trigger radius (100m – 10km), arm the alarm, and rest knowing that Fjalar will reliably wake them before their stop.
+Fjalar (named after the mythical Norse rooster that heralds the dawn) solves a universal commuter problem: **traditional clock alarms fail on variable public transit commutes**. Whether riding commuter rail, metro trains, intercity buses, or ride-shares, commuters select a destination pin or search for a transit station, configure their trigger radius (100m - 10km), arm the alarm, and rest knowing that Fjalar will reliably wake them before their stop.
 
 Contributor and agent development guidelines, architecture contracts, UI design tokens, and safety invariants live in [AGENTS.md](AGENTS.md). Production-ready 2D flat vector icon assets reside in [`assets/icons/`](assets/icons/).
 
@@ -29,13 +29,13 @@ Contributor and agent development guidelines, architecture contracts, UI design 
 
 ## Features
 
-- **Instant One-Off & Recurring Scheduled Alarms:** Set a quick one-off alarm for an unfamiliar stop, or schedule recurring commute windows (e.g., *Office, Mon–Fri, 07:00–09:30*). Background GPS tracking runs only for active alarm monitoring; the visible foreground Map can independently request location.
+- **One-Off & Recurring Scheduled Alarms:** Set a quick one-off alarm for an unfamiliar stop, or schedule recurring commute windows (e.g., *Office, Mon-Fri, 07:00-09:30*). Background GPS tracking runs only for active alarm monitoring. The visible foreground Map can independently request location.
 - **Curated Transit & Station Search:** Instant, privacy-preserving station autocomplete across Greater Jakarta (113 stations across KRL Commuter Line, MRT Jakarta, LRT, and airport terminals) with zero-telemetry online geocoding fallback (OSM Photon on Android, Apple CLGeocoder on iOS).
 - **Hexagonal Architecture (Ports & Adapters):** Core domain logic is 100% pure Kotlin with zero platform SDK imports. Map providers, location trackers, audio ringers, place search, and persistence can be swapped without touching domain code.
-- **iPhone-Inspired Liquid Glass UI:** Layered translucent frosted surfaces (`blur(20px)` to `blur(40px)` with specular highlights) floating over full-bleed maps, with instant **Light (`Daylight Glass`)** and **Dark (`Nocturnal Obsidian Glass`)** mode switching.
-- **Accessibility & Reduce Transparency Fallback:** Seamless fallback to 92% opaque tinted surfaces (`#F4F3F8` Light / `#191B22` Dark) with 1.5 dp high-contrast rim borders when system **Reduce Transparency** is enabled, ensuring WCAG AA contrast compliance (> 15:1).
+- **iPhone-Inspired Liquid Glass UI:** Translucent tinted surfaces with specular borders floating over full-bleed maps, with instant **Light (`Daylight Glass`)** and **Dark (`Nocturnal Obsidian Glass`)** mode switching.
+- **Accessibility & Reduce Transparency Fallback:** Optional fallback to 92% opaque tinted surfaces (`#F4F3F8` Light / `#191B22` Dark) with 1.5 dp rim borders when the theme flag is enabled. Primary-text token contrast exceeds 15:1 against fallback colors. Automatic OS setting observation and live-map contrast verification remain pending.
 - **Full Bilingual Localization (`English` & `Bahasa Indonesia`):** 100% of UI copy, display app names (*"Wake Me at"* / *"Bangunkan Saya di"*), day chips (`Mo–Su` vs. `Sn–Mg`), permission disclosures, and OS notifications are translated with instant in-app switching (`🌐 EN | ID`).
-- **Sleepy-Eyes Dismissal Safety:** Rings loudly over locked screens with high-contrast pulsing alerts and a tactile **Slide to Stop Alarm** (`Geser untuk Matikan Alarm`) track—preventing accidental pocket touches or sleepy dismissals.
+- **Sleepy-Eyes Dismissal Safety:** Android presents a restricted alarm screen over the keyguard with high-contrast pulsing alerts and a tactile **Slide to Stop Alarm** (`Geser untuk Matikan Alarm`) track, preventing accidental pocket touches or sleepy dismissals.
 - **Automated App Icon Pipeline:** Single reproducible command (`python3 scripts/generate_app_icons.py`) exports all Android adaptive densities (strictly preserving the 66 dp safe circle), Material You monochrome layer, Google Play 512×512 master, and iOS 18 Asset Catalog (`AppIcon.appiconset` with Light, Dark, and Tinted appearances).
 - **100% Local & Privacy-First:** No accounts, no sign-in, and no telemetry. Your GPS coordinates and commute habits never leave your device. Place search sends only the typed query to the public geocoder when fewer than 5 offline curated stations match.
 - **Free & Open Cartography:** Uses **OpenStreetMap / MapLibre** on Android (zero API keys, zero billing) and native **Apple MapKit** on iOS.
@@ -44,7 +44,7 @@ Contributor and agent development guidelines, architecture contracts, UI design 
 
 ## Architecture
 
-Fjalar is designed around **Hexagonal Architecture** (reference: Alistair Cockburn / Hilmar van der Veen), ensuring complete isolation between domain logic and platform mechanisms:
+Fjalar is designed around **Hexagonal Architecture** (reference: Alistair Cockburn / Hilmar van der Veen), separating domain logic from platform mechanisms:
 
 ```mermaid
 flowchart TD
@@ -84,7 +84,7 @@ flowchart TD
         A_Loc["AndroidFusedLocationAdapter\nIosCLLocationAdapter"]
         A_Sched["AndroidAlarmManagerSchedulerAdapter\nIosBackgroundSchedulerAdapter"]
         A_Ring["AndroidSystemAlarmRingerAdapter\nIosCriticalAudioRingerAdapter"]
-        A_Map["OpenStreetMapLibreAdapter (Android)\nAppleMapKitAdapter (iOS)"]
+        A_Map["AndroidMapRendererAdapter\nIosMapKitAdapter"]
         A_Search["HybridPlaceSearchAdapter\n(TransitCatalog + Photon/CLGeocoder)"]
         A_Repo["PersistentAlarmRepository\n(JSON in platform key-value storage)"]
         A_Pref["PersistentPreferencesAdapter\n(SharedPreferences / NSUserDefaults)"]
@@ -117,7 +117,7 @@ fjalar/
 │   │   ├── di/                  # Koin modules and application bootstrap
 │   │   ├── ui/                  # Compose Multiplatform UI (FjalarApp, sheets, HUD, LiquidGlassTheme)
 │   │   └── adapters/            # Platform implementations (location, ringer, scheduler, map, search, repo)
-│   ├── src@android/             # Android-specific adapters (FusedLocation, AlarmManager, MapLibre, Photon)
+│   ├── src@android/             # Android-specific adapters (LocationManager, AlarmManager, MapLibre, Photon)
 │   ├── src@ios/                 # iOS-specific adapters (CLLocation, IosBackgroundSchedulerAdapter, MapKit, CLGeocoder)
 │   ├── composeResources/        # Multiplatform strings (values, values-in, values-id) & drawables
 │   └── test/                    # In-memory test suites & fakes (commonTest, androidTest, iosTest)
@@ -136,7 +136,7 @@ fjalar/
 All contributors and automated agents must preserve these core invariants:
 
 1. **100% On-Device Privacy:** Zero coordinates or commute schedules sent off-device. No telemetry SDKs harvesting location data.
-2. **0% Runaway GPS Battery Drain:** Background GPS monitoring runs only for active alarm monitoring and stops when that monitoring ends. The visible foreground Map may independently request location without an armed alarm; its map-only request stops when the Map is hidden or the app backgrounds.
+2. **0% Runaway GPS Battery Drain:** Background GPS monitoring runs only for active alarm monitoring and stops when that monitoring ends. The visible foreground Map may independently request location without an armed alarm. Its map-only request stops when the Map is hidden or the app backgrounds.
 3. **Sleepy-Eyes Dismissal Safety:** Ringing displays a full-screen alert with the oversized frosted **Slide to Stop** handle. Accidental taps or pocket bounces must never dismiss an alarm.
 4. **Zero Ads on Ringing Screen:** Advertisements must never appear before, during, or obstructing the dismissal of an active wake-up alarm. (v1 is 100% ad-free).
 5. **Once-Per-Window Completion Guard:** Dismissed alarms mark their window completed (`COMPLETED_FOR_WINDOW`), preventing false re-triggering while the commuter remains at their destination.
@@ -148,7 +148,7 @@ All contributors and automated agents must preserve these core invariants:
 ## Prerequisites
 
 - **JDK 17+** (e.g. Temurin or OpenJDK)
-- **Android SDK** with build-tools (API 34+)
+- **Android SDK** (CI/release builds install platform 37 and build-tools 37.0.0)
 - **macOS with Xcode 26.4+** (required for iOS 18 Asset Catalog and compiling iOS target / simulator)
 - **Python 3 with Pillow** (for automated icon pipeline: `pip install pillow`)
 - **JetBrains Amper** (`./kotlin` CLI wrapper bundled in repository)
@@ -183,6 +183,8 @@ python3 scripts/generate_app_icons.py
 # Verify generated icon assets and safe-zone constraints
 python3 scripts/test_generated_icons.py
 ```
+
+For implemented behavior, platform limits, and source references, see [Current project state](docs/current-state.md).
 
 For dependency registration and platform initialization, see [Dependency injection](docs/dependency-injection.md). For the Android keyguard boundary and security regression/manual checks, see [Security](docs/security.md).
 

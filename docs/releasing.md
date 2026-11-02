@@ -17,7 +17,7 @@ Malformed tags fail validation before either build job starts.
 
 The macOS verification job uses `macos-26` and explicitly selects Xcode 26.4
 through `DEVELOPER_DIR`, matching the Kotlin/Native 2.4.20 Apple SDK baseline.
-The same toolchain is selected in PR checks; Xcode 16 lacks required frameworks.
+The same toolchain is selected in PR checks. Xcode 16 lacks required frameworks.
 
 ## Assets and versions
 
@@ -31,9 +31,10 @@ The exact commit associated with the release event is checked out for validation
 building, and tests. Android uses the tag without `v` as `versionName` and this
 workflow's `github.run_number` as `versionCode`. The suffix is a version label;
 `-debug` still produces a **Release** build, with the persistent release key.
-Ordinary local builds retain the versions in `androidApp/module.yaml`; CI updates
-only its disposable checkout. Keep this workflow's run counter when maintaining
-it, so future version codes continue to increase.
+Ordinary local builds use the toolchain defaults unless configured otherwise. CI
+writes version fields into `androidApp/module.yaml` only in its disposable
+checkout. Keep this workflow's run counter when maintaining it, so future
+version codes continue to increase.
 
 The build job has read-only repository access. A separate upload job receives
 `contents: write` only after the build and verification pass. No Play Store,
@@ -66,7 +67,7 @@ gh secret set ANDROID_KEY_PASSWORD
 ```
 
 The latter commands prompt for values. Do not commit keys or passwords. Missing
-secrets fail the Android job; there is no fallback to a debug key or unsigned APK.
+secrets fail the Android job. There is no fallback to a debug key or unsigned APK.
 The decoded keystore is created in a restricted temporary directory, removed by
 an exit trap, and excluded from uploaded artifacts. `zipalign` runs before
 `apksigner`, then both the signature and alignment are verified.
@@ -78,16 +79,16 @@ an exit trap, and excluded from uploaded artifacts. `zipalign` runs before
 2. Confirm the four Android secrets are configured.
 3. Create a release using a matching tag, select the intended commit, and publish
    it. A pre-release works too.
-4. Check **Actions → Build Release Assets**. The release exists immediately; the
+4. Check **Actions → Build Release Assets**. The release exists immediately. The
    assets appear after the workflow succeeds.
 5. Download the APK and checksum file. On Linux use `sha256sum -c SHA256SUMS.txt`;
    on macOS use `shasum -a 256 -c SHA256SUMS.txt`.
 
 If a job fails, correct its setup and re-run the failed jobs. The same workflow
 run retains its version code. Successful build artifacts are retained for seven
-days; if they expire, re-run all jobs. Before uploading anything, the workflow
+days. If they expire, re-run all jobs. Before uploading anything, the workflow
 downloads any existing matching APK/checksum assets and compares their SHA-256
-hashes with the local files. Identical assets are preserved; only missing files
+hashes with the local files. Identical assets are preserved. Only missing files
 are uploaded, allowing a partial upload to finish safely. A differing asset stops
 the job without replacing or deleting anything. A rebuild may produce different
 bytes, so prefer retrying the upload job with its original build artifacts.
@@ -110,7 +111,7 @@ a signing identity, and provisioning. Without that setup, an unsigned IPA can be
 packaged but cannot be installed as a normally signed iOS application. This
 workflow intentionally publishes **no iOS asset**, as requested, until Apple
 signing is available. The macOS verification job still runs the existing
-multiplatform tests and checks; it does not export or publish an IPA.
+multiplatform tests and checks. It does not export or publish an IPA.
 
 Your free Apple Account can still be used locally: open `iosApp/module.xcodeproj`
 in Xcode, select your Personal Team under Signing & Capabilities, enable

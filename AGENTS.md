@@ -2,7 +2,7 @@
 
 ## Start here
 
-Read the user's current instructions and inspect affected code before relying on documented behavior or historical passing checks. Canonical requirements and design tokens are tracked in the Notion documents below; private planning files or memory summaries are not prerequisites.
+Read the user's current instructions and inspect affected code before relying on documented behavior or historical passing checks. Canonical requirements and design tokens are tracked in the Notion documents below. Private planning files or memory summaries are not prerequisites.
 
 - **PRD (Behavior & Invariants):** [PRD: Fjalar (Wake Me at) v0.4](https://app.notion.com/p/PRD-Fjalar-Wake-Me-at-4030ee070c2381068c72ff3840f77325)
 - **UI/UX & Design Tokens:** [Product and UI Design: Fjalar (Wake Me at) v0.5](https://app.notion.com/p/Product-and-UI-Design-Fjalar-Wake-Me-at-4030ee070c2381008ebeddc2ab6c654e)
@@ -13,6 +13,8 @@ Read the user's current instructions and inspect affected code before relying on
 - **Display Name:** "Wake Me at" (English) / "Bangunkan Saya di" (Bahasa Indonesia)
 
 ---
+
+See [Current project state](docs/current-state.md) for implemented behavior and known platform limits. Keep product requirements distinct from verified implementation.
 
 ## Setup and checks
 
@@ -25,7 +27,7 @@ Preserve module `com.muhammadridha.fjalar`, Kotlin 2.x, Compose Multiplatform, a
 python3 scripts/test_generated_icons.py # Verify icon assets and safe-zone constraints
 ```
 
-Documentation-only changes need path/link checks, consistency review, and `git status -s`, not runtime tests. Report exact fresh commands/results; historical acceptance is not a fresh run.
+Documentation-only changes need path/link checks, consistency review, and `git status -s`, not runtime tests. Report exact fresh commands/results. Historical acceptance is not a fresh run.
 
 ---
 
@@ -39,13 +41,13 @@ Follow strict **Hexagonal Architecture (Ports and Adapters)** (reference: Alista
 2. **Ports define all external interactions:**
    - **Inbound Ports (`domain/ports/inbound/`):** Explicit use cases driven by UI and system receivers (`ObserveAlarmsPort`, `SaveAlarmPort`, `HandleLocationUpdatePort`, `DismissAlarmPort`, `SkipTodayPort`, `SyncSchedulesPort`).
    - **Outbound Ports (`domain/ports/outbound/`):** SPI contracts declared by the domain for external capabilities (`LocationTrackerPort`, `AlarmSchedulerPort`, `AlarmRingerPort`, `MapRendererPort`, `SearchPlacesPort`, `AlarmRepositoryPort`, `PreferencesPort`).
-   - Do not create interfaces for every internal concrete class; use ports at architectural boundaries.
+   - Do not create interfaces for every internal concrete class. Use ports at architectural boundaries.
 3. **Pluggable & Interchangeable Adapters (`adapters/`):**
-   - Platform mechanisms (OpenStreetMap/MapLibre, Apple MapKit, Android `FusedLocationProviderClient`, iOS `CLLocationManager`, Android `RingtoneManager`, HybridPlaceSearch, DataStore) live solely in adapters.
+   - Platform mechanisms (OpenStreetMap/MapLibre, Apple MapKit, Android `LocationManager`, iOS `CLLocationManager`, Android `RingtoneManager`, HybridPlaceSearch, SharedPreferences/NSUserDefaults) live solely in adapters.
    - Any adapter must be swappable without modifying domain entities, state machines, or unit tests.
 4. **Defensive Domain Validation:**
    - Validate coordinate bounds (`-90..90`, `-180..180`), radius limits (`100m..10,000m`), and minute ranges (`0..1439`) before dispatching to ports or persistence.
-   - Distinguish absence from failure; never swallow errors to fabricate false success.
+   - Distinguish absence from failure. Never swallow errors to fabricate false success.
 5. **Code Style & Readability:**
    - Write all Kotlin for human readability rather than compactness.
    - Use descriptive names, guard clauses, and clear control flow.
@@ -58,7 +60,7 @@ Follow strict **Hexagonal Architecture (Ports and Adapters)** (reference: Alista
 - Koin definitions belong in `shared/src/di/` and target-specific `di/` packages. Follow [Dependency injection](docs/dependency-injection.md) for module assembly, lifetimes, startup, and fake platform graphs.
 - Keep domain and ordinary application classes constructor-injected and Koin-free. Resolve dependencies only at framework composition boundaries. All inbound alarm ports must share one `AlarmService` and mutation mutex.
 - Do not restore manual production containers or silently fall back to fake adapters/storage. Tests use isolated Koin applications or explicit constructor-injected fakes.
-- Preserve Amper. The current classic DSL uses runtime graph tests; do not claim compiler-plugin verification without supported integration and actual build evidence.
+- Preserve Amper. The current classic DSL uses runtime graph tests. Do not claim compiler-plugin verification without supported integration and actual build evidence.
 - `MainActivity` must never show ordinary navigation over the keyguard. Only the non-exported restricted `AlarmActivity` may show while locked, with generic alarm copy and dismiss/snooze actions. Keep it in its separate task and finish it when ringing ends. Follow [Security](docs/security.md) for regression and device checks.
 - Treat event text printed by CI as untrusted runner-command input. Use a fresh unpredictable stop/resume token around such output, keep values in environment variables, and run `python3 scripts/test_workflow_command_safety.py` after workflow changes.
 
@@ -75,10 +77,10 @@ Follow the [Product and UI Design Specification](https://app.notion.com/p/4030ee
      - **Light Mode (`Daylight Glass`):** Canvas `#FAF9FE` / `#FFFFFF`, Primary `#007AFF`, Secondary `#34C759`, Text `#1A1B1F`.
      - **Dark Mode (`Nocturnal Obsidian Glass`):** Canvas `#0C0E14` / `#111319`, Primary `#00D2FF`, Secondary `#00E676`, Text `#FFFFFF`.
 2. **Accessibility & Reduce Transparency Fallback:**
-   - When system **Reduce Transparency** is enabled, `Modifier.glassSurface` automatically switches from Gaussian blur to high-contrast 92% opaque tinted surfaces:
+   - `Modifier.glassSurface` currently draws tinted backgrounds and gradient borders, without Gaussian backdrop blur. When its reduced-transparency flag is enabled, it selects 92% opaque tinted surfaces. Automatic OS accessibility-setting observation is not wired:
      - `ReducedTransparencyLightLiquidGlassColors`: `#F4F3F8` @ 92% with 1.5 dp high-contrast border.
      - `ReducedTransparencyDarkLiquidGlassColors`: `#191B22` @ 92% with 1.5 dp high-contrast border.
-   - Maintain `>= 4.5:1` WCAG AA contrast ratio over surfaces (verified at > 15:1 in tests).
+   - Target `>= 4.5:1` WCAG AA contrast over surfaces. Token tests verify primary text above 15:1 against fallback colors, not every live map composition.
 3. **Bilingual Layout & Text Expansion (`en` & `id`):**
    - Every user-facing string must live in multiplatform `Res.string` catalogs (`en` and `id`), with OS-owned display names localized via native iOS `InfoPlist.strings` and Android manifest resource files. Display app names: *"Wake Me at"* (EN) and *"Bangunkan Saya di"* (ID).
    - Bahasa Indonesia strings are `15%–25%` longer (e.g. *Geser untuk Matikan Alarm*, *Alarm Tersimpan & Terjadwal*, *Lewati Hari Ini*). UI pills, cards, and bottom sheets must use adaptive auto-wrapping and flexible widths without text clipping at `320 dp–390 dp`.
@@ -96,7 +98,7 @@ Read and strictly preserve these invariant behaviors:
    - Location coordinates, saved places (home/office), and commute schedules stay strictly in on-device storage.
    - Zero remote tracking, zero analytics harvesting location coordinates, zero external server sync.
 2. **0% Runaway GPS Battery Drain:**
-   - Background GPS polling runs only for active alarm monitoring. A visible foreground Map may independently request location even without an armed alarm; its map-only request must stop when the Map is hidden or the app backgrounds.
+   - Background GPS polling runs only for active alarm monitoring. A visible foreground Map may independently request location even without an armed alarm. Its map-only request must stop when the Map is hidden or the app backgrounds.
    - Outside active alarm monitoring or immediately after alarm dismissal, background location polling must stop completely.
 3. **Sleepy-Eyes Dismissal Safety:**
    - When the alarm triggers, it must display an unmistakable full-screen lock-screen alert with the oversized frosted **`Slide to Stop Alarm`** track.
@@ -107,12 +109,12 @@ Read and strictly preserve these invariant behaviors:
    - When a scheduled alarm is dismissed during an active window, it transitions to `COMPLETED_FOR_WINDOW` and records `suppressedUntil` set to that window's end instant. It must not re-trigger while inside that window or before that instant (including across midnight).
 6. **Graceful GPS Degradation & Accuracy Filter:**
    - Reject inaccurate GPS fixes where `horizontalAccuracy > radius * 0.8` from transitioning an alarm to `RINGING`, preventing false wakeups.
-   - In tunnels and subways without satellite lock, accept fused network/cell coarse updates for degraded telemetry and user notification rather than failing silently; only fixes meeting the accuracy threshold may trigger the alarm.
+   - In tunnels and subways without satellite lock, accept fused network/cell coarse updates for degraded telemetry and user notification rather than failing silently. Only fixes meeting the accuracy threshold may trigger the alarm.
 7. **Snooze:**
-   - Snooze persists a two-minute deadline. On iOS, its local notification is user-facing; suspended state is reconciled on the next execution on a best-effort basis.
+   - Snooze persists a two-minute deadline. On iOS, its local notification is user-facing. Suspended state is reconciled on the next execution on a best-effort basis.
 8. **iOS Background Execution Boundary:**
    - On Android, `AlarmManager.setExactAndAllowWhileIdle()` triggers a broadcast receiver with a `WakeLock` to invoke `syncSchedules()`.
-   - On iOS, local notifications scheduled via `UNUserNotificationCenter` are strictly user-facing alerts; they do not afford background code execution to transition an alarm from `SCHEDULED_IDLE` to `ARMED_MONITORING` while the app is suspended without user interaction.
+   - On iOS, local notifications scheduled via `UNUserNotificationCenter` are strictly user-facing alerts. They do not afford background code execution to transition an alarm from `SCHEDULED_IDLE` to `ARMED_MONITORING` while the app is suspended without user interaction.
    - Background refresh on iOS via `BGAppRefreshTask` requires the `fetch` background mode (`UIBackgroundModes`) and the task identifier in `BGTaskSchedulerPermittedIdentifiers` in the app's Info.plist. It is strictly best-effort: `earliestBeginDate` serves only as a lower bound. If background execution is delayed or does not execute, the alarm remains in `SCHEDULED_IDLE` until schedule synchronization runs (either when the delayed background task executes or when the user foregrounds the application).
 
 ---
