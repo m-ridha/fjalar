@@ -11,6 +11,7 @@ import androidx.compose.ui.viewinterop.UIKitView
 import com.muhammadridha.fjalar.adapters.map.IosMapKitAdapter.Companion.toGeoCoordinates
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
+import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCAction
 import kotlinx.cinterop.ObjCSignatureOverride
@@ -47,6 +48,7 @@ internal class FjalarMapKitDelegate(
     var isDarkTheme: Boolean,
     var onPinDrag: ((GeoCoordinates) -> Unit)?,
     var onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)?,
+    var destinationEditingEnabled: Boolean = false,
 ) : NSObject(), MKMapViewDelegateProtocol {
 
     var userAccuracyOverlay: MKCircle? = null
@@ -125,7 +127,7 @@ internal class FjalarMapKitDelegate(
             ?: MKMarkerAnnotationView(annotation = viewForAnnotation, reuseIdentifier = identifier)
 
         annotationView.annotation = viewForAnnotation
-        annotationView.draggable = true
+        annotationView.draggable = destinationEditingEnabled
         annotationView.markerTintColor = UIColor.colorWithRed(1.0, 59.0 / 255.0, 48.0 / 255.0, 1.0)
         return annotationView
     }
@@ -136,7 +138,7 @@ internal class FjalarMapKitDelegate(
         didChangeDragState: MKAnnotationViewDragState,
         fromOldState: MKAnnotationViewDragState,
     ) {
-        if (annotationView.annotation is FjalarUserPositionAnnotation) return
+        if (!destinationEditingEnabled || annotationView.annotation is FjalarUserPositionAnnotation) return
         if (didChangeDragState == MKAnnotationViewDragStateEnding) {
             annotationView.annotation?.coordinate?.useContents {
                 onPinDrag?.invoke(
@@ -161,7 +163,7 @@ private fun UIView.hasActiveMapGesture(): Boolean {
 /**
  * Objective-C target handling map tap gestures and dispatching converted coordinates.
  */
-@OptIn(ExperimentalForeignApi::class)
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 private class MapTapHandler(
     private val mapView: MKMapView,
     private val onMapClickProvider: () -> (GeoCoordinates) -> Unit,
@@ -192,6 +194,7 @@ fun IosMapKitView(
     isDarkTheme: Boolean,
     onMapClick: (GeoCoordinates) -> Unit,
     onPinDrag: (GeoCoordinates) -> Unit,
+    destinationEditingEnabled: Boolean = false,
     onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)? = null,
     viewportRequestId: Long = 0L,
     preserveZoomOnViewportRequest: Boolean = false,
@@ -211,6 +214,7 @@ fun IosMapKitView(
     val delegate = remember {
         FjalarMapKitDelegate(
             isDarkTheme = isDarkTheme,
+            destinationEditingEnabled = destinationEditingEnabled,
             onPinDrag = { currentOnPinDrag(it) },
             onCameraCenterChanged = { coordinates, isUserGesture -> currentOnCameraCenterChanged?.invoke(coordinates, isUserGesture) },
         )
@@ -224,6 +228,16 @@ fun IosMapKitView(
         mapView.delegate = delegate
         delegate.onBearingChanged = { currentOnBearingChanged(it) }
 
+        onDispose {
+            mapView.delegate = null
+            adapter.detachMap()
+        }
+    }
+
+    DisposableEffect(mapView, tapHandler, destinationEditingEnabled) {
+        if (!destinationEditingEnabled) {
+            return@DisposableEffect onDispose {}
+        }
         val tapRecognizer = UITapGestureRecognizer(
             target = tapHandler,
             action = sel_registerName("handleTap:"),
@@ -231,11 +245,14 @@ fun IosMapKitView(
             cancelsTouchesInView = false
         }
         mapView.addGestureRecognizer(tapRecognizer)
+        onDispose { mapView.removeGestureRecognizer(tapRecognizer) }
+    }
 
-        onDispose {
-            mapView.removeGestureRecognizer(tapRecognizer)
-            mapView.delegate = null
-            adapter.detachMap()
+    LaunchedEffect(destinationEditingEnabled) {
+        delegate.destinationEditingEnabled = destinationEditingEnabled
+        for (annotation in mapView.annotations.filterIsInstance<MKAnnotationProtocol>()) {
+            if (annotation is MKUserLocation || annotation is FjalarUserPositionAnnotation) continue
+            mapView.viewForAnnotation(annotation)?.draggable = destinationEditingEnabled
         }
     }
 

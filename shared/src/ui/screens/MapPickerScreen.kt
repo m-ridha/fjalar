@@ -96,6 +96,7 @@ fun MapPickerScreen(
                 viewportRequestId++
             },
             onPinDrag = { selection = selection.select(it) },
+            destinationEditingEnabled = true,
             onCameraCenterChanged = { center, isUserGesture ->
                 selection = selection.onCameraCenterChanged(center, isUserGesture)
             },

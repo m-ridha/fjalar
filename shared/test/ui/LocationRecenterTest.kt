@@ -206,7 +206,7 @@ class LocationRecenterTest {
 
             // Priority 2: selectedCoordinates overrides alarms
             val selectedCoords = GeoCoordinates(-6.2024, 106.8232)
-            viewModel.onMapClicked(selectedCoords)
+            viewModel.onDraftCoordinatesChanged(selectedCoords)
             viewModel.onRecenterMap()
             assertEquals(selectedCoords, viewModel.uiState.value.mapViewportCenter)
             assertEquals(selectedCoords to 15.0, fakeRenderer.lastViewport)

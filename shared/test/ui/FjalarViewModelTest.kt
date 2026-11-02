@@ -565,12 +565,12 @@ class FjalarViewModelTest {
     }
 
     @Test
-    fun onMapClicked_updatesSelectedCoordinatesAndMapRenderer() = runTest {
+    fun draftDestinationSelectionUpdatesCoordinatesAndMapRenderer() = runTest {
         val fakeMapRenderer = FakeMapRendererPort()
         val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
         try {
             val coords = GeoCoordinates(-6.2000, 106.8166)
-            viewModel.onMapClicked(coords)
+            viewModel.onDraftCoordinatesChanged(coords)
 
             assertEquals(coords, viewModel.uiState.value.selectedCoordinates)
             assertEquals(coords, fakeMapRenderer.lastPin)
@@ -581,15 +581,15 @@ class FjalarViewModelTest {
     }
 
     @Test
-    fun onPinDragged_updatesSelectedCoordinates() = runTest {
+    fun draftDestinationRefinementUpdatesCoordinates() = runTest {
         val fakeMapRenderer = FakeMapRendererPort()
         val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
         try {
             val initialCoords = GeoCoordinates(-6.2000, 106.8166)
             val draggedCoords = GeoCoordinates(-6.2100, 106.8200)
 
-            viewModel.onMapClicked(initialCoords)
-            viewModel.onPinDragged(draggedCoords)
+            viewModel.onDraftCoordinatesChanged(initialCoords)
+            viewModel.onDraftCoordinatesChanged(draggedCoords)
 
             assertEquals(draggedCoords, viewModel.uiState.value.selectedCoordinates)
             assertEquals(draggedCoords, fakeMapRenderer.lastPin)
@@ -600,15 +600,15 @@ class FjalarViewModelTest {
     }
 
     @Test
-    fun onRadiusChanged_updatesSelectedRadiusAndGeofenceOverlay() = runTest {
+    fun draftRadiusChangeUpdatesSelectedRadiusAndGeofenceOverlay() = runTest {
         val fakeMapRenderer = FakeMapRendererPort()
         val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
         try {
             val coords = GeoCoordinates(-6.2000, 106.8166)
             val newRadius = TriggerRadius(1000)
 
-            viewModel.onMapClicked(coords)
-            viewModel.onRadiusChanged(newRadius)
+            viewModel.onDraftCoordinatesChanged(coords)
+            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(radiusMeters = newRadius.meters))
 
             assertEquals(newRadius, viewModel.uiState.value.selectedRadius)
             assertEquals(coords to newRadius, fakeMapRenderer.lastGeofence)
@@ -660,7 +660,7 @@ class FjalarViewModelTest {
         val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
         try {
             val coords = GeoCoordinates(-6.2088, 106.8456)
-            viewModel.onMapClicked(coords)
+            viewModel.onDraftCoordinatesChanged(coords)
             assertEquals(coords, viewModel.uiState.value.selectedCoordinates)
 
             viewModel.onOpenNewAlarm()
@@ -725,7 +725,7 @@ class FjalarViewModelTest {
     }
 
     @Test
-    fun editMode_mapClickUpdatesSelectedCoordinatesPreservingEditedRadius() = runTest {
+    fun editorDestinationChangePreservesEditedRadius() = runTest {
         val fakeMapRenderer = FakeMapRendererPort()
         val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
         try {
@@ -734,12 +734,13 @@ class FjalarViewModelTest {
                 radius = TriggerRadius(600),
             )
             viewModel.onOpenEditAlarm(alarm)
+            viewModel.onStartConfiguringAlarm(alarm.id)
 
             val newRadius = TriggerRadius(1200)
-            viewModel.onRadiusChanged(newRadius)
+            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(radiusMeters = newRadius.meters))
 
             val newCoordinates = GeoCoordinates(-6.2100, 106.8600)
-            viewModel.onMapClicked(newCoordinates)
+            viewModel.onDraftCoordinatesChanged(newCoordinates)
 
             val state = viewModel.uiState.value
             assertEquals(newCoordinates, state.selectedCoordinates)
@@ -758,8 +759,8 @@ class FjalarViewModelTest {
         val (viewModel, _, vmScope) = createTestViewModel(savePort = savePort, mapRendererPort = fakeMapRenderer)
         try {
             val coords = GeoCoordinates(-6.2088, 106.8456)
-            viewModel.onMapClicked(coords)
-            viewModel.onRadiusChanged(TriggerRadius(1500))
+            viewModel.onDraftCoordinatesChanged(coords)
+            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(radiusMeters = 1500))
 
             val alarm = manggaraiAlarm()
             viewModel.onSaveAlarm(alarm)
@@ -781,7 +782,7 @@ class FjalarViewModelTest {
         val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
         try {
             val coords = GeoCoordinates(-6.2088, 106.8456)
-            viewModel.onMapClicked(coords)
+            viewModel.onDraftCoordinatesChanged(coords)
             viewModel.onOpenNewAlarm()
 
             viewModel.onDismissConfigureSheet()
@@ -926,35 +927,41 @@ class FjalarViewModelTest {
     }
 
     @Test
-    fun testSelectPlace() = runTest {
-        val fakeMapRenderer = FakeMapRendererPort()
-        val place = SearchResultPlace(
-            id = "krl_mri",
-            name = "Stasiun Manggarai",
-            coordinates = GeoCoordinates(-6.20988, 106.85016),
-            category = PlaceCategory.TRAIN_STATION,
+    fun browseSelectionMovesCameraWithoutCreatingDraftOrReplacingAlarm() = runTest {
+        val alarm = manggaraiAlarm().copy(state = AlarmState.ARMED_MONITORING)
+        val renderer = FakeMapRendererPort()
+        val saves = FakeSaveAlarmPort()
+        val (viewModel, _, vmScope) = createTestViewModel(
+            observePort = FakeObserveAlarmsPort(listOf(alarm)),
+            savePort = saves,
+            mapRendererPort = renderer,
         )
-        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
         try {
+            val place = SearchResultPlace(
+                id = "browse-london",
+                name = "London",
+                coordinates = GeoCoordinates(51.5, -0.1),
+                category = PlaceCategory.TRAIN_STATION,
+            )
             viewModel.onOpenSearch()
-            assertTrue(viewModel.uiState.value.isSearchSheetVisible)
-
-            viewModel.onSelectPlace(place)
+            val requestId = viewModel.uiState.value.viewportRequestId
+            viewModel.onBrowsePlaceSelected(place)
 
             val state = viewModel.uiState.value
+            assertNull(state.activeDraft)
+            assertNull(state.selectedCoordinates)
+            assertFalse(state.isConfigureSheetVisible)
             assertFalse(state.isSearchSheetVisible)
-            assertTrue(state.isConfigureSheetVisible)
-            assertNull(state.selectedAlarmForEdit)
-            assertEquals("Stasiun Manggarai", state.initialAlarmLabel)
-            assertEquals(place.coordinates, state.selectedCoordinates)
-            assertEquals(TriggerRadius.DEFAULT, state.selectedRadius)
+            assertEquals(listOf(alarm), state.alarms)
+            assertEquals(alarm.coordinates, state.nearestArmedAlarm?.coordinates)
+            assertEquals(alarm.radius, state.nearestArmedAlarm?.radius)
             assertEquals(place.coordinates, state.mapViewportCenter)
             assertEquals(15.0, state.mapViewportZoom)
-            assertEquals(1L, state.viewportRequestId)
-
-            assertEquals(place.coordinates, fakeMapRenderer.lastPin)
-            assertEquals(place.coordinates to TriggerRadius.DEFAULT, fakeMapRenderer.lastGeofence)
-            assertEquals(place.coordinates to 15.0, fakeMapRenderer.lastViewport)
+            assertEquals(requestId + 1L, state.viewportRequestId)
+            assertEquals(place.coordinates to 15.0, renderer.lastViewport)
+            assertNull(renderer.lastPin)
+            assertNull(renderer.lastGeofence)
+            assertTrue(saves.savedAlarms.isEmpty())
         } finally {
             vmScope.cancel()
         }
@@ -964,15 +971,6 @@ class FjalarViewModelTest {
     fun testInitialAlarmLabelLifecycle() = runTest {
         val (viewModel, _, vmScope) = createTestViewModel()
         try {
-            val place = SearchResultPlace(
-                id = "krl_mri",
-                name = "Stasiun Manggarai",
-                coordinates = GeoCoordinates(-6.20988, 106.85016),
-                category = PlaceCategory.TRAIN_STATION,
-            )
-            viewModel.onSelectPlace(place)
-            assertEquals("Stasiun Manggarai", viewModel.uiState.value.initialAlarmLabel)
-
             // Open new alarm resets initialAlarmLabel to null
             viewModel.onOpenNewAlarm()
             assertNull(viewModel.uiState.value.initialAlarmLabel)
@@ -1000,24 +998,6 @@ class FjalarViewModelTest {
             viewModel.onStartConfiguringAlarm(null)
             val draft = assertNotNull(viewModel.uiState.value.activeDraft)
             assertNull(draft.coordinates)
-        } finally {
-            vmScope.cancel()
-        }
-    }
-
-    @Test
-    fun selectingSearchResultCreatesNamedDraft() = runTest {
-        val (viewModel, _, vmScope) = createTestViewModel()
-        try {
-            val place = SearchResultPlace(
-                id = "london",
-                name = "London",
-                coordinates = GeoCoordinates(51.5, -0.1),
-                category = PlaceCategory.TRAIN_STATION,
-            )
-            viewModel.onSelectPlace(place)
-            assertEquals(place.name, viewModel.uiState.value.activeDraft?.label)
-            assertEquals(place.coordinates, viewModel.uiState.value.activeDraft?.coordinates)
         } finally {
             vmScope.cancel()
         }

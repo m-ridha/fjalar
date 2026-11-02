@@ -185,6 +185,43 @@ class EndToEndNavigationIntegrationTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    fun mainMapSearchSelectionKeepsConfigurationClosed() = runTest {
+        val vmScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        val saves = FakeSaveAlarmPort()
+        val renderer = FakeMapRendererPort()
+        val viewModel = FjalarViewModel(
+            observeAlarmsPort = FakeObserveAlarmsPort(listOf(sampleAlarm())),
+            saveAlarmPort = saves,
+            toggleAlarmPort = FakeToggleAlarmPort(),
+            dismissAlarmPort = FakeDismissAlarmPort(),
+            skipTodayPort = FakeSkipTodayPort(),
+            preferencesPort = PersistentPreferencesAdapter(InMemoryKeyValueStorage()),
+            mapRendererPort = renderer,
+            coroutineScope = vmScope,
+        )
+        try {
+            viewModel.onOpenSearch()
+            val place = com.muhammadridha.fjalar.domain.model.SearchResultPlace(
+                id = "sudirman",
+                name = "Sudirman",
+                coordinates = GeoCoordinates(-6.2000, 106.8228),
+                category = com.muhammadridha.fjalar.domain.model.PlaceCategory.TRAIN_STATION,
+            )
+            viewModel.onBrowsePlaceSelected(place)
+            assertFalse(viewModel.uiState.value.isConfigureSheetVisible)
+            assertFalse(viewModel.uiState.value.isSearchSheetVisible)
+            assertNull(viewModel.uiState.value.activeDraft)
+            assertEquals(place.coordinates, viewModel.uiState.value.mapViewportCenter)
+            assertTrue(renderer.pins.isEmpty())
+            assertTrue(renderer.geofences.isEmpty())
+            assertTrue(saves.savedAlarms.isEmpty())
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun draftCoordinationFlow_fromMap_toConfigure_toPicker_andSave() = runTest {
         val vmScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
         val saveAlarmPort = FakeSaveAlarmPort()

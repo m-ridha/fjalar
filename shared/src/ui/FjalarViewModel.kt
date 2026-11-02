@@ -279,29 +279,15 @@ class FjalarViewModel(
     private fun newDraftIdentity(): String =
         "alarm-${Clock.System.now().toEpochMilliseconds()}-${Random.nextLong().toString(16)}"
 
-    fun onSelectPlace(place: SearchResultPlace) {
-        draftRevision++
+    fun onBrowsePlaceSelected(place: SearchResultPlace) {
         _uiState.update { current ->
             current.copy(
                 isSearchSheetVisible = false,
-                isConfigureSheetVisible = true,
-                selectedAlarmForEdit = null,
-                initialAlarmLabel = place.name,
-                activeDraft = ConfigureAlarmDraft(
-                    alarmId = newDraftIdentity(),
-                    label = place.name,
-                    coordinates = place.coordinates,
-                    addressLabel = place.detail,
-                ),
-                selectedCoordinates = place.coordinates,
-                selectedRadius = TriggerRadius.DEFAULT,
                 mapViewportCenter = place.coordinates,
                 mapViewportZoom = 15.0,
                 viewportRequestId = current.viewportRequestId + 1L,
             )
         }
-        mapRendererPort?.placePin(place.coordinates)
-        mapRendererPort?.showGeofence(place.coordinates, TriggerRadius.DEFAULT)
         mapRendererPort?.setViewport(place.coordinates, zoom = 15.0)
     }
 
@@ -621,26 +607,6 @@ class FjalarViewModel(
             )
         }
         mapRendererPort?.setViewport(target, zoom = zoom)
-    }
-
-    fun onMapClicked(coordinates: GeoCoordinates) {
-        _uiState.update { it.copy(selectedCoordinates = coordinates) }
-        mapRendererPort?.placePin(coordinates)
-        mapRendererPort?.showGeofence(coordinates, _uiState.value.selectedRadius)
-    }
-
-    fun onPinDragged(coordinates: GeoCoordinates) {
-        _uiState.update { it.copy(selectedCoordinates = coordinates) }
-        mapRendererPort?.placePin(coordinates)
-        mapRendererPort?.showGeofence(coordinates, _uiState.value.selectedRadius)
-    }
-
-    fun onRadiusChanged(radius: TriggerRadius) {
-        _uiState.update { it.copy(selectedRadius = radius) }
-        val coords = _uiState.value.selectedCoordinates
-        if (coords != null) {
-            mapRendererPort?.showGeofence(coords, radius)
-        }
     }
 
     companion object {

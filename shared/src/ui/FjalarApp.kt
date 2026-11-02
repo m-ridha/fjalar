@@ -112,17 +112,12 @@ fun FjalarApp(
 
         val activeAlarm = uiState.nearestArmedAlarm
 
-        val pinLocation = uiState.selectedCoordinates ?: activeAlarm?.coordinates
-        val geofenceCenter = pinLocation
-        val geofenceRadius = if (uiState.selectedCoordinates != null) {
-            uiState.selectedRadius
-        } else {
-            activeAlarm?.radius ?: uiState.selectedRadius
-        }
+        val pinLocation = activeAlarm?.coordinates
+        val geofenceCenter = activeAlarm?.coordinates
+        val geofenceRadius = activeAlarm?.radius
 
         val center = uiState.mapViewportCenter
             ?: uiState.userLocation
-            ?: uiState.selectedCoordinates
             ?: GeoCoordinates(0.0, 0.0)
 
         var permissionBannerDismissed by remember { mutableStateOf(false) }
@@ -156,8 +151,9 @@ fun FjalarApp(
                             geofenceCenter = geofenceCenter,
                             geofenceRadius = geofenceRadius,
                             isDarkTheme = isDarkTheme,
-                            onMapClick = viewModel::onMapClicked,
-                            onPinDrag = viewModel::onPinDragged,
+                            onMapClick = {},
+                            onPinDrag = {},
+                            destinationEditingEnabled = false,
                             viewportRequestId = uiState.viewportRequestId,
                             modifier = Modifier.fillMaxSize(),
                         )
@@ -230,10 +226,7 @@ fun FjalarApp(
                                 results = uiState.searchResults,
                                 selectedCategory = uiState.selectedCategoryFilter,
                                 onCategorySelect = viewModel::onSelectCategoryFilter,
-                                onPlaceSelect = { place ->
-                                    viewModel.onSelectPlace(place)
-                                    navController.navigate(ConfigureRoute())
-                                },
+                                onPlaceSelect = viewModel::onBrowsePlaceSelected,
                                 onDismiss = viewModel::onDismissSearch,
                                 isLoading = uiState.isSearching,
                                 userLocation = uiState.userLocation,
