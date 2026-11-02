@@ -214,7 +214,7 @@ class EndToEndNavigationIntegrationTest {
             val initialDraft = viewModel.uiState.value.activeDraft
             assertNotNull(initialDraft)
             assertEquals(defaultLocation, initialDraft.coordinates)
-            assertEquals(500, initialDraft.radiusMeters)
+            assertEquals(100, initialDraft.radiusMeters)
 
             // 3. User enters label in Configure screen
             val draftWithLabel = initialDraft.copy(label = "Sudirman MRT Hub")
@@ -238,7 +238,7 @@ class EndToEndNavigationIntegrationTest {
             assertNotNull(updatedDraft)
             assertEquals(refinedCoordinates, updatedDraft.coordinates)
             assertEquals("Sudirman MRT Hub", updatedDraft.label)
-            assertEquals(500, updatedDraft.radiusMeters)
+            assertEquals(100, updatedDraft.radiusMeters)
 
             // 6. User modifies radius to 1000m
             viewModel.onUpdateDraft(updatedDraft.copy(radiusMeters = 1000))

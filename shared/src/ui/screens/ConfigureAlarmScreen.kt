@@ -93,7 +93,7 @@ import kotlin.time.Clock
 data class ConfigureAlarmDraft(
     val alarmId: String? = null,
     val label: String = "",
-    val radiusMeters: Int = 500,
+    val radiusMeters: Int = TriggerRadius.DEFAULT.meters,
     val coordinates: GeoCoordinates? = null,
     val addressLabel: String? = null,
     val scheduleType: ScheduleType = ScheduleType.SCHEDULED,
@@ -152,7 +152,7 @@ data class ConfigureAlarmDraft(
             coordinates = coords,
             radius = TriggerRadius(radiusMeters),
             schedule = finalSchedule,
-            soundConfig = AlarmSoundConfig(
+            soundConfig = (existingAlarm?.soundConfig ?: AlarmSoundConfig()).copy(
                 soundEnabled = soundEnabled,
                 vibrateEnabled = vibrateEnabled,
             ),
@@ -181,7 +181,7 @@ data class ConfigureAlarmDraft(
     }
 }
 
-private val RADIUS_PRESETS = listOf(300, 500, 1000, 2000, 3000)
+private const val RADIUS_SLIDER_MAX_METERS = 3000
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -428,8 +428,8 @@ fun ConfigureAlarmScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                for (preset in RADIUS_PRESETS) {
-                    val isSelected = draft.radiusMeters == preset
+                for (preset in TriggerRadius.PRESETS) {
+                    val isSelected = draft.radiusMeters == preset.meters
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -438,13 +438,13 @@ fun ConfigureAlarmScreen(
                             .clip(CircleShape)
                             .background(if (isSelected) colors.primary else colors.glassPill)
                             .clickable(role = Role.Button) {
-                                onDraftChange(draft.copy(radiusMeters = preset))
+                                onDraftChange(draft.copy(radiusMeters = preset.meters))
                             }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = formatDistance(preset, locale),
+                            text = formatDistance(preset.meters, locale),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 fontFeatureSettings = "tnum",
@@ -461,10 +461,10 @@ fun ConfigureAlarmScreen(
             Slider(
                 value = draft.radiusMeters.toFloat(),
                 onValueChange = {
-                    val clamped = it.roundToInt().coerceIn(100, 10000)
+                    val clamped = it.roundToInt().coerceIn(TriggerRadius.MIN_METERS, RADIUS_SLIDER_MAX_METERS)
                     onDraftChange(draft.copy(radiusMeters = clamped))
                 },
-                valueRange = 100f..10000f,
+                valueRange = TriggerRadius.MIN_METERS.toFloat()..RADIUS_SLIDER_MAX_METERS.toFloat(),
                 colors = SliderDefaults.colors(
                     thumbColor = colors.primary,
                     activeTrackColor = colors.primary,

@@ -33,6 +33,35 @@ import kotlin.test.assertTrue
 
 class ConfigureAlarmScreenTest {
 
+    @Test
+    fun newDraftUsesOneHundredMeterRadiusWithoutSelectingDestination() {
+        val draft = ConfigureAlarmDraft()
+        assertEquals(100, draft.radiusMeters)
+        assertNull(draft.coordinates)
+        assertNull(draft.copy(label = "New alarm").coordinates)
+    }
+
+    @Test
+    fun unrelatedEditsPreserveSavedRadiusBeyondSliderRange() {
+        val existing = sampleAlarm().copy(radius = TriggerRadius(5_000))
+        val draft = ConfigureAlarmDraft.fromAlarm(existing).copy(label = "Updated label")
+
+        assertEquals(5_000, draft.radiusMeters)
+        assertEquals(5_000, draft.toLocationAlarm(existing).radius.meters)
+        assertEquals(300, draft.copy(radiusMeters = 300).toLocationAlarm(existing).radius.meters)
+    }
+
+    @Test
+    fun conversionPreservesExistingVolumeWhileApplyingEditableSoundFields() {
+        val existing = sampleAlarm().copy(soundConfig = AlarmSoundConfig(volume = 0.35f))
+        val draft = ConfigureAlarmDraft.fromAlarm(existing).copy(soundEnabled = false, vibrateEnabled = true)
+        val result = draft.toLocationAlarm(existing)
+
+        assertEquals(existing.soundConfig.volume, result.soundConfig.volume)
+        assertFalse(result.soundConfig.soundEnabled)
+        assertTrue(result.soundConfig.vibrateEnabled)
+    }
+
     private fun sampleAlarm(): LocationAlarm = LocationAlarm(
         id = "test-alarm-123",
         label = "Manggarai Station Express",

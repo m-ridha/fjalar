@@ -60,10 +60,10 @@ class HaversineCalculatorTest {
 
     @Test
     fun triggerRadiusBoundsAndPresets() {
-        assertEquals(listOf(250, 500, 1_000, 2_000, 5_000), TriggerRadius.PRESETS.map { it.meters })
-        TriggerRadius(100)
+        assertEquals(listOf(50, 100, 200, 300, 500, 1_000), TriggerRadius.PRESETS.map { it.meters })
+        TriggerRadius(50)
         TriggerRadius(10_000)
-        assertFailsWith<IllegalArgumentException> { TriggerRadius(99) }
+        assertFailsWith<IllegalArgumentException> { TriggerRadius(49) }
         assertFailsWith<IllegalArgumentException> { TriggerRadius(10_001) }
     }
 }
