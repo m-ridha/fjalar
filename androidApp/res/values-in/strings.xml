@@ -2,7 +2,7 @@
     <string name="app_name">Bangunkan Saya di</string>
     <string name="notif_monitoring_title">Memantau tujuan alarm</string>
     <string name="notif_monitoring_body">Pemantauan tujuan aktif</string>
-    <string name="notif_alarm_approaching">Mendekati %1$s</string>
+    <string name="notif_alarm_approaching">Alarm: %1$s</string>
     <string name="notification_channel_alarm_name">Alarm Bangunkan Saya di</string>
     <string name="notification_channel_alarm_desc">Peringatan saat mendekati tujuan alarm</string>
     <string name="notification_channel_monitoring_name">Pemantauan lokasi Bangunkan Saya di</string>

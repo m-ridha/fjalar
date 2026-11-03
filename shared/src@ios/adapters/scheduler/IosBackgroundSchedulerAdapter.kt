@@ -2,11 +2,10 @@ package com.muhammadridha.fjalar.adapters.scheduler
 
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SnoozeDeliveryUnavailableException
-import com.muhammadridha.fjalar.resources.Res
-import com.muhammadridha.fjalar.resources.app_name
-import org.jetbrains.compose.resources.getString
+import com.muhammadridha.fjalar.domain.model.AppLocale
+import com.muhammadridha.fjalar.localization.FjalarStrings
+import com.muhammadridha.fjalar.localization.FjalarStringKey
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
-import com.muhammadridha.fjalar.resources.snooze_notification_body
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -46,6 +45,7 @@ class IosBackgroundSchedulerAdapter(
     private val clock: Clock = Clock.System,
     private val onError: ((String, NSError) -> Unit)? = null,
     private val titleResolver: IosNotificationTitleResolver = DefaultIosNotificationTitleResolver(),
+    private val localeProvider: () -> AppLocale? = { null },
 ) : AlarmSchedulerPort {
 
     constructor(
@@ -119,7 +119,7 @@ class IosBackgroundSchedulerAdapter(
 
         val content = UNMutableNotificationContent().apply {
             setTitle(resolveNotificationTitle())
-            setBody(if (snoozedAlarm == null) resolveNotificationBody() else getString(Res.string.snooze_notification_body))
+            setBody(if (snoozedAlarm == null) resolveNotificationBody() else resolveSnoozeBody())
             if (snoozedAlarm?.soundConfig?.soundEnabled == true) {
                 setSound(UNNotificationSound.defaultSound)
             }
@@ -158,21 +158,20 @@ class IosBackgroundSchedulerAdapter(
     }
 
     internal suspend fun resolveNotificationTitle(preferredLanguage: String? = null): String {
-        return titleResolver.resolveTitle(preferredLanguage)
+        return titleResolver.resolveTitle(preferredLanguage ?: localeProvider()?.tag)
     }
 
-    internal fun resolveNotificationBody(preferredLanguage: String? = null): String {
-        val lang = preferredLanguage?.lowercase() ?: try {
-            (NSLocale.preferredLanguages.firstOrNull() as? String)?.lowercase() ?: ""
-        } catch (_: Throwable) {
-            ""
-        }
-        val primarySubtag = lang.split('-', '_').firstOrNull() ?: ""
-        return if (primarySubtag == "id" || primarySubtag == "in") {
-            "Jendela alarm perjalanan aktif"
-        } else {
-            "Commute alarm window is active"
-        }
+    internal fun resolveNotificationBody(preferredLanguage: String? = null): String =
+        FjalarStrings.get(FjalarStringKey.NOTIF_SCHEDULE_REMINDER_BODY, notificationLocale(preferredLanguage))
+
+    internal fun resolveSnoozeBody(preferredLanguage: String? = null): String =
+        FjalarStrings.get(FjalarStringKey.SNOOZE_NOTIFICATION_BODY, notificationLocale(preferredLanguage))
+
+    private fun notificationLocale(preferredLanguage: String?): AppLocale {
+        val language = preferredLanguage ?: localeProvider()?.tag
+            ?: (NSLocale.preferredLanguages.firstOrNull() as? String).orEmpty()
+        val primarySubtag = language.lowercase().split('-', '_').firstOrNull()
+        return if (primarySubtag == "id" || primarySubtag == "in") AppLocale.ID else AppLocale.EN
     }
 
     companion object {

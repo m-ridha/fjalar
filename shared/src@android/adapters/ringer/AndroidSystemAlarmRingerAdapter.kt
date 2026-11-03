@@ -1,6 +1,8 @@
 package com.muhammadridha.fjalar.adapters.ringer
 
 import android.app.Notification
+import com.muhammadridha.fjalar.adapters.localization.withAppLocale
+import com.muhammadridha.fjalar.domain.model.AppLocale
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -30,8 +32,10 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 class AndroidSystemAlarmRingerAdapter(
     private val context: Context? = null,
     private val reportFailure: (String, Exception) -> Unit = { message, error -> Log.e("FjalarAlarm", message, error) },
+    localeProvider: () -> AppLocale = { AppLocale.EN },
     private val gateway: RingerPlatformGateway = DefaultAndroidRingerPlatformGateway(
         context = requireNotNull(context) { "Context is required when gateway is not provided" },
+        localeProvider = localeProvider,
     ),
 ) : AlarmRingerPort {
 
@@ -139,6 +143,7 @@ interface RingerPlatformGateway {
 open class DefaultAndroidRingerPlatformGateway(
     private val context: Context,
     private val activityClass: Class<*>? = AndroidSystemAlarmRingerAdapter.resolveDefaultActivity(),
+    private val localeProvider: () -> AppLocale = { AppLocale.EN },
 ) : RingerPlatformGateway {
 
     private companion object {
@@ -364,12 +369,12 @@ open class DefaultAndroidRingerPlatformGateway(
             val contentText = try {
                 val resId = context.resources.getIdentifier("notif_alarm_approaching", "string", context.packageName)
                 if (resId != 0) {
-                    context.getString(resId, alarmLabel)
+                    context.withAppLocale(localeProvider()).getString(resId, alarmLabel)
                 } else {
-                    "Approaching $alarmLabel"
+                    "Alarm: $alarmLabel"
                 }
             } catch (_: Throwable) {
-                "Approaching $alarmLabel"
+                "Alarm: $alarmLabel"
             }
 
             val publicBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -379,7 +384,7 @@ open class DefaultAndroidRingerPlatformGateway(
                 Notification.Builder(context)
             }
             val appNameId = context.resources.getIdentifier("app_name", "string", context.packageName)
-            val publicTitle = if (appNameId != 0) context.getString(appNameId) else "Wake Me at"
+            val publicTitle = if (appNameId != 0) context.withAppLocale(localeProvider()).getString(appNameId) else "Wake Me at"
             val publicNotification = publicBuilder
                 .setContentTitle(publicTitle)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
@@ -418,40 +423,36 @@ open class DefaultAndroidRingerPlatformGateway(
     }
 
     private fun createNotificationChannelIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = notificationManager ?: return
-            try {
-                if (manager.getNotificationChannel(AndroidSystemAlarmRingerAdapter.CHANNEL_ID) == null) {
-                    val channelName = try {
-                        val nameId = context.resources.getIdentifier("notification_channel_alarm_name", "string", context.packageName)
-                        if (nameId != 0) context.getString(nameId) else AndroidSystemAlarmRingerAdapter.CHANNEL_NAME
-                    } catch (_: Throwable) {
-                        AndroidSystemAlarmRingerAdapter.CHANNEL_NAME
-                    }
-
-                    val channelDesc = try {
-                        val descId = context.resources.getIdentifier("notification_channel_alarm_desc", "string", context.packageName)
-                        if (descId != 0) context.getString(descId) else "High-priority wake-up alerts when approaching destination"
-                    } catch (_: Throwable) {
-                        "High-priority wake-up alerts when approaching destination"
-                    }
-
-                    val channel = NotificationChannel(
-                        AndroidSystemAlarmRingerAdapter.CHANNEL_ID,
-                        channelName,
-                        NotificationManager.IMPORTANCE_HIGH,
-                    ).apply {
-                        description = channelDesc
-                        lockscreenVisibility = Notification.VISIBILITY_PRIVATE
-                        setBypassDnd(true)
-                        enableVibration(false)
-                        setSound(null, null)
-                    }
-                    manager.createNotificationChannel(channel)
-                }
-            } catch (error: Exception) {
-                Log.e(TAG, "Creating alarm notification channel failed", error)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = notificationManager ?: return
+        try {
+            val localized = context.withAppLocale(localeProvider())
+            val nameId = context.resources.getIdentifier("notification_channel_alarm_name", "string", context.packageName)
+            val channelName = if (nameId != 0) localized.getString(nameId) else AndroidSystemAlarmRingerAdapter.CHANNEL_NAME
+            val descId = context.resources.getIdentifier("notification_channel_alarm_desc", "string", context.packageName)
+            val channelDesc = if (descId != 0) localized.getString(descId) else "Alerts near an alarm destination"
+            val existing = manager.getNotificationChannel(AndroidSystemAlarmRingerAdapter.CHANNEL_ID)
+            if (existing != null) {
+                // Rename only: preserve the user's channel importance, sound, and visibility.
+                existing.name = channelName
+                existing.description = channelDesc
+                manager.createNotificationChannel(existing)
+                return
             }
+            val channel = NotificationChannel(
+                AndroidSystemAlarmRingerAdapter.CHANNEL_ID,
+                channelName,
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = channelDesc
+                lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+                setBypassDnd(true)
+                enableVibration(false)
+                setSound(null, null)
+            }
+            manager.createNotificationChannel(channel)
+        } catch (error: Exception) {
+            Log.e(TAG, "Creating alarm notification channel failed", error)
         }
     }
 }

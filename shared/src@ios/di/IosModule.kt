@@ -5,6 +5,7 @@ import com.muhammadridha.fjalar.adapters.ringer.IosCriticalAudioRingerAdapter
 import com.muhammadridha.fjalar.adapters.scheduler.IosBackgroundSchedulerAdapter
 import com.muhammadridha.fjalar.adapters.search.HybridPlaceSearchAdapter
 import com.muhammadridha.fjalar.adapters.search.IosAppleGeocoderEngine
+import com.muhammadridha.fjalar.adapters.storage.PersistentPreferencesAdapter
 import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.UserDefaultsKeyValueStorage
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
@@ -16,7 +17,10 @@ import org.koin.dsl.onClose
 
 val iosPlatformModule = module {
     single<KeyValueStorage> { UserDefaultsKeyValueStorage() }
-    single { IosBackgroundSchedulerAdapter() }
+    single {
+        val storage = get<KeyValueStorage>()
+        IosBackgroundSchedulerAdapter(localeProvider = { PersistentPreferencesAdapter.readLocale(storage) })
+    }
     single<AlarmSchedulerPort> { get<IosBackgroundSchedulerAdapter>() }
     single<AlarmRingerPort> { IosCriticalAudioRingerAdapter() }
     single { IosCLLocationAdapter(updatePortProvider = { get() }) } onClose { it?.close() }

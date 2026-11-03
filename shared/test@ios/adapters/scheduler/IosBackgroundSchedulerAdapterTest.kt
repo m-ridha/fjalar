@@ -1,5 +1,8 @@
 package com.muhammadridha.fjalar.adapters.scheduler
 
+import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
+import com.muhammadridha.fjalar.adapters.storage.PersistentPreferencesAdapter
+import com.muhammadridha.fjalar.domain.model.AppLocale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -7,6 +10,26 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class IosBackgroundSchedulerAdapterTest {
+
+    @Test
+    fun notificationCopyUsesSavedAppLanguageForTitleWindowAndSnooze() = runTest {
+        val storage = InMemoryKeyValueStorage()
+        val preferences = PersistentPreferencesAdapter(storage)
+        val adapter = IosBackgroundSchedulerAdapter(
+            localeProvider = { PersistentPreferencesAdapter.readLocale(storage) },
+        )
+        preferences.setLocale(AppLocale.ID)
+        assertEquals("Bangunkan Saya di", adapter.resolveNotificationTitle())
+        assertEquals(
+            "Buka aplikasi untuk memeriksa alarm terjadwal.",
+            adapter.resolveNotificationBody(),
+        )
+        assertEquals("Waktu tunda selesai. Buka aplikasi untuk menghentikan alarm.", adapter.resolveSnoozeBody())
+        preferences.setLocale(AppLocale.EN)
+        assertEquals("Wake Me at", adapter.resolveNotificationTitle())
+        assertEquals("Snooze ended. Open the app to stop the alarm.", adapter.resolveSnoozeBody())
+        assertEquals("Open the app to check your scheduled alarm.", adapter.resolveNotificationBody())
+    }
 
     @Test
     fun snoozeRequiresAuthorizedAlertsAndConfiguredSound() {
@@ -20,19 +43,19 @@ class IosBackgroundSchedulerAdapterTest {
     @Test
     fun resolveNotificationBody_indonesianPrefix_returnsIndonesianString() {
         val adapter = IosBackgroundSchedulerAdapter()
-        assertEquals("Jendela alarm perjalanan aktif", adapter.resolveNotificationBody("id-ID"))
-        assertEquals("Jendela alarm perjalanan aktif", adapter.resolveNotificationBody("id"))
-        assertEquals("Jendela alarm perjalanan aktif", adapter.resolveNotificationBody("in-ID"))
+        assertEquals("Buka aplikasi untuk memeriksa alarm terjadwal.", adapter.resolveNotificationBody("id-ID"))
+        assertEquals("Buka aplikasi untuk memeriksa alarm terjadwal.", adapter.resolveNotificationBody("id"))
+        assertEquals("Buka aplikasi untuk memeriksa alarm terjadwal.", adapter.resolveNotificationBody("in-ID"))
     }
 
     @Test
     fun resolveNotificationBody_englishOrOther_returnsDefaultString() {
         val adapter = IosBackgroundSchedulerAdapter()
-        assertEquals("Commute alarm window is active", adapter.resolveNotificationBody("en-US"))
-        assertEquals("Commute alarm window is active", adapter.resolveNotificationBody("en"))
-        assertEquals("Commute alarm window is active", adapter.resolveNotificationBody("fr-FR"))
-        assertEquals("Commute alarm window is active", adapter.resolveNotificationBody("inh-RU"))
-        assertEquals("Commute alarm window is active", adapter.resolveNotificationBody(""))
+        assertEquals("Open the app to check your scheduled alarm.", adapter.resolveNotificationBody("en-US"))
+        assertEquals("Open the app to check your scheduled alarm.", adapter.resolveNotificationBody("en"))
+        assertEquals("Open the app to check your scheduled alarm.", adapter.resolveNotificationBody("fr-FR"))
+        assertEquals("Open the app to check your scheduled alarm.", adapter.resolveNotificationBody("inh-RU"))
+        assertEquals("Open the app to check your scheduled alarm.", adapter.resolveNotificationBody(""))
     }
 
     @Test

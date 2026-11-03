@@ -58,7 +58,7 @@ class FjalarStringsTest {
         val idTitle = FjalarStrings.get(FjalarStringKey.EDITOR_TITLE, AppLocale.ID)
 
         assertEquals("Configure Alarm", enTitle)
-        assertEquals("Atur Alarm", idTitle)
+        assertEquals("Atur alarm", idTitle)
 
         val enAppName = FjalarStrings.get(FjalarStringKey.APP_NAME, AppLocale.EN)
         val idAppName = FjalarStrings.get(FjalarStringKey.APP_NAME, AppLocale.ID)
@@ -89,7 +89,7 @@ class FjalarStringsTest {
         val enCount = FjalarStrings.get(FjalarStringKey.SHEET_ACTIVE_COUNT, AppLocale.EN, 2)
         val idCount = FjalarStrings.get(FjalarStringKey.SHEET_ACTIVE_COUNT, AppLocale.ID, 2)
         assertEquals("2 Active", enCount)
-        assertEquals("2 Aktif", idCount)
+        assertEquals("2 aktif", idCount)
 
         val enDeleteMsg = FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_MESSAGE, AppLocale.EN, "Morning Commute")
         val idDeleteMsg = FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_MESSAGE, AppLocale.ID, "Morning Commute")
@@ -131,10 +131,10 @@ class FjalarStringsTest {
         assertEquals("Tambah", FjalarStrings.get(FjalarStringKey.NAV_ADD, AppLocale.ID))
 
         assertEquals("Add Alarm", FjalarStrings.get(FjalarStringKey.NAV_ADD_ALARM, AppLocale.EN))
-        assertEquals("Tambah Alarm", FjalarStrings.get(FjalarStringKey.NAV_ADD_ALARM, AppLocale.ID))
+        assertEquals("Tambah alarm", FjalarStrings.get(FjalarStringKey.NAV_ADD_ALARM, AppLocale.ID))
 
         assertEquals("Delete Alarm?", FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_TITLE, AppLocale.EN))
-        assertEquals("Hapus Alarm?", FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_TITLE, AppLocale.ID))
+        assertEquals("Hapus alarm?", FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_TITLE, AppLocale.ID))
 
         assertEquals("Delete", FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_CONFIRM, AppLocale.EN))
         assertEquals("Hapus", FjalarStrings.get(FjalarStringKey.DIALOG_DELETE_CONFIRM, AppLocale.ID))
@@ -143,7 +143,7 @@ class FjalarStringsTest {
         assertEquals("Pilih tujuan", FjalarStrings.get(FjalarStringKey.PICKER_CONFIRM, AppLocale.ID))
 
         assertEquals("Grant Permission", FjalarStrings.get(FjalarStringKey.PERM_LOCATION_GRANT, AppLocale.EN))
-        assertEquals("Izinkan Akses", FjalarStrings.get(FjalarStringKey.PERM_LOCATION_GRANT, AppLocale.ID))
+        assertEquals("Izinkan akses", FjalarStrings.get(FjalarStringKey.PERM_LOCATION_GRANT, AppLocale.ID))
 
         assertEquals("Dismiss", FjalarStrings.get(FjalarStringKey.PERM_LOCATION_DISMISS, AppLocale.EN))
         assertEquals("Abaikan", FjalarStrings.get(FjalarStringKey.PERM_LOCATION_DISMISS, AppLocale.ID))

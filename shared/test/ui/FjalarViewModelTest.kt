@@ -445,6 +445,35 @@ class FjalarViewModelTest {
     }
 
     @Test
+    fun localeChangesRefreshScheduledNotificationContentAndReportFailures() = runTest {
+        val sync = FakeSyncSchedulesPort()
+        val (viewModel, _, vmScope) = createTestViewModel(syncSchedulesPort = sync)
+        try {
+            val initial = sync.syncCount
+            viewModel.onSelectLocale(AppLocale.ID)
+            assertEquals(initial + 1, sync.syncCount)
+            viewModel.onSelectLocale(AppLocale.ID)
+            assertEquals(initial + 1, sync.syncCount)
+            viewModel.onToggleLocale()
+            assertEquals(initial + 2, sync.syncCount)
+        } finally {
+            vmScope.cancel()
+        }
+
+        val failingSync = object : SyncSchedulesPort {
+            override suspend fun syncSchedules(): List<LocationAlarm> = error("Reschedule failed")
+        }
+        val (failingViewModel, _, failingScope) = createTestViewModel(syncSchedulesPort = failingSync)
+        try {
+            failingViewModel.onSelectLocale(AppLocale.ID)
+            assertEquals(AppLocale.ID, failingViewModel.uiState.value.appLocale)
+            assertTrue(failingViewModel.uiState.value.hasOperationFailure)
+        } finally {
+            failingScope.cancel()
+        }
+    }
+
+    @Test
     fun ringingAlarmDetectionExtractsFirstRingingAlarm() = runTest {
         val alarm1 = manggaraiAlarm().copy(id = "1", state = AlarmState.ARMED_MONITORING)
         val alarm2 = manggaraiAlarm().copy(id = "2", state = AlarmState.RINGING)

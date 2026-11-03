@@ -1,6 +1,12 @@
 package com.muhammadridha.fjalar
 
 import android.Manifest
+import android.util.Log
+import com.muhammadridha.fjalar.adapters.localization.withAppLocale
+import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
+import com.muhammadridha.fjalar.adapters.storage.PersistentPreferencesAdapter
+import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
+import kotlinx.coroutines.CoroutineStart
 import org.koin.android.ext.android.inject
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import android.app.Notification
@@ -45,6 +51,9 @@ class FjalarLocationService : Service() {
 
     private val tracker: AndroidFusedLocationAdapter by inject()
     private val syncSchedules: SyncSchedulesPort by inject()
+    private val preferences: PreferencesPort by inject()
+    private val storage: KeyValueStorage by inject()
+    private var isForegroundForAlarm = false
 
     private val serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(serviceJob + Dispatchers.Default)
@@ -93,6 +102,24 @@ class FjalarLocationService : Service() {
         override fun onProviderDisabled(provider: String) { reportProviderAvailability() }
     }
 
+    override fun onCreate() {
+        super.onCreate()
+        serviceScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            preferences.observeLocale().collect {
+                synchronized(trackingLock) {
+                    if (isForegroundForAlarm) {
+                        try {
+                            createNotificationChannelIfNeeded()
+                            notificationManager?.notify(NOTIFICATION_ID, buildOngoingNotification())
+                        } catch (error: Exception) {
+                            Log.e("FjalarLocation", "Updating notification language failed", error)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -134,7 +161,7 @@ class FjalarLocationService : Service() {
                     startForegroundTracking(interval)
                 } else {
                     // Map-only work is a regular service, bounded by the foreground UI owner.
-                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopForegroundMonitoring()
                     if (hasLocationPermission()) {
                         isServiceRunning = true
                         startLocationUpdates(interval)
@@ -176,14 +203,17 @@ class FjalarLocationService : Service() {
         val notification = buildOngoingNotification()
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(
-                    NOTIFICATION_ID,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
-                )
-            } else {
-                startForeground(NOTIFICATION_ID, notification)
+            synchronized(trackingLock) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(
+                        NOTIFICATION_ID,
+                        notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
+                    )
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
+                isForegroundForAlarm = true
             }
         } catch (_: Exception) {
             stopTrackingAndSelf()
@@ -246,12 +276,7 @@ class FjalarLocationService : Service() {
         }
         isServiceRunning = false
         stopLocationUpdates()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
-        }
+        stopForegroundMonitoring()
         if (startId != null) {
             stopSelfResult(startId)
         } else {
@@ -310,6 +335,21 @@ class FjalarLocationService : Service() {
         if (!enabled) reportAvailability(LocationAvailability.PROVIDER_UNAVAILABLE)
     }
 
+    private fun stopForegroundMonitoring() {
+        synchronized(trackingLock) {
+            isForegroundForAlarm = false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        }
+    }
+
+    private fun localizedContext(): Context =
+        withAppLocale(PersistentPreferencesAdapter.readLocale(storage))
+
     private fun buildOngoingNotification(): Notification {
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName) ?: Intent(this, MainActivity::class.java)
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -319,8 +359,8 @@ class FjalarLocationService : Service() {
         }
         val pendingIntent = PendingIntent.getActivity(this, NOTIFICATION_ID, launchIntent, flags)
 
-        val title = getString(R.string.notif_monitoring_title)
-        val body = getString(R.string.notif_monitoring_body)
+        val title = localizedContext().getString(R.string.notif_monitoring_title)
+        val body = localizedContext().getString(R.string.notif_monitoring_body)
 
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
@@ -349,37 +389,37 @@ class FjalarLocationService : Service() {
     }
 
     private fun createNotificationChannelIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = notificationManager ?: return
-            try {
-                if (manager.getNotificationChannel(CHANNEL_ID) == null) {
-                    val channelName = try {
-                        getString(R.string.notification_channel_monitoring_name)
-                    } catch (_: Throwable) {
-                        CHANNEL_NAME
-                    }
-                    val channelDesc = try {
-                        getString(R.string.notification_channel_monitoring_desc)
-                    } catch (_: Throwable) {
-                        "Ongoing location monitoring for armed commute alarms"
-                    }
-                    val channel = NotificationChannel(
-                        CHANNEL_ID,
-                        channelName,
-                        NotificationManager.IMPORTANCE_LOW,
-                    ).apply {
-                        description = channelDesc
-                        setShowBadge(false)
-                        enableVibration(false)
-                        setSound(null, null)
-                    }
-                    manager.createNotificationChannel(channel)
-                }
-            } catch (_: Exception) {}
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = notificationManager ?: return
+        try {
+            val localized = localizedContext()
+            val channelName = localized.getString(R.string.notification_channel_monitoring_name)
+            val channelDesc = localized.getString(R.string.notification_channel_monitoring_desc)
+            val existing = manager.getNotificationChannel(CHANNEL_ID)
+            if (existing != null) {
+                existing.name = channelName
+                existing.description = channelDesc
+                manager.createNotificationChannel(existing)
+                return
+            }
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                channelName,
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = channelDesc
+                setShowBadge(false)
+                enableVibration(false)
+                setSound(null, null)
+            }
+            manager.createNotificationChannel(channel)
+        } catch (error: Exception) {
+            Log.e("FjalarLocation", "Updating monitoring notification channel failed", error)
         }
     }
 
     override fun onDestroy() {
+        stopForegroundMonitoring()
         isServiceRunning = false
         stopLocationUpdates()
         serviceScope.cancel()

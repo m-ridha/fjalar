@@ -349,8 +349,8 @@ class ConfigureAlarmScreenTest {
         val enChangePin = FjalarStrings.get(FjalarStringKey.PICKER_CHANGE_PIN, AppLocale.EN)
         val idChangePin = FjalarStrings.get(FjalarStringKey.PICKER_CHANGE_PIN, AppLocale.ID)
 
-        assertEquals("Pan map to position the crosshair", enPickerHint)
-        assertEquals("Geser peta untuk menempatkan bidik silang", idPickerHint)
+        assertEquals("Move the map to choose a destination", enPickerHint)
+        assertEquals("Geser peta untuk memilih tujuan", idPickerHint)
         assertEquals("Choose destination", enPickerConfirm)
         assertEquals("Pilih tujuan", idPickerConfirm)
         assertEquals("Choose destination", enChangePin)
@@ -361,7 +361,7 @@ class ConfigureAlarmScreenTest {
         assertEquals("Terjadwal", FjalarStrings.get(FjalarStringKey.EDITOR_MODE_SCHEDULED, AppLocale.ID))
 
         assertEquals("Enable Alarm", FjalarStrings.get(FjalarStringKey.EDITOR_ENABLE_ALARM, AppLocale.EN))
-        assertEquals("Aktifkan Alarm", FjalarStrings.get(FjalarStringKey.EDITOR_ENABLE_ALARM, AppLocale.ID))
+        assertEquals("Aktifkan alarm", FjalarStrings.get(FjalarStringKey.EDITOR_ENABLE_ALARM, AppLocale.ID))
         assertEquals("Start time", FjalarStrings.get(FjalarStringKey.EDITOR_TIME_START_TITLE, AppLocale.EN))
         assertEquals("Waktu selesai", FjalarStrings.get(FjalarStringKey.EDITOR_TIME_END_TITLE, AppLocale.ID))
         assertEquals("Hour", FjalarStrings.get(FjalarStringKey.EDITOR_TIME_HOUR, AppLocale.EN))
@@ -378,11 +378,11 @@ class ConfigureAlarmScreenTest {
         val idDelete = FjalarStrings.get(FjalarStringKey.EDITOR_DELETE_ALARM, AppLocale.ID)
 
         assertEquals("Configure Alarm", enTitle)
-        assertEquals("Atur Alarm", idTitle)
+        assertEquals("Atur alarm", idTitle)
         assertEquals("Save", enSave)
         assertEquals("Simpan", idSave)
         assertEquals("Delete Alarm", enDelete)
-        assertEquals("Hapus Alarm", idDelete)
+        assertEquals("Hapus alarm", idDelete)
         assertEquals(
             "Changes are saved when you go back if all fields are valid.",
             FjalarStrings.get(FjalarStringKey.EDITOR_BACK_SAVES_CHANGES, AppLocale.EN),

@@ -1,9 +1,9 @@
 # Current project state
 
-Source audit: 2026-11-03, on branch `feat/map-browsing-alarm-editing`. This
-records branch implementation, not a merged release or a claim that every device
-scenario has passed. Notion PRD and UI pages also contain future requirements
-and historical Stitch mockups.
+Source audit: 2026-11-03, based on merged PR #22 with wording and localization
+updates on `fix/english-copy-localization`. This records implementation, not
+release certification. Notion requirements and historical Stitch mockups may
+include planned behavior.
 
 ## Screens and controls
 
@@ -75,6 +75,20 @@ otherwise a system alert sound. No mp3/wav alarm file is currently bundled. The
 adapter's name does not establish Apple Critical Alerts entitlement or delivery.
 Do not promise reliable automatic iOS window activation while suspended.
 
+## Language and notification text
+
+Shared UI, schedule summaries, and iOS notification text use a common catalog
+with matching English and Indonesian resources. Android notification content
+resolves native resources using the saved app language. A language change updates
+an ongoing Android monitoring notification and resynchronizes pending iOS
+notification content without replacing its schedule or snooze deadline.
+Platform-owned permission prompts and launcher names still use system localization.
+
+Ringing distance text does not assert that the user is currently within the
+radius. Snooze can ring again on its timer even after the user leaves that area.
+The completed-window label covers both dismissal and skipping; the skip action
+can apply to the next scheduled window, including one starting the next day.
+
 ## Material and accessibility
 
 `glassSurface` draws translucent tinted backgrounds and gradient borders. It does
@@ -102,7 +116,7 @@ assertions were corrected and the full test rerun passed. String catalog parity
 and whitespace checks also passed. The task report retains exact commands, logs,
 and exit codes.
 
-| Device and view | Observed on the current build |
+| Device and view | Recorded observations on PR #22 builds |
 | --- | --- |
 | Android API 37, 1080 × 2400 | Existing destination pin and radius ring stayed visible after map tap, long press, and nearby pan. Main-map search moved the camera with no search marker. New editor began with no destination; picker search cancellation preserved that absence. Picker pan enabled confirmation; an earlier map-tap attempt was inconclusive because its coordinate and settlement state were not recorded. Android system Back saved a valid draft, discarded an invalid draft with a visible reason, and first hid the open keyboard. A destination-selected blank-name draft and an existing edit with equal start/end times discarded with visible reasons; the existing record retained its original schedule. The slider reached 50 m and 3 km on screen. |
 | Android API 37, 320 dp portrait at 1.3 font scale | English Light editor showed destination action, radius presets, and mode text inside the screenshot. The form remained scrollable. |
@@ -116,3 +130,7 @@ foldable postures, screen-reader speech, a full locked-device ringing cycle,
 older Android versions, and suspended iOS schedule activation were not tested.
 The failure and ringing exit semantics have deterministic source-level tests,
 which are separate from native-device evidence.
+
+The later wording and notification-language changes have not been verified on
+devices with different app and OS languages. The PR #22 device observations above
+do not establish that additional coverage.
