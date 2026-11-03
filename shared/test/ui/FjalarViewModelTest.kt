@@ -8,6 +8,7 @@ import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.PlaceCategory
+import com.muhammadridha.fjalar.domain.model.ScheduleType
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
@@ -1533,6 +1534,53 @@ class FjalarViewModelTest {
             assertEquals(1, exits)
         } finally {
             pendingScope.cancel()
+        }
+    }
+
+    @Test
+    fun pendingEditorSaveRejectsSameSessionChangesOnSuccessAndFailure() = runTest {
+        for (succeeds in listOf(true, false)) {
+            val completion = kotlinx.coroutines.CompletableDeferred<Result<Unit>>()
+            val writes = mutableListOf<LocationAlarm>()
+            val port = object : SaveAlarmPort {
+                override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> = Result.success(Unit)
+                override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> {
+                    writes += alarm
+                    return completion.await()
+                }
+            }
+            val (viewModel, _, vmScope) = createTestViewModel(savePort = port)
+            try {
+                viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
+                val original = viewModel.uiState.value.activeDraft!!.copy(label = "London")
+                viewModel.onUpdateDraft(original)
+                var exits = 0
+                viewModel.onExitAlarmEditor { exits++ }
+                viewModel.onUpdateDraft(original.copy(label = "Changed"))
+                viewModel.onUpdateDraft(original.copy(radiusMeters = 500))
+                viewModel.onUpdateDraft(original.copy(scheduleType = ScheduleType.ONE_TIME))
+                viewModel.onUpdateDraft(original.copy(daysOfWeekMask = 1))
+                viewModel.onDraftCoordinatesChanged(GeoCoordinates(-6.2, 106.8))
+                viewModel.onExitAlarmEditor { exits++ }
+                assertEquals(original, viewModel.uiState.value.activeDraft)
+                assertEquals(listOf(original.toLocationAlarm(null)), writes)
+                assertEquals(0, exits)
+                completion.complete(if (succeeds) Result.success(Unit) else Result.failure(IllegalStateException("failed")))
+                assertFalse(viewModel.uiState.value.isOperationPending)
+                if (succeeds) {
+                    assertEquals(1, exits)
+                    assertNull(viewModel.uiState.value.activeDraft)
+                } else {
+                    assertEquals(0, exits)
+                    assertEquals(original, viewModel.uiState.value.activeDraft)
+                    assertEquals(AlarmEditorNotice.UPDATE_FAILED, viewModel.uiState.value.pendingEditorNotice)
+                    val edited = original.copy(label = "Retry")
+                    viewModel.onUpdateDraft(edited)
+                    assertEquals(edited, viewModel.uiState.value.activeDraft)
+                }
+            } finally {
+                vmScope.cancel()
+            }
         }
     }
 

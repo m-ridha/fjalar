@@ -105,6 +105,7 @@ class FjalarViewModel(
 
     internal val scope: CoroutineScope = coroutineScope ?: viewModelScope
     private var draftRevision: Long = 0L
+    private var pendingEditorRevision: Long? = null
     private var editorBaseline: ConfigureAlarmDraft? = null
     private var editorPersistedId: String? = null
     private var editorNoticeSequence: Long = 0L
@@ -544,6 +545,7 @@ class FjalarViewModel(
     }
 
     fun onUpdateDraft(draft: ConfigureAlarmDraft) {
+        if (pendingEditorRevision == draftRevision) return
         draftRevision++
         _uiState.update { current ->
             current.copy(
@@ -563,6 +565,7 @@ class FjalarViewModel(
             ?.let(::TriggerRadius)
 
     fun onDraftCoordinatesChanged(coordinates: GeoCoordinates) {
+        if (pendingEditorRevision == draftRevision) return
         draftRevision++
         _uiState.update { current ->
             val updatedDraft = current.activeDraft?.withNewCoordinates(coordinates)
@@ -645,6 +648,7 @@ class FjalarViewModel(
             return
         }
         val operationDraftRevision = draftRevision
+        pendingEditorRevision = operationDraftRevision
         _uiState.update {
             it.copy(isOperationPending = true, hasOperationFailure = false, pendingEditorNotice = null)
         }
@@ -655,6 +659,7 @@ class FjalarViewModel(
                 requireExisting = persistedId != null,
             )
             val ownsDraft = operationDraftRevision == draftRevision && _uiState.value.activeDraft == draft
+            if (pendingEditorRevision == operationDraftRevision) pendingEditorRevision = null
             _uiState.update { state -> state.copy(isOperationPending = false) }
             if (!ownsDraft) return@launch
             when {

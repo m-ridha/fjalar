@@ -270,6 +270,7 @@ fun ConfigureAlarmScreen(
             // Label input field
             OutlinedTextField(
                 value = draft.label,
+                enabled = !isOperationPending,
                 onValueChange = { onDraftChange(draft.copy(label = it)) },
                 placeholder = {
                     Text(
@@ -420,7 +421,7 @@ fun ConfigureAlarmScreen(
                             .heightIn(min = 48.dp)
                             .clip(CircleShape)
                             .background(if (isSelected) colors.primary else colors.glassPill)
-                            .clickable(role = Role.Button) {
+                            .clickable(role = Role.Button, enabled = !isOperationPending) {
                                 onDraftChange(draft.copy(radiusMeters = preset.meters))
                             }
                             .padding(vertical = 8.dp),
@@ -443,6 +444,7 @@ fun ConfigureAlarmScreen(
             // Slider
             Slider(
                 value = draft.radiusMeters.toFloat(),
+                enabled = !isOperationPending,
                 onValueChange = {
                     val clamped = it.roundToInt().coerceIn(TriggerRadius.MIN_METERS, RADIUS_SLIDER_MAX_METERS)
                     onDraftChange(draft.copy(radiusMeters = clamped))
@@ -471,7 +473,7 @@ fun ConfigureAlarmScreen(
                         .heightIn(min = 48.dp)
                         .clip(CircleShape)
                         .background(if (isOneTime) colors.primary else Color.Transparent)
-                        .clickable(role = Role.Button) {
+                        .clickable(role = Role.Button, enabled = !isOperationPending) {
                             onDraftChange(draft.copy(scheduleType = ScheduleType.ONE_TIME))
                         }
                         .padding(horizontal = 8.dp, vertical = 8.dp),
@@ -493,7 +495,7 @@ fun ConfigureAlarmScreen(
                         .heightIn(min = 48.dp)
                         .clip(CircleShape)
                         .background(if (isScheduled) colors.primary else Color.Transparent)
-                        .clickable(role = Role.Button) {
+                        .clickable(role = Role.Button, enabled = !isOperationPending) {
                             onDraftChange(draft.copy(scheduleType = ScheduleType.SCHEDULED))
                         }
                         .padding(horizontal = 8.dp, vertical = 8.dp),
@@ -575,7 +577,7 @@ fun ConfigureAlarmScreen(
                                 .heightIn(min = 48.dp)
                                 .clip(CircleShape)
                                 .background(if (isDayActive) colors.primary else colors.glassPill)
-                                .clickable(role = Role.Button) {
+                                .clickable(role = Role.Button, enabled = !isOperationPending) {
                                     val toggled = draft.daysOfWeekMask xor bit
                                     if (toggled != 0) {
                                         onDraftChange(draft.copy(daysOfWeekMask = toggled))
