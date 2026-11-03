@@ -1472,6 +1472,66 @@ class FjalarViewModelTest {
     }
 
     @Test
+    fun revertingToOriginalDraftAfterFailedSaveRetriesPersistence() = runTest {
+        for (persistBeforeFailure in listOf(false, true)) {
+            val original = manggaraiAlarm()
+            val observe = FakeObserveAlarmsPort(listOf(original))
+            var stored = original
+            var attempts = 0
+            val port = object : SaveAlarmPort {
+                override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> = Result.success(Unit)
+
+                override suspend fun saveAlarmConfiguration(
+                    alarm: LocationAlarm,
+                    enabled: Boolean?,
+                    requireExisting: Boolean,
+                ): Result<Unit> {
+                    assertTrue(requireExisting)
+                    attempts++
+                    if (attempts > 1 || persistBeforeFailure) {
+                        stored = alarm
+                        observe.flow.value = listOf(stored)
+                    }
+                    return if (attempts == 1) {
+                        Result.failure(IllegalStateException("Save did not finish"))
+                    } else {
+                        Result.success(Unit)
+                    }
+                }
+            }
+            val (viewModel, _, vmScope) = createTestViewModel(observePort = observe, savePort = port)
+            try {
+                viewModel.onStartConfiguringAlarm(original.id)
+                val baseline = viewModel.uiState.value.activeDraft!!
+                viewModel.onUpdateDraft(baseline.copy(
+                    label = "Changed",
+                    coordinates = GeoCoordinates(51.5, -0.1),
+                    radiusMeters = 200,
+                    startMinuteOfDay = 8 * 60,
+                ))
+                var exits = 0
+                viewModel.onExitAlarmEditor { exits++ }
+                assertEquals(0, exits)
+                assertEquals(AlarmEditorNotice.UPDATE_FAILED, viewModel.uiState.value.pendingEditorNotice)
+                assertEquals(if (persistBeforeFailure) "Changed" else original.label, stored.label)
+
+                viewModel.onUpdateDraft(baseline)
+                viewModel.onExitAlarmEditor { exits++ }
+
+                assertEquals(2, attempts)
+                assertEquals(1, exits)
+                assertNull(viewModel.uiState.value.activeDraft)
+                assertEquals(original.label, stored.label)
+                assertEquals(original.coordinates, stored.coordinates)
+                assertEquals(original.radius, stored.radius)
+                assertEquals(original.schedule, stored.schedule)
+            } finally {
+                vmScope.cancel()
+            }
+        }
+    }
+
+    @Test
     fun saveReportingDeletedRecordExitsWithDeletedNotice() = runTest {
         val existing = manggaraiAlarm()
         val port = object : SaveAlarmPort {

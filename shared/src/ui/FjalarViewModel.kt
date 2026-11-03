@@ -673,6 +673,9 @@ class FjalarViewModel(
                 }
                 result.exceptionOrNull() is AlarmConfigurationRingingException -> Unit
                 else -> {
+                    // Persistence may have succeeded before a later side effect failed.
+                    // Even a return to the opening values now requires a confirmed save.
+                    editorBaseline = null
                     val noticeId = ++editorNoticeSequence
                     _uiState.update {
                         it.copy(
