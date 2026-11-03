@@ -1,2 +1,4 @@
 /* Localized Display Name for Indonesian */
 "CFBundleDisplayName" = "Bangunkan Saya di";
+"NSLocationWhenInUseUsageDescription" = "Bangunkan Saya di menggunakan lokasi untuk menampilkan posisimu di peta dan memeriksa jarak ke tujuan alarm.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Bangunkan Saya di memeriksa jarak ke tujuan alarm di latar belakang saat alarm aktif.";

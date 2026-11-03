@@ -93,7 +93,7 @@ import kotlin.time.Clock
 data class ConfigureAlarmDraft(
     val alarmId: String? = null,
     val label: String = "",
-    val radiusMeters: Int = 500,
+    val radiusMeters: Int = TriggerRadius.DEFAULT.meters,
     val coordinates: GeoCoordinates? = null,
     val addressLabel: String? = null,
     val scheduleType: ScheduleType = ScheduleType.SCHEDULED,
@@ -152,7 +152,7 @@ data class ConfigureAlarmDraft(
             coordinates = coords,
             radius = TriggerRadius(radiusMeters),
             schedule = finalSchedule,
-            soundConfig = AlarmSoundConfig(
+            soundConfig = (existingAlarm?.soundConfig ?: AlarmSoundConfig()).copy(
                 soundEnabled = soundEnabled,
                 vibrateEnabled = vibrateEnabled,
             ),
@@ -181,14 +181,13 @@ data class ConfigureAlarmDraft(
     }
 }
 
-private val RADIUS_PRESETS = listOf(300, 500, 1000, 2000, 3000)
+private const val RADIUS_SLIDER_MAX_METERS = 3000
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ConfigureAlarmScreen(
     draft: ConfigureAlarmDraft,
     onDraftChange: (ConfigureAlarmDraft) -> Unit,
-    onSave: (ConfigureAlarmDraft) -> Unit,
     onBack: () -> Unit,
     onNavigateToPicker: (GeoCoordinates) -> Unit,
     onDelete: ((String) -> Unit)? = null,
@@ -199,11 +198,6 @@ fun ConfigureAlarmScreen(
     persistedAlarm: LocationAlarm? = null,
 ) {
     val colors = LiquidGlassTheme.colors
-
-    val isScheduleValid = draft.scheduleType != ScheduleType.SCHEDULED ||
-        (draft.startMinuteOfDay != draft.endMinuteOfDay && draft.daysOfWeekMask != 0)
-    val isSaveEnabled = draft.label.isNotBlank() && draft.coordinates != null &&
-        isScheduleValid && !isOperationPending
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var editingTime by remember { mutableStateOf<EditorTimeField?>(null) }
@@ -248,29 +242,14 @@ fun ConfigureAlarmScreen(
                 color = colors.textPrimary,
             )
 
-            // Save CTA
-            Row(
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                    .clip(CircleShape)
-                    .clickable(
-                        role = Role.Button,
-                        enabled = isSaveEnabled,
-                        onClick = { if (isSaveEnabled) onSave(draft) },
-                    )
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = FjalarStrings.get(FjalarStringKey.EDITOR_SAVE, locale),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = if (isSaveEnabled) colors.primary else colors.textSecondary.copy(alpha = 0.4f),
-                    ),
-                )
-            }
         }
+
+        Text(
+            text = FjalarStrings.get(FjalarStringKey.EDITOR_BACK_SAVES_CHANGES, locale),
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.textSecondary,
+        )
 
         // Scrollable Body
         Column(
@@ -291,6 +270,7 @@ fun ConfigureAlarmScreen(
             // Label input field
             OutlinedTextField(
                 value = draft.label,
+                enabled = !isOperationPending,
                 onValueChange = { onDraftChange(draft.copy(label = it)) },
                 placeholder = {
                     Text(
@@ -344,15 +324,19 @@ fun ConfigureAlarmScreen(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = if (draft.addressLabel.isNullOrBlank()) {
-                                FjalarStrings.get(FjalarStringKey.PINNED_LOCATION, locale)
-                            } else {
-                                draft.addressLabel
-                            },
+                            text = FjalarStrings.get(FjalarStringKey.PINNED_LOCATION, locale),
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                             color = colors.textPrimary,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
+                        if (!draft.addressLabel.isNullOrBlank()) {
+                            Text(
+                                text = draft.addressLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = colors.textPrimary,
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
                         val coords = draft.coordinates
                         val coordText = if (coords != null) {
                             val lat = (coords.latitude * 10000.0).roundToInt() / 10000.0
@@ -428,8 +412,8 @@ fun ConfigureAlarmScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                for (preset in RADIUS_PRESETS) {
-                    val isSelected = draft.radiusMeters == preset
+                for (preset in TriggerRadius.PRESETS) {
+                    val isSelected = draft.radiusMeters == preset.meters
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -437,14 +421,14 @@ fun ConfigureAlarmScreen(
                             .heightIn(min = 48.dp)
                             .clip(CircleShape)
                             .background(if (isSelected) colors.primary else colors.glassPill)
-                            .clickable(role = Role.Button) {
-                                onDraftChange(draft.copy(radiusMeters = preset))
+                            .clickable(role = Role.Button, enabled = !isOperationPending) {
+                                onDraftChange(draft.copy(radiusMeters = preset.meters))
                             }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = formatDistance(preset, locale),
+                            text = formatDistance(preset.meters, locale),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 fontFeatureSettings = "tnum",
@@ -460,11 +444,12 @@ fun ConfigureAlarmScreen(
             // Slider
             Slider(
                 value = draft.radiusMeters.toFloat(),
+                enabled = !isOperationPending,
                 onValueChange = {
-                    val clamped = it.roundToInt().coerceIn(100, 10000)
+                    val clamped = it.roundToInt().coerceIn(TriggerRadius.MIN_METERS, RADIUS_SLIDER_MAX_METERS)
                     onDraftChange(draft.copy(radiusMeters = clamped))
                 },
-                valueRange = 100f..10000f,
+                valueRange = TriggerRadius.MIN_METERS.toFloat()..RADIUS_SLIDER_MAX_METERS.toFloat(),
                 colors = SliderDefaults.colors(
                     thumbColor = colors.primary,
                     activeTrackColor = colors.primary,
@@ -488,7 +473,7 @@ fun ConfigureAlarmScreen(
                         .heightIn(min = 48.dp)
                         .clip(CircleShape)
                         .background(if (isOneTime) colors.primary else Color.Transparent)
-                        .clickable(role = Role.Button) {
+                        .clickable(role = Role.Button, enabled = !isOperationPending) {
                             onDraftChange(draft.copy(scheduleType = ScheduleType.ONE_TIME))
                         }
                         .padding(horizontal = 8.dp, vertical = 8.dp),
@@ -510,7 +495,7 @@ fun ConfigureAlarmScreen(
                         .heightIn(min = 48.dp)
                         .clip(CircleShape)
                         .background(if (isScheduled) colors.primary else Color.Transparent)
-                        .clickable(role = Role.Button) {
+                        .clickable(role = Role.Button, enabled = !isOperationPending) {
                             onDraftChange(draft.copy(scheduleType = ScheduleType.SCHEDULED))
                         }
                         .padding(horizontal = 8.dp, vertical = 8.dp),
@@ -592,7 +577,7 @@ fun ConfigureAlarmScreen(
                                 .heightIn(min = 48.dp)
                                 .clip(CircleShape)
                                 .background(if (isDayActive) colors.primary else colors.glassPill)
-                                .clickable(role = Role.Button) {
+                                .clickable(role = Role.Button, enabled = !isOperationPending) {
                                     val toggled = draft.daysOfWeekMask xor bit
                                     if (toggled != 0) {
                                         onDraftChange(draft.copy(daysOfWeekMask = toggled))

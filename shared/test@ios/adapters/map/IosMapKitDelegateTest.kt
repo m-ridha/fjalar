@@ -5,14 +5,46 @@ import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.CoreGraphics.CGRectMake
 import platform.MapKit.MKMapView
+import platform.MapKit.MKPointAnnotation
+import platform.MapKit.MKAnnotationViewDragStateEnding
+import platform.MapKit.MKAnnotationViewDragStateDragging
 import platform.MapKit.MKMapViewDelegateProtocol
 import platform.objc.sel_registerName
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalForeignApi::class)
 class IosMapKitDelegateTest {
+    @Test
+    fun browseDestinationIsNotDraggableAndIgnoresDragCallbacks() {
+        val dragged = mutableListOf<GeoCoordinates>()
+        val delegate = FjalarMapKitDelegate(false, { dragged.add(it) }, null)
+        val map = MKMapView(frame = CGRectMake(0.0, 0.0, 390.0, 844.0))
+        val annotation = MKPointAnnotation().apply {
+            setCoordinate(GeoCoordinates(51.5, -0.1).toCLLocationCoordinate2D())
+        }
+        val view = assertNotNull(delegate.mapView(map, viewForAnnotation = annotation))
+        assertFalse(view.draggable)
+        delegate.mapView(map, view, MKAnnotationViewDragStateEnding, MKAnnotationViewDragStateDragging)
+        assertTrue(dragged.isEmpty())
+    }
+
+    @Test
+    fun pickerDestinationRemainsDraggableAndReportsDragEnd() {
+        val dragged = mutableListOf<GeoCoordinates>()
+        val delegate = FjalarMapKitDelegate(false, { dragged.add(it) }, null, destinationEditingEnabled = true)
+        val map = MKMapView(frame = CGRectMake(0.0, 0.0, 390.0, 844.0))
+        val coordinates = GeoCoordinates(51.5, -0.1)
+        val annotation = MKPointAnnotation().apply { setCoordinate(coordinates.toCLLocationCoordinate2D()) }
+        val view = assertNotNull(delegate.mapView(map, viewForAnnotation = annotation))
+        assertTrue(view.draggable)
+        delegate.mapView(map, view, MKAnnotationViewDragStateEnding, MKAnnotationViewDragStateDragging)
+        assertEquals(listOf(coordinates), dragged)
+    }
+
     @Test
     fun compassReceivesTheLiveNativeHeading() {
         val headings = mutableListOf<Double>()

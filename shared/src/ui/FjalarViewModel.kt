@@ -20,6 +20,8 @@ import com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
+import com.muhammadridha.fjalar.domain.ports.inbound.AlarmConfigurationMissingException
+import com.muhammadridha.fjalar.domain.ports.inbound.AlarmConfigurationRingingException
 import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
@@ -40,6 +42,8 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Duration.Companion.milliseconds
 
+enum class PlaceSearchContext { BROWSE, PICKER }
+
 /**
  * Observable UI state representation for the entire Fjalar application.
  */
@@ -52,6 +56,7 @@ data class FjalarUiState(
     val isConfigureSheetVisible: Boolean = false,
     val searchQuery: String = "",
     val isSearchSheetVisible: Boolean = false,
+    val searchContext: PlaceSearchContext? = null,
     val searchResults: List<SearchResultPlace> = emptyList(),
     val isSearching: Boolean = false,
     val selectedCategoryFilter: PlaceCategory? = null,
@@ -67,6 +72,8 @@ data class FjalarUiState(
     val selectedRadius: TriggerRadius = TriggerRadius.DEFAULT,
     val viewportRequestId: Long = 0L,
     val activeDraft: ConfigureAlarmDraft? = null,
+    val pendingEditorNotice: AlarmEditorNotice? = null,
+    val pendingEditorNoticeId: Long = 0L,
     // Access required by the platform for background alarm monitoring.
     val hasLocationPermission: Boolean = true,
     val hasOperationFailure: Boolean = false,
@@ -98,6 +105,10 @@ class FjalarViewModel(
 
     internal val scope: CoroutineScope = coroutineScope ?: viewModelScope
     private var draftRevision: Long = 0L
+    private var pendingEditorRevision: Long? = null
+    private var editorBaseline: ConfigureAlarmDraft? = null
+    private var editorPersistedId: String? = null
+    private var editorNoticeSequence: Long = 0L
 
     private val _uiState = MutableStateFlow(FjalarUiState())
     val uiState: StateFlow<FjalarUiState> = _uiState.asStateFlow()
@@ -105,6 +116,7 @@ class FjalarViewModel(
     private var snoozeDeadlineJob: Job? = null
     private var fixExpiryJob: Job? = null
     private var searchJob: Job? = null
+    private var searchSessionToken: Long = 0L
     private var unfilteredSearchResults: List<SearchResultPlace> = emptyList()
 
     private val mapTrackingMutex = kotlinx.coroutines.sync.Mutex()
@@ -239,20 +251,47 @@ class FjalarViewModel(
         }
     }
 
-    fun onOpenSearch() {
-        _uiState.update { it.copy(isSearchSheetVisible = true, isConfigureSheetVisible = false) }
-        if (_uiState.value.searchResults.isEmpty() && _uiState.value.searchQuery.isBlank()) {
-            onSearchQueryChanged("")
+    fun onOpenSearch(context: PlaceSearchContext = PlaceSearchContext.BROWSE) {
+        invalidateSearch()
+        _uiState.update {
+            it.copy(
+                searchContext = context,
+                isSearchSheetVisible = true,
+                isConfigureSheetVisible = false,
+                searchQuery = "",
+                searchResults = emptyList(),
+                selectedCategoryFilter = null,
+            )
         }
+        onSearchQueryChanged("")
+    }
+
+    private fun invalidateSearch() {
+        searchSessionToken++
+        searchJob?.cancel()
+        searchJob = null
+        unfilteredSearchResults = emptyList()
     }
 
     fun onDismissSearch() {
-        _uiState.update { it.copy(isSearchSheetVisible = false) }
+        invalidateSearch()
+        _uiState.update {
+            it.copy(
+                isSearchSheetVisible = false,
+                searchContext = null,
+                searchResults = emptyList(),
+                isSearching = false,
+            )
+        }
     }
 
     fun onSearchQueryChanged(query: String) {
-        _uiState.update { it.copy(searchQuery = query, isSearching = true) }
+        // A cancelled platform callback may still finish. Only the latest request
+        // in the current search session can publish results or filter input.
+        searchSessionToken++
+        val requestToken = searchSessionToken
         searchJob?.cancel()
+        _uiState.update { it.copy(searchQuery = query, isSearching = true) }
         searchJob = scope.launch {
             if (query.isNotBlank()) {
                 delay(SEARCH_DEBOUNCE_MILLIS)
@@ -260,6 +299,7 @@ class FjalarViewModel(
             val locale = _uiState.value.appLocale
             val proximity = _uiState.value.userLocation ?: _uiState.value.selectedCoordinates
             val places = searchPlacesPort?.searchPlaces(query, locale, proximity) ?: emptyList()
+            if (requestToken != searchSessionToken) return@launch
             unfilteredSearchResults = places
             val filtered = applyCategoryFilter(places, _uiState.value.selectedCategoryFilter)
             _uiState.update { it.copy(searchResults = filtered, isSearching = false) }
@@ -279,29 +319,17 @@ class FjalarViewModel(
     private fun newDraftIdentity(): String =
         "alarm-${Clock.System.now().toEpochMilliseconds()}-${Random.nextLong().toString(16)}"
 
-    fun onSelectPlace(place: SearchResultPlace) {
-        draftRevision++
+    fun onBrowsePlaceSelected(place: SearchResultPlace) {
+        if (_uiState.value.searchContext != PlaceSearchContext.BROWSE) return
+        onDismissSearch()
         _uiState.update { current ->
             current.copy(
                 isSearchSheetVisible = false,
-                isConfigureSheetVisible = true,
-                selectedAlarmForEdit = null,
-                initialAlarmLabel = place.name,
-                activeDraft = ConfigureAlarmDraft(
-                    alarmId = newDraftIdentity(),
-                    label = place.name,
-                    coordinates = place.coordinates,
-                    addressLabel = place.detail,
-                ),
-                selectedCoordinates = place.coordinates,
-                selectedRadius = TriggerRadius.DEFAULT,
                 mapViewportCenter = place.coordinates,
                 mapViewportZoom = 15.0,
                 viewportRequestId = current.viewportRequestId + 1L,
             )
         }
-        mapRendererPort?.placePin(place.coordinates)
-        mapRendererPort?.showGeofence(place.coordinates, TriggerRadius.DEFAULT)
         mapRendererPort?.setViewport(place.coordinates, zoom = 15.0)
     }
 
@@ -439,21 +467,16 @@ class FjalarViewModel(
     }
 
     fun onOpenNewAlarm() {
-        val target = _uiState.value.selectedCoordinates
-            ?: _uiState.value.userLocation
         _uiState.update { current ->
             current.copy(
                 selectedAlarmForEdit = null,
                 initialAlarmLabel = null,
                 isConfigureSheetVisible = true,
-                selectedCoordinates = target,
+                selectedCoordinates = null,
                 selectedRadius = TriggerRadius.DEFAULT,
             )
         }
-        if (target != null) {
-            mapRendererPort?.placePin(target)
-            mapRendererPort?.showGeofence(target, TriggerRadius.DEFAULT)
-        }
+        mapRendererPort?.clearOverlays()
     }
 
     fun onOpenEditAlarm(alarm: LocationAlarm) {
@@ -488,28 +511,28 @@ class FjalarViewModel(
     }
 
     fun onStartConfiguringAlarm(alarmId: String?, defaultCoordinates: GeoCoordinates? = null) {
+        onDismissSearch()
         draftRevision++
+        editorPersistedId = alarmId
         val draft = if (alarmId != null) {
             val alarm = _uiState.value.alarms.firstOrNull { it.id == alarmId }
             alarm?.let { ConfigureAlarmDraft.fromAlarm(it) }
                 ?: ConfigureAlarmDraft(
                     alarmId = alarmId,
-                    coordinates = defaultCoordinates
-                        ?: _uiState.value.selectedCoordinates
-                        ?: _uiState.value.userLocation,
+                    coordinates = defaultCoordinates,
                 )
         } else {
             ConfigureAlarmDraft(
                 alarmId = newDraftIdentity(),
-                coordinates = defaultCoordinates
-                    ?: _uiState.value.selectedCoordinates
-                    ?: _uiState.value.userLocation,
+                coordinates = defaultCoordinates,
             )
         }
+        editorBaseline = draft
         _uiState.update { current ->
             current.copy(
                 activeDraft = draft,
                 hasOperationFailure = false,
+                pendingEditorNotice = null,
                 selectedAlarmForEdit = _uiState.value.alarms.firstOrNull { it.id == alarmId },
                 selectedCoordinates = draft.coordinates,
                 selectedRadius = TriggerRadius(draft.radiusMeters),
@@ -522,21 +545,27 @@ class FjalarViewModel(
     }
 
     fun onUpdateDraft(draft: ConfigureAlarmDraft) {
+        if (pendingEditorRevision == draftRevision) return
         draftRevision++
         _uiState.update { current ->
             current.copy(
                 activeDraft = draft,
                 selectedCoordinates = draft.coordinates,
-                selectedRadius = TriggerRadius(draft.radiusMeters),
+                selectedRadius = validDraftRadius(draft) ?: current.selectedRadius,
             )
         }
         draft.coordinates?.let { coords ->
             mapRendererPort?.placePin(coords)
-            mapRendererPort?.showGeofence(coords, TriggerRadius(draft.radiusMeters))
+            validDraftRadius(draft)?.let { radius -> mapRendererPort?.showGeofence(coords, radius) }
         }
     }
 
+    private fun validDraftRadius(draft: ConfigureAlarmDraft): TriggerRadius? =
+        draft.radiusMeters.takeIf { it in TriggerRadius.MIN_METERS..TriggerRadius.MAX_METERS }
+            ?.let(::TriggerRadius)
+
     fun onDraftCoordinatesChanged(coordinates: GeoCoordinates) {
+        if (pendingEditorRevision == draftRevision) return
         draftRevision++
         _uiState.update { current ->
             val updatedDraft = current.activeDraft?.withNewCoordinates(coordinates)
@@ -581,8 +610,115 @@ class FjalarViewModel(
         }
     }
 
+    /** The only editor Back operation: validate, discard invalid input, or persist changed fields. */
+    fun onExitAlarmEditor(onExit: () -> Unit) {
+        val current = _uiState.value
+        val draft = current.activeDraft ?: return
+        if (current.isOperationPending) return
+        if (current.activeRingingAlarm != null ||
+            current.alarms.any { it.state == AlarmState.RINGING }
+        ) return
+
+        val persistedId = editorPersistedId
+        val existing = persistedId?.let { id -> current.alarms.firstOrNull { it.id == id } }
+        if (persistedId != null && existing == null) {
+            discardEditor(AlarmEditorNotice.ALARM_DELETED)
+            onExit()
+            return
+        }
+        val notice = draft.validationNotice()
+        if (notice != null) {
+            discardEditor(notice)
+            onExit()
+            return
+        }
+        if (persistedId != null && draft == editorBaseline) {
+            discardEditor(null)
+            onExit()
+            return
+        }
+
+        val alarm = try {
+            draft.toLocationAlarm(existing)
+        } catch (_: IllegalArgumentException) {
+            val noticeId = ++editorNoticeSequence
+            _uiState.update {
+                it.copy(pendingEditorNotice = AlarmEditorNotice.UPDATE_FAILED, pendingEditorNoticeId = noticeId)
+            }
+            return
+        }
+        val operationDraftRevision = draftRevision
+        pendingEditorRevision = operationDraftRevision
+        _uiState.update {
+            it.copy(isOperationPending = true, hasOperationFailure = false, pendingEditorNotice = null)
+        }
+        scope.launch {
+            val result = saveAlarmPort.saveAlarmConfiguration(
+                alarm = alarm,
+                enabled = draft.enabledOverride,
+                requireExisting = persistedId != null,
+            )
+            val ownsDraft = operationDraftRevision == draftRevision && _uiState.value.activeDraft == draft
+            if (pendingEditorRevision == operationDraftRevision) pendingEditorRevision = null
+            _uiState.update { state -> state.copy(isOperationPending = false) }
+            if (!ownsDraft) return@launch
+            when {
+                result.isSuccess -> {
+                    discardEditor(null)
+                    onExit()
+                }
+                result.exceptionOrNull() is AlarmConfigurationMissingException -> {
+                    discardEditor(AlarmEditorNotice.ALARM_DELETED)
+                    onExit()
+                }
+                result.exceptionOrNull() is AlarmConfigurationRingingException -> Unit
+                else -> {
+                    // Persistence may have succeeded before a later side effect failed.
+                    // Even a return to the opening values now requires a confirmed save.
+                    editorBaseline = null
+                    val noticeId = ++editorNoticeSequence
+                    _uiState.update {
+                        it.copy(
+                            hasOperationFailure = true,
+                            pendingEditorNotice = AlarmEditorNotice.UPDATE_FAILED,
+                            pendingEditorNoticeId = noticeId,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun onEditorNoticeShown(noticeId: Long = _uiState.value.pendingEditorNoticeId) {
+        _uiState.update { current ->
+            if (current.pendingEditorNoticeId == noticeId) current.copy(pendingEditorNotice = null) else current
+        }
+    }
+
+    private fun discardEditor(notice: AlarmEditorNotice?) {
+        draftRevision++
+        editorBaseline = null
+        editorPersistedId = null
+        val noticeId = if (notice != null) ++editorNoticeSequence else _uiState.value.pendingEditorNoticeId
+        _uiState.update { current ->
+            current.copy(
+                activeDraft = null,
+                selectedAlarmForEdit = null,
+                initialAlarmLabel = null,
+                selectedCoordinates = null,
+                selectedRadius = TriggerRadius.DEFAULT,
+                hasOperationFailure = false,
+                pendingEditorNotice = notice,
+                pendingEditorNoticeId = noticeId,
+            )
+        }
+        mapRendererPort?.clearOverlays()
+    }
+
     fun onClearDraft() {
         draftRevision++
+        editorBaseline = null
+        editorPersistedId = null
         _uiState.update { it.copy(activeDraft = null, hasOperationFailure = false) }
     }
 
@@ -621,26 +757,6 @@ class FjalarViewModel(
             )
         }
         mapRendererPort?.setViewport(target, zoom = zoom)
-    }
-
-    fun onMapClicked(coordinates: GeoCoordinates) {
-        _uiState.update { it.copy(selectedCoordinates = coordinates) }
-        mapRendererPort?.placePin(coordinates)
-        mapRendererPort?.showGeofence(coordinates, _uiState.value.selectedRadius)
-    }
-
-    fun onPinDragged(coordinates: GeoCoordinates) {
-        _uiState.update { it.copy(selectedCoordinates = coordinates) }
-        mapRendererPort?.placePin(coordinates)
-        mapRendererPort?.showGeofence(coordinates, _uiState.value.selectedRadius)
-    }
-
-    fun onRadiusChanged(radius: TriggerRadius) {
-        _uiState.update { it.copy(selectedRadius = radius) }
-        val coords = _uiState.value.selectedCoordinates
-        if (coords != null) {
-            mapRendererPort?.showGeofence(coords, radius)
-        }
     }
 
     companion object {

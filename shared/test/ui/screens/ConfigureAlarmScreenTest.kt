@@ -33,6 +33,35 @@ import kotlin.test.assertTrue
 
 class ConfigureAlarmScreenTest {
 
+    @Test
+    fun newDraftUsesOneHundredMeterRadiusWithoutSelectingDestination() {
+        val draft = ConfigureAlarmDraft()
+        assertEquals(100, draft.radiusMeters)
+        assertNull(draft.coordinates)
+        assertNull(draft.copy(label = "New alarm").coordinates)
+    }
+
+    @Test
+    fun unrelatedEditsPreserveSavedRadiusBeyondSliderRange() {
+        val existing = sampleAlarm().copy(radius = TriggerRadius(5_000))
+        val draft = ConfigureAlarmDraft.fromAlarm(existing).copy(label = "Updated label")
+
+        assertEquals(5_000, draft.radiusMeters)
+        assertEquals(5_000, draft.toLocationAlarm(existing).radius.meters)
+        assertEquals(300, draft.copy(radiusMeters = 300).toLocationAlarm(existing).radius.meters)
+    }
+
+    @Test
+    fun conversionPreservesExistingVolumeWhileApplyingEditableSoundFields() {
+        val existing = sampleAlarm().copy(soundConfig = AlarmSoundConfig(volume = 0.35f))
+        val draft = ConfigureAlarmDraft.fromAlarm(existing).copy(soundEnabled = false, vibrateEnabled = true)
+        val result = draft.toLocationAlarm(existing)
+
+        assertEquals(existing.soundConfig.volume, result.soundConfig.volume)
+        assertFalse(result.soundConfig.soundEnabled)
+        assertTrue(result.soundConfig.vibrateEnabled)
+    }
+
     private fun sampleAlarm(): LocationAlarm = LocationAlarm(
         id = "test-alarm-123",
         label = "Manggarai Station Express",
@@ -240,6 +269,8 @@ class ConfigureAlarmScreenTest {
                 savedAlarm = alarm
                 return Result.success(Unit)
             }
+            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> =
+                saveAlarm(alarm)
         }
         val togglePort = object : ToggleAlarmPort {
             override suspend fun toggleAlarm(alarmId: String, enabled: Boolean): Result<Unit> = Result.success(Unit)
@@ -320,10 +351,14 @@ class ConfigureAlarmScreenTest {
 
         assertEquals("Pan map to position the crosshair", enPickerHint)
         assertEquals("Geser peta untuk menempatkan bidik silang", idPickerHint)
-        assertEquals("Set Location", enPickerConfirm)
-        assertEquals("Tetapkan Lokasi", idPickerConfirm)
-        assertEquals("Change Pin on Map", enChangePin)
-        assertEquals("Ubah Titik di Peta", idChangePin)
+        assertEquals("Choose destination", enPickerConfirm)
+        assertEquals("Pilih tujuan", idPickerConfirm)
+        assertEquals("Choose destination", enChangePin)
+        assertEquals("Pilih tujuan", idChangePin)
+        assertEquals("Destination", FjalarStrings.get(FjalarStringKey.PINNED_LOCATION, AppLocale.EN))
+        assertEquals("Tujuan", FjalarStrings.get(FjalarStringKey.PINNED_LOCATION, AppLocale.ID))
+        assertEquals("Scheduled", FjalarStrings.get(FjalarStringKey.EDITOR_MODE_SCHEDULED, AppLocale.EN))
+        assertEquals("Terjadwal", FjalarStrings.get(FjalarStringKey.EDITOR_MODE_SCHEDULED, AppLocale.ID))
 
         assertEquals("Enable Alarm", FjalarStrings.get(FjalarStringKey.EDITOR_ENABLE_ALARM, AppLocale.EN))
         assertEquals("Aktifkan Alarm", FjalarStrings.get(FjalarStringKey.EDITOR_ENABLE_ALARM, AppLocale.ID))
@@ -348,6 +383,30 @@ class ConfigureAlarmScreenTest {
         assertEquals("Simpan", idSave)
         assertEquals("Delete Alarm", enDelete)
         assertEquals("Hapus Alarm", idDelete)
+        assertEquals(
+            "Changes are saved when you go back if all fields are valid.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_BACK_SAVES_CHANGES, AppLocale.EN),
+        )
+        assertEquals(
+            "Perubahan disimpan saat kembali jika semua isian valid.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_BACK_SAVES_CHANGES, AppLocale.ID),
+        )
+        assertEquals(
+            "This alarm no longer exists.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_ALARM_DELETED, AppLocale.EN),
+        )
+        assertEquals(
+            "Alarm ini sudah tidak ada.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_ALARM_DELETED, AppLocale.ID),
+        )
+        assertEquals(
+            "Could not finish updating the alarm. Try again.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_UPDATE_FAILED, AppLocale.EN),
+        )
+        assertEquals(
+            "Alarm belum berhasil diperbarui. Coba lagi.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_UPDATE_FAILED, AppLocale.ID),
+        )
     }
     @Test
     fun missingDestinationCannotBecomeSavedAlarm() {

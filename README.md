@@ -21,7 +21,7 @@
 
 ---
 
-Fjalar (named after the mythical Norse rooster that heralds the dawn) solves a universal commuter problem: **traditional clock alarms fail on variable public transit commutes**. Whether riding commuter rail, metro trains, intercity buses, or ride-shares, commuters select a destination pin or search for a transit station, configure their trigger radius (100m - 10km), arm the alarm, and rest knowing that Fjalar will reliably wake them before their stop.
+Fjalar (named after the mythical Norse rooster that heralds the dawn) addresses a commuter problem: **clock alarms do not account for variable public transit commutes**. Riders choose a destination in the alarm's map picker, set a trigger radius, and arm the alarm. Background delivery depends on platform execution and permissions, especially on iOS.
 
 Contributor and agent development guidelines, architecture contracts, UI design tokens, and safety invariants live in [AGENTS.md](AGENTS.md). Production-ready 2D flat vector icon assets reside in [`assets/icons/`](assets/icons/).
 
@@ -29,6 +29,9 @@ Contributor and agent development guidelines, architecture contracts, UI design 
 
 ## Features
 
+- **Browse without changing alarms:** The main map accepts pan, zoom, and place search for camera movement. It shows the nearest active alarm's destination and the user location, without creating a draft or a temporary search marker. A new alarm needs an explicit destination choice in the map picker.
+- **Editor Back saves valid changes:** The toolbar Back control and Android system Back save a valid new or changed alarm. An invalid draft is discarded with a reason; a failed save keeps the editor open for retry. Picker and search navigation do not save the draft.
+- **Smaller trigger radii:** New alarms start at 100 m. The editor offers 50, 100, 200, 300, 500, and 1,000 m presets and a 50 m–3 km slider. The domain still accepts existing radii up to 10 km.
 - **One-Off & Recurring Scheduled Alarms:** Set a quick one-off alarm for an unfamiliar stop, or schedule recurring commute windows (e.g., *Office, Mon-Fri, 07:00-09:30*). Background GPS tracking runs only for active alarm monitoring. The visible foreground Map can independently request location.
 - **Curated Transit & Station Search:** Instant, privacy-preserving station autocomplete across Greater Jakarta (113 stations across KRL Commuter Line, MRT Jakarta, LRT, and airport terminals) with zero-telemetry online geocoding fallback (OSM Photon on Android, Apple CLGeocoder on iOS).
 - **Hexagonal Architecture (Ports & Adapters):** Core domain logic is 100% pure Kotlin with zero platform SDK imports. Map providers, location trackers, audio ringers, place search, and persistence can be swapped without touching domain code.
@@ -37,7 +40,7 @@ Contributor and agent development guidelines, architecture contracts, UI design 
 - **Full Bilingual Localization (`English` & `Bahasa Indonesia`):** 100% of UI copy, display app names (*"Wake Me at"* / *"Bangunkan Saya di"*), day chips (`Mo–Su` vs. `Sn–Mg`), permission disclosures, and OS notifications are translated with instant in-app switching (`🌐 EN | ID`).
 - **Sleepy-Eyes Dismissal Safety:** Android presents a restricted alarm screen over the keyguard with high-contrast pulsing alerts and a tactile **Slide to Stop Alarm** (`Geser untuk Matikan Alarm`) track, preventing accidental pocket touches or sleepy dismissals.
 - **Automated App Icon Pipeline:** Single reproducible command (`python3 scripts/generate_app_icons.py`) exports all Android adaptive densities (strictly preserving the 66 dp safe circle), Material You monochrome layer, Google Play 512×512 master, and iOS 18 Asset Catalog (`AppIcon.appiconset` with Light, Dark, and Tinted appearances).
-- **100% Local & Privacy-First:** No accounts, no sign-in, and no telemetry. Your GPS coordinates and commute habits never leave your device. Place search sends only the typed query to the public geocoder when fewer than 5 offline curated stations match.
+- **On-Device Alarms & Privacy:** No accounts, no sign-in, and no telemetry. Alarm records and distance calculations stay on your device. Online map requests can reveal the viewed area to the map provider. Place search sends the typed query to the public geocoder when fewer than 5 offline curated stations match.
 - **Free & Open Cartography:** Uses **OpenStreetMap / MapLibre** on Android (zero API keys, zero billing) and native **Apple MapKit** on iOS.
 
 ---
@@ -135,7 +138,7 @@ fjalar/
 
 All contributors and automated agents must preserve these core invariants:
 
-1. **100% On-Device Privacy:** Zero coordinates or commute schedules sent off-device. No telemetry SDKs harvesting location data.
+1. **On-Device Alarm Processing:** Alarm records and distance evaluation stay on-device, without location-analytics SDKs. Online map requests can disclose the viewed area to the map provider.
 2. **0% Runaway GPS Battery Drain:** Background GPS monitoring runs only for active alarm monitoring and stops when that monitoring ends. The visible foreground Map may independently request location without an armed alarm. Its map-only request stops when the Map is hidden or the app backgrounds.
 3. **Sleepy-Eyes Dismissal Safety:** Ringing displays a full-screen alert with the oversized frosted **Slide to Stop** handle. Accidental taps or pocket bounces must never dismiss an alarm.
 4. **Zero Ads on Ringing Screen:** Advertisements must never appear before, during, or obstructing the dismissal of an active wake-up alarm. (v1 is 100% ad-free).

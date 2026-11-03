@@ -72,7 +72,7 @@ class LocationTrackingLifecycleTest {
         val tracker = Tracker()
         val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
         val destination = GeoCoordinates(51.5, -0.1)
-        vm.onMapClicked(destination)
+        vm.onDraftCoordinatesChanged(destination)
         tracker.availability.value = LocationAvailability.AVAILABLE
         tracker.fixes.emit(LocationFix(GeoCoordinates(-33.0, 151.0), 12f, Instant.parse("2026-10-27T00:00:00Z")))
         runCurrent()

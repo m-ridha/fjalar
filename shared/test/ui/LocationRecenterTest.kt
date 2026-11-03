@@ -38,6 +38,8 @@ class LocationRecenterTest {
 
     private class FakeSaveAlarmPort : SaveAlarmPort {
         override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> = Result.success(Unit)
+        override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> =
+            saveAlarm(alarm)
     }
 
     private class FakeToggleAlarmPort : ToggleAlarmPort {
@@ -206,7 +208,7 @@ class LocationRecenterTest {
 
             // Priority 2: selectedCoordinates overrides alarms
             val selectedCoords = GeoCoordinates(-6.2024, 106.8232)
-            viewModel.onMapClicked(selectedCoords)
+            viewModel.onDraftCoordinatesChanged(selectedCoords)
             viewModel.onRecenterMap()
             assertEquals(selectedCoords, viewModel.uiState.value.mapViewportCenter)
             assertEquals(selectedCoords to 15.0, fakeRenderer.lastViewport)

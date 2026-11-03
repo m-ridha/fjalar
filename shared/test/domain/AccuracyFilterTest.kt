@@ -31,6 +31,18 @@ class AccuracyFilterTest {
     }
 
     @Test
+    fun fiftyMeterAlarmRejectsAccuracyAboveFortyMeters() {
+        val smallRadiusAlarm = armed.copy(radius = TriggerRadius(50))
+        assertEquals(AlarmState.ARMED_MONITORING, evaluator.evaluateFix(smallRadiusAlarm, MANGGARAI, 40.1f).state)
+    }
+
+    @Test
+    fun fiftyMeterAlarmAcceptsFortyMeterAccuracyAtDestination() {
+        val smallRadiusAlarm = armed.copy(radius = TriggerRadius(50))
+        assertEquals(AlarmState.RINGING, evaluator.evaluateFix(smallRadiusAlarm, MANGGARAI, 40f).state)
+    }
+
+    @Test
     fun invalidAccuracyValuesAreRejected() {
         assertEquals(AlarmState.ARMED_MONITORING, evaluator.evaluateFix(armed, MANGGARAI, Float.NaN).state)
         assertEquals(AlarmState.ARMED_MONITORING, evaluator.evaluateFix(armed, MANGGARAI, -1f).state)

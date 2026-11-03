@@ -36,6 +36,7 @@ fun AndroidMapLibreView(
     isDarkTheme: Boolean,
     onMapClick: (GeoCoordinates) -> Unit,
     onPinDrag: (GeoCoordinates) -> Unit,
+    destinationEditingEnabled: Boolean = false,
     onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)? = null,
     viewportRequestId: Long = 0L,
     preserveZoomOnViewportRequest: Boolean = false,
@@ -59,6 +60,7 @@ fun AndroidMapLibreView(
     val currentOnCameraCenterChanged by rememberUpdatedState(onCameraCenterChanged)
     val currentOnMapClick by rememberUpdatedState(onMapClick)
     val currentOnPinDrag by rememberUpdatedState(onPinDrag)
+    val currentPinLocation by rememberUpdatedState(pinLocation)
     val currentOnBearingChanged by rememberUpdatedState(onBearingChanged)
 
     // MapView creation and lifecycle observer setup
@@ -108,10 +110,13 @@ fun AndroidMapLibreView(
     val touchSlopPx = 48f * density
     var isDraggingPin by remember { mutableStateOf(false) }
 
-    DisposableEffect(mapView, pinLocation, mapLibreMap) {
+    DisposableEffect(mapView, mapLibreMap, destinationEditingEnabled) {
+        if (!destinationEditingEnabled) {
+            return@DisposableEffect onDispose {}
+        }
         mapView.setOnTouchListener { v, event ->
             val map = mapLibreMap
-            val activePin = pinLocation
+            val activePin = currentPinLocation
             if (map != null && activePin != null) {
                 val pinScreenPoint = with(AndroidMapRendererAdapter) {
                     map.projection.toScreenLocation(activePin.toLatLng())
@@ -154,7 +159,34 @@ fun AndroidMapLibreView(
         }
 
         onDispose {
+            isDraggingPin = false
+            mapView.parent?.requestDisallowInterceptTouchEvent(false)
             mapView.setOnTouchListener(null)
+        }
+    }
+
+    DisposableEffect(mapLibreMap, destinationEditingEnabled) {
+        val map = mapLibreMap
+        if (map == null || !destinationEditingEnabled) {
+            return@DisposableEffect onDispose {}
+        }
+        val clickListener = MapLibreMap.OnMapClickListener { latLng ->
+            with(AndroidMapRendererAdapter) {
+                currentOnMapClick(latLng.toGeoCoordinates())
+            }
+            true
+        }
+        val longClickListener = MapLibreMap.OnMapLongClickListener { latLng ->
+            with(AndroidMapRendererAdapter) {
+                currentOnPinDrag(latLng.toGeoCoordinates())
+            }
+            true
+        }
+        map.addOnMapClickListener(clickListener)
+        map.addOnMapLongClickListener(longClickListener)
+        onDispose {
+            map.removeOnMapClickListener(clickListener)
+            map.removeOnMapLongClickListener(longClickListener)
         }
     }
 
@@ -179,20 +211,6 @@ fun AndroidMapLibreView(
                         currentOnCameraCenterChanged?.invoke(target.toGeoCoordinates(), cameraMovedByUser)
                     }
                 }
-            }
-
-            map.addOnMapClickListener { latLng ->
-                with(AndroidMapRendererAdapter) {
-                    currentOnMapClick(latLng.toGeoCoordinates())
-                }
-                true
-            }
-
-            map.addOnMapLongClickListener { latLng ->
-                with(AndroidMapRendererAdapter) {
-                    currentOnPinDrag(latLng.toGeoCoordinates())
-                }
-                true
             }
 
             map.setStyle(targetStyleUrl) { style ->

@@ -16,6 +16,7 @@ expect fun PlatformMapView(
     isDarkTheme: Boolean,
     onMapClick: (GeoCoordinates) -> Unit,
     onPinDrag: (GeoCoordinates) -> Unit,
+    destinationEditingEnabled: Boolean = false,
     // The Boolean is true only for a camera movement initiated by a user map gesture.
     onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)? = null,
     viewportRequestId: Long = 0L,

@@ -1,20 +1,38 @@
 # Current project state
 
-Source audit: 2026-11-02, after PR #19 merged. This records implementation, not a
-claim that every device scenario has passed. Notion PRD and UI pages also contain
-future requirements and historical Stitch mockups.
+Source audit: 2026-11-03, on branch `feat/map-browsing-alarm-editing`. This
+records branch implementation, not a merged release or a claim that every device
+scenario has passed. Notion PRD and UI pages also contain future requirements
+and historical Stitch mockups.
 
 ## Screens and controls
 
 The shared Compose UI has Map, Alarms, Configure Alarm, and Map Picker destinations.
 The map uses safe-area HUD controls and a measured bottom dock. Forms scroll and
-controls wrap for compact layouts. Foldable, landscape, large-font, and bilingual
-layouts still require visual device checks.
+controls wrap for compact layouts. The Task 8 matrix below records observed
+portrait, landscape, font-scale, language, and theme combinations. Foldable
+postures and screen-reader speech remain unverified.
 
-Configure Alarm has an enabled toggle, applied on Save. Scheduled Start and End
-open a 24-hour picker with clock and keyboard modes. Compact or large-font layouts
-use numeric input. Cancel leaves the draft time unchanged. The radius slider spans
-100 m to 10 km, with 300 m, 500 m, 1 km, 2 km, and 3 km presets. Day chips use
+The main map browses without selecting a destination. Taps and pans do not create
+an alarm or temporary marker; search results move the camera only. The nearest
+active alarm's destination and the user blue dot remain the map's markers. A new
+alarm opens without a destination, and the map picker requires an explicit choice
+before its confirmation button is enabled. Picker search changes its candidate
+selection, which is committed to the draft only by picker confirmation. Cancel
+returns without changing it.
+
+Configure Alarm has an enabled toggle, applied when saving. Toolbar Back and
+Android system Back save a valid new or changed draft. An invalid draft is
+discarded on return with a localized reason. A failed save keeps the editor and
+draft available for retry. Opening the picker, browsing search, and backgrounding
+do not save. An unchanged existing alarm exits without another repository write.
+
+Scheduled Start and End open a 24-hour picker with clock and keyboard modes.
+Compact or large-font layouts use numeric input. Cancel leaves the draft time
+unchanged. The radius slider spans
+50 m to 3 km, with 50 m, 100 m, 200 m, 300 m, 500 m, and 1 km presets. New alarms
+default to 100 m. The domain retains its 10 km maximum for saved alarms; this
+branch adds no migration or clamping of existing values. Day chips use
 `Mo Tu We Th Fr Sa Su` and `Sn Sl Rb Km Jm Sb Mg`. Alarm-list Delete actions are
 text-only and aligned to the trailing edge.
 
@@ -30,6 +48,9 @@ in `shared/src/ui/`.
 Android uses `AndroidMapRendererAdapter` with MapLibre 11.5.1 and OSM-derived
 cartography. iOS uses `IosMapKitAdapter`. MapLibre is a renderer, not the OSM data
 provider. Neither platform provides turn-by-turn routing or a route ETA feature.
+Online maps request data for the viewed area from their provider. Centering on
+the user can disclose that area. Alarm records and distance calculations remain
+on-device.
 
 Despite its historical name, `AndroidFusedLocationAdapter` delegates to
 `FjalarLocationService`, which uses Android `LocationManager` GPS and network
@@ -74,8 +95,24 @@ See [Releasing](releasing.md) for signing secrets and workflow details.
 
 ## Verification boundaries
 
-This documentation audit changes no runtime code. Fresh checks cover icon assets,
-string catalogs, local links, whitespace, and prose. Earlier test/build results
-belong to their recorded commits and do not count as fresh runs for this audit.
-Full locked-device ringing cycles, older Android versions, suspended iOS behavior,
-and the complete visual device matrix remain separate verification work.
+The Task 8 integration pass ran `./kotlin test`, `./kotlin check`, Android debug
+build, and iOS simulator Arm64 debug build on this branch. The first test run
+exposed two outdated Indonesian alarm-list string expectations; those test
+assertions were corrected and the full test rerun passed. String catalog parity
+and whitespace checks also passed. The task report retains exact commands, logs,
+and exit codes.
+
+| Device and view | Observed on the current build |
+| --- | --- |
+| Android API 37, 1080 × 2400 | Existing destination pin and radius ring stayed visible after map tap, long press, and nearby pan. Main-map search moved the camera with no search marker. New editor began with no destination; picker search cancellation preserved that absence. Picker pan enabled confirmation; an earlier map-tap attempt was inconclusive because its coordinate and settlement state were not recorded. Android system Back saved a valid draft, discarded an invalid draft with a visible reason, and first hid the open keyboard. A destination-selected blank-name draft and an existing edit with equal start/end times discarded with visible reasons; the existing record retained its original schedule. The slider reached 50 m and 3 km on screen. |
+| Android API 37, 320 dp portrait at 1.3 font scale | English Light editor showed destination action, radius presets, and mode text inside the screenshot. The form remained scrollable. |
+| Android API 37, landscape at 1.3 font scale | Scrolling exposed the destination action and radius controls. The original size, font scale, and rotation settings were restored. |
+| iPhone 17, iOS 27.0 | Fresh app showed Indonesian Dark and English Light maps/editors. Browse search moved the camera without selecting a destination. Picker search candidate canceled without draft change and confirmed into the draft. Toolbar Back created a valid alarm, returned from an unchanged editor, saved a changed radius, and showed the invalid-draft reason. A destination-selected blank-name draft and an existing edit with equal start/end times discarded with visible reasons; the existing list retained its original 07:00–09:30 window and 200 m radius. The 50 m preset and intermediate slider values changed on screen; exact slider maximum was not reached through the available coordinate input. |
+| iPhone Duo, iOS 27.2 | Fresh app launched and rendered its primary display behind a first-run notification prompt. The second display capture was black; interactive layout checks were not completed. |
+
+These observations do not establish map-bearing rotation or reproduce the earlier
+missing-pin report. Device injection of persistence failure, an iOS soft keyboard,
+foldable postures, screen-reader speech, a full locked-device ringing cycle,
+older Android versions, and suspended iOS schedule activation were not tested.
+The failure and ringing exit semantics have deterministic source-level tests,
+which are separate from native-device evidence.

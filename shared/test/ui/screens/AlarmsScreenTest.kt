@@ -60,7 +60,7 @@ class AlarmsScreenTest {
         val idMessage = formatDeleteMessage(alarm.label, AppLocale.ID)
 
         assertEquals("Are you sure you want to delete 'Manggarai Morning'?", enMessage)
-        assertEquals("Apakah Anda yakin ingin menghapus 'Manggarai Morning'?", idMessage)
+        assertEquals("Hapus alarm 'Manggarai Morning'?", idMessage)
     }
 
     @Test
@@ -73,7 +73,7 @@ class AlarmsScreenTest {
         assertEquals("No Alarms Yet", enTitle)
         assertEquals("Tap + Add to set your first wake-up alarm.", enBody)
         assertEquals("Belum Ada Alarm", idTitle)
-        assertEquals("Ketuk + Tambah untuk menyetel alarm bangun pertama Anda.", idBody)
+        assertEquals("Ketuk + Tambah untuk membuat alarm pertama.", idBody)
     }
 
     @Test

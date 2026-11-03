@@ -14,6 +14,18 @@ class MapPickerSelectionTest {
         assertNull(selection.onCameraCenterChanged(GeoCoordinates(0.001, 0.001), isUserGesture = false).coordinates)
     }
 
+    @Test fun searchSelectionUpdatesOnlyLocalPreview() {
+        val place = com.muhammadridha.fjalar.domain.model.SearchResultPlace(
+            id = "place", name = "Destination",
+            coordinates = GeoCoordinates(-6.2, 106.8),
+            category = com.muhammadridha.fjalar.domain.model.PlaceCategory.GENERAL,
+        )
+        val initial = MapPickerSelection(null)
+        assertEquals(place.coordinates, initial.select(place).coordinates)
+        assertNull(initial.coordinates)
+        assertNull(initial.onCameraCenterChanged(place.coordinates, isUserGesture = false).coordinates)
+    }
+
     @Test fun userPanOrTapCanExplicitlyChooseAnyGlobalPoint() {
         val world = MapPickerSelection(null)
         val sydney = GeoCoordinates(-33.86, 151.2)

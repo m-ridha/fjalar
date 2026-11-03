@@ -277,7 +277,10 @@ class IosMapKitAdapterTest {
     fun geofenceOverlayParameters_calculatesValidRadiusValues() {
         for (preset in TriggerRadius.PRESETS) {
             assertTrue(preset.meters > 0, "Preset ${preset.meters}m must be positive")
-            assertTrue(preset.meters in 100..10_000, "Preset ${preset.meters}m must be within valid range")
+            assertTrue(
+                preset.meters in TriggerRadius.MIN_METERS..TriggerRadius.MAX_METERS,
+                "Preset ${preset.meters}m must be within valid range",
+            )
         }
     }
 
