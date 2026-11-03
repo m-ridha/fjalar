@@ -357,20 +357,21 @@ class FjalarViewModel(
     }
 
     fun onToggleLocale() {
-        val currentLocale = _uiState.value.appLocale
-        val nextLocale = if (currentLocale == AppLocale.EN) {
-            AppLocale.ID
-        } else {
-            AppLocale.EN
-        }
-        scope.launch {
-            preferencesPort.setLocale(nextLocale)
-        }
+        onSelectLocale(if (_uiState.value.appLocale == AppLocale.EN) AppLocale.ID else AppLocale.EN)
     }
 
     fun onSelectLocale(locale: AppLocale) {
+        if (locale == _uiState.value.appLocale) return
         scope.launch {
             preferencesPort.setLocale(locale)
+            // Rebuild pending user-facing notifications with the same deadlines.
+            try {
+                syncSchedulesPort?.syncSchedules()
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _uiState.update { it.copy(hasOperationFailure = true) }
+            }
         }
     }
 

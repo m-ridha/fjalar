@@ -61,17 +61,21 @@ fun dayChipLabels(locale: AppLocale): List<String> = listOf(
 
 fun formatDaysOfWeek(mask: Int, locale: AppLocale): String {
     if (mask == AlarmSchedule.WEEKDAYS) {
-        return if (locale == AppLocale.ID) "Sn–Jm" else "Mon–Fri"
+        return FjalarStrings.get(FjalarStringKey.DAYS_WEEKDAYS, locale)
     }
     if (mask == AlarmSchedule.EVERY_DAY) {
-        return if (locale == AppLocale.ID) "Setiap hari" else "Every day"
+        return FjalarStrings.get(FjalarStringKey.DAYS_EVERY_DAY, locale)
     }
 
-    val dayNames = if (locale == AppLocale.ID) {
-        listOf("Sn", "Sl", "Rb", "Km", "Jm", "Sb", "Mg")
-    } else {
-        listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-    }
+    val dayNames = listOf(
+        FjalarStringKey.DAY_NAME_MONDAY,
+        FjalarStringKey.DAY_NAME_TUESDAY,
+        FjalarStringKey.DAY_NAME_WEDNESDAY,
+        FjalarStringKey.DAY_NAME_THURSDAY,
+        FjalarStringKey.DAY_NAME_FRIDAY,
+        FjalarStringKey.DAY_NAME_SATURDAY,
+        FjalarStringKey.DAY_NAME_SUNDAY,
+    ).map { FjalarStrings.get(it, locale) }
 
     val activeDays = (0..6).filter { i -> (mask and (1 shl i)) != 0 }.map { dayNames[it] }
     return if (activeDays.isEmpty()) "" else activeDays.joinToString(", ")

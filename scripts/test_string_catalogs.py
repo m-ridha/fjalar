@@ -24,7 +24,7 @@ class StringCatalogTests(unittest.TestCase):
             for key in baseline:
                 self.assertEqual(pattern.findall(baseline[key]), pattern.findall(catalog[key]), f"{folder}/{key}")
         self.assertEqual(catalogs["values-id"], catalogs["values-in"])
-        runtime = (ROOT / "shared/src/ui/theme/FjalarStrings.kt").read_text()
+        runtime = (ROOT / "shared/src/localization/FjalarStrings.kt").read_text()
         # Every lookup entry must match its real catalog, including literal placeholders.
         entries = re.findall(r'FjalarStringKey\.([A-Z_]+) to "((?:[^"\\]|\\.)*)"', runtime)
         self.assertEqual(0, len(entries) % 2)

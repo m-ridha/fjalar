@@ -19,7 +19,7 @@ class ActualDistanceTextTest {
     @Test fun actualDistancesFormatInEnglishAndIndonesian() {
         assertEquals("Armed: Station • 0m away", armedStatusText(alarm, 0, AppLocale.EN))
         assertEquals("Aktif: Station • 1,2 km lagi", armedStatusText(alarm, 1200, AppLocale.ID))
-        assertEquals("IN ZONE • 1.2 km from target pin", ringingDistanceText(1200, AppLocale.EN))
-        assertEquals("DALAM ZONA • 420m dari titik tujuan", ringingDistanceText(420, AppLocale.ID))
+        assertEquals("1.2 km from destination", ringingDistanceText(1200, AppLocale.EN))
+        assertEquals("420m dari tujuan", ringingDistanceText(420, AppLocale.ID))
     }
 }

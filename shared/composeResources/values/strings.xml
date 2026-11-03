@@ -6,7 +6,7 @@
     <string name="hud_theme_switch_light">Switch to light mode</string>
     <string name="hud_theme_switch_dark">Switch to dark mode</string>
     <string name="hud_locale_label">Language: English (EN)</string>
-    <string name="hud_recenter_location">Recenter GPS</string>
+    <string name="hud_recenter_location">Show my location</string>
 
     <!-- Status pill readouts -->
     <string name="status_armed_scheduled">Armed: %1$s • %2$s away • %3$s–%4$s</string>
@@ -16,10 +16,10 @@
     <string name="sheet_saved_title">Saved Alarms</string>
     <string name="sheet_active_count">%1$d Active</string>
     <string name="sheet_new_alarm">+ New</string>
-    <string name="card_skip_today">Skip Today</string>
-    <string name="card_skipped_today">Skipped for today</string>
+    <string name="card_skip_today">Skip next scheduled alarm</string>
+    <string name="card_skipped_today">Done for this window</string>
     <string name="card_one_time_trip">One-time trip • %1$s radius</string>
-    <string name="card_loud_and_vibrate">Loud + Vibrate</string>
+    <string name="card_loud_and_vibrate">Sound + vibration</string>
 
     <!-- Alarm Editor modal -->
     <string name="editor_title">Configure Alarm</string>
@@ -50,18 +50,18 @@
     <string name="editor_time_step_minus_15">-15m</string>
     <string name="editor_time_step_plus_15">+15m</string>
     <string name="editor_trigger_radius">Trigger Radius</string>
-    <string name="editor_mode_one_time">One-Time Now</string>
+    <string name="editor_mode_one_time">One-time trip</string>
     <string name="editor_mode_scheduled">Scheduled</string>
     <string name="editor_active_window">Active Window (%1$s – %2$s)</string>
-    <string name="editor_alert_and_haptics">Alert &amp; Haptics</string>
-    <string name="editor_loud_sound">Loud Sound</string>
-    <string name="editor_strong_vibrate">Strong Vibrate</string>
+    <string name="editor_alert_and_haptics">Sound and vibration</string>
+    <string name="editor_loud_sound">Sound</string>
+    <string name="editor_strong_vibrate">Vibration</string>
     <string name="editor_earphone_override">Rings in Earphones + Speaker</string>
 
     <!-- Ringing wake-up screen -->
-    <string name="ringing_in_zone_badge">IN ZONE • %1$s from target pin</string>
+    <string name="ringing_in_zone_badge">%1$s from destination</string>
     <string name="ringing_private_headline">Wake Up!</string>
-    <string name="ringing_headline">Wake Up! Approaching %1$s</string>
+    <string name="ringing_headline">Wake up! %1$s</string>
     <string name="ringing_snooze_action">Snooze (+2 min)</string>
     <string name="ringing_accessible_prompt">Activate to prepare to stop alarm</string>
     <string name="ringing_accessible_confirm">Activate again to stop alarm</string>
@@ -70,7 +70,7 @@
     <!-- System notifications & background telemetry -->
     <string name="notif_monitoring_title">Monitoring alarm destination</string>
     <string name="notif_monitoring_body">Active: %1$s • %2$s remaining</string>
-    <string name="notif_alarm_approaching">Approaching %1$s</string>
+    <string name="notif_alarm_approaching">Alarm: %1$s</string>
 
     <!-- Permissions modal -->
     <string name="perm_location_title">Allow Background Location for Wake-Up Alarms</string>
@@ -107,7 +107,7 @@
     <string name="picker_title">Select Destination Pin</string>
     <string name="picker_confirm">Choose destination</string>
     <string name="picker_change_pin">Choose destination</string>
-    <string name="picker_hint">Pan map to position the crosshair</string>
+    <string name="picker_hint">Move the map to choose a destination</string>
 
     <!-- Empty alarms list -->
     <string name="alarms_empty_title">No Alarms Yet</string>
@@ -126,7 +126,7 @@
     <string name="status_armed_scheduled_unknown">Armed: %1$s • Location unavailable • %2$s–%3$s</string>
     <string name="status_armed_one_time_unknown">Armed: %1$s • Location unavailable</string>
     <string name="distance_unavailable">Distance unavailable</string>
-    <string name="hud_compass_north">Reset map north</string>
+    <string name="hud_compass_north">Face north</string>
     <string name="nav_add_alarm">Add Alarm</string>
     <string name="day_chip_monday">Mo</string>
     <string name="day_chip_tuesday">Tu</string>
@@ -135,4 +135,14 @@
     <string name="day_chip_friday">Fr</string>
     <string name="day_chip_saturday">Sa</string>
     <string name="day_chip_sunday">Su</string>
+    <string name="days_every_day">Every day</string>
+    <string name="days_weekdays">Mon–Fri</string>
+    <string name="day_name_monday">Mon</string>
+    <string name="day_name_tuesday">Tue</string>
+    <string name="day_name_wednesday">Wed</string>
+    <string name="day_name_thursday">Thu</string>
+    <string name="day_name_friday">Fri</string>
+    <string name="day_name_saturday">Sat</string>
+    <string name="day_name_sunday">Sun</string>
+    <string name="notif_window_started_body">Your scheduled time has started. Open the app to check your alarm.</string>
 </resources>

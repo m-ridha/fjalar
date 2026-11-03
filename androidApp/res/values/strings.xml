@@ -2,7 +2,7 @@
     <string name="app_name">Wake Me at</string>
     <string name="notif_monitoring_title">Monitoring alarm destination</string>
     <string name="notif_monitoring_body">Active destination monitoring</string>
-    <string name="notif_alarm_approaching">Approaching %1$s</string>
+    <string name="notif_alarm_approaching">Alarm: %1$s</string>
     <string name="notification_channel_alarm_name">Wake Me at alarms</string>
     <string name="notification_channel_alarm_desc">Alerts near an alarm destination</string>
     <string name="notification_channel_monitoring_name">Wake Me at location monitoring</string>

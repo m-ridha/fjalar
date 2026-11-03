@@ -37,14 +37,16 @@ class PersistentPreferencesAdapter(
         return runCatching { ThemeMode.valueOf(stored) }.getOrDefault(ThemeMode.SYSTEM)
     }
 
-    private fun loadLocale(): AppLocale {
-        val stored = storage.getString(KEY_LOCALE) ?: return AppLocale.EN
-        return AppLocale.entries.firstOrNull {
-            it.name.equals(stored, ignoreCase = true) || it.tag.equals(stored, ignoreCase = true)
-        } ?: AppLocale.EN
-    }
+    private fun loadLocale(): AppLocale = readLocale(storage)
 
     companion object {
+        fun readLocale(storage: KeyValueStorage): AppLocale {
+            val stored = storage.getString(KEY_LOCALE) ?: return AppLocale.EN
+            return AppLocale.entries.firstOrNull {
+                it.name.equals(stored, ignoreCase = true) || it.tag.equals(stored, ignoreCase = true)
+            } ?: AppLocale.EN
+        }
+
         const val KEY_THEME_MODE = "fjalar_pref_theme_mode"
         const val KEY_LOCALE = "fjalar_pref_locale"
     }

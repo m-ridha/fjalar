@@ -6,7 +6,7 @@
     <string name="hud_theme_switch_light">Beralih ke mode terang</string>
     <string name="hud_theme_switch_dark">Beralih ke mode gelap</string>
     <string name="hud_locale_label">Bahasa: Indonesia (ID)</string>
-    <string name="hud_recenter_location">Pusatkan Ulang GPS</string>
+    <string name="hud_recenter_location">Tampilkan lokasi saya</string>
 
     <!-- Status pill readouts -->
     <string name="status_armed_scheduled">Aktif: %1$s • %2$s lagi • %3$s–%4$s</string>
@@ -16,10 +16,10 @@
     <string name="sheet_saved_title">Alarm Tersimpan</string>
     <string name="sheet_active_count">%1$d Aktif</string>
     <string name="sheet_new_alarm">+ Baru</string>
-    <string name="card_skip_today">Lewati Hari Ini</string>
-    <string name="card_skipped_today">Dilewati hari ini</string>
+    <string name="card_skip_today">Lewati alarm terjadwal berikutnya</string>
+    <string name="card_skipped_today">Selesai untuk waktu aktif ini</string>
     <string name="card_one_time_trip">Sekali jalan • radius %1$s</string>
-    <string name="card_loud_and_vibrate">Suara Keras + Getar</string>
+    <string name="card_loud_and_vibrate">Suara + getaran</string>
 
     <!-- Alarm Editor modal -->
     <string name="editor_title">Atur Alarm</string>
@@ -54,14 +54,14 @@
     <string name="editor_mode_scheduled">Terjadwal</string>
     <string name="editor_active_window">Waktu Aktif (%1$s – %2$s)</string>
     <string name="editor_alert_and_haptics">Suara &amp; Getaran</string>
-    <string name="editor_loud_sound">Suara Keras</string>
-    <string name="editor_strong_vibrate">Getar Kuat</string>
+    <string name="editor_loud_sound">Suara</string>
+    <string name="editor_strong_vibrate">Getaran</string>
     <string name="editor_earphone_override">Bunyi di Earphone + Speaker</string>
 
     <!-- Ringing wake-up screen -->
-    <string name="ringing_in_zone_badge">DALAM ZONA • %1$s dari titik tujuan</string>
+    <string name="ringing_in_zone_badge">%1$s dari tujuan</string>
     <string name="ringing_private_headline">Bangun!</string>
-    <string name="ringing_headline">Bangun! Mendekati %1$s</string>
+    <string name="ringing_headline">Bangun! %1$s</string>
     <string name="ringing_snooze_action">Tunda (+2 mnt)</string>
     <string name="ringing_accessible_prompt">Aktifkan untuk bersiap mematikan alarm</string>
     <string name="ringing_accessible_confirm">Aktifkan lagi untuk mematikan alarm</string>
@@ -70,7 +70,7 @@
     <!-- System notifications & background telemetry -->
     <string name="notif_monitoring_title">Memantau tujuan alarm</string>
     <string name="notif_monitoring_body">Aktif: %1$s • %2$s lagi</string>
-    <string name="notif_alarm_approaching">Mendekati %1$s</string>
+    <string name="notif_alarm_approaching">Alarm: %1$s</string>
 
     <!-- Permissions modal -->
     <string name="perm_location_title">Izinkan Lokasi Latar Belakang untuk Alarm Tujuan</string>
@@ -107,7 +107,7 @@
     <string name="picker_title">Pilih Titik Tujuan</string>
     <string name="picker_confirm">Pilih tujuan</string>
     <string name="picker_change_pin">Pilih tujuan</string>
-    <string name="picker_hint">Geser peta untuk menempatkan bidik silang</string>
+    <string name="picker_hint">Geser peta untuk memilih tujuan</string>
 
     <!-- Empty alarms list -->
     <string name="alarms_empty_title">Belum Ada Alarm</string>
@@ -135,4 +135,14 @@
     <string name="day_chip_friday">Jm</string>
     <string name="day_chip_saturday">Sb</string>
     <string name="day_chip_sunday">Mg</string>
+    <string name="days_every_day">Setiap hari</string>
+    <string name="days_weekdays">Sn–Jm</string>
+    <string name="day_name_monday">Sn</string>
+    <string name="day_name_tuesday">Sl</string>
+    <string name="day_name_wednesday">Rb</string>
+    <string name="day_name_thursday">Km</string>
+    <string name="day_name_friday">Jm</string>
+    <string name="day_name_saturday">Sb</string>
+    <string name="day_name_sunday">Mg</string>
+    <string name="notif_window_started_body">Waktu alarm terjadwal sudah dimulai. Buka aplikasi untuk memeriksa alarm.</string>
 </resources>
