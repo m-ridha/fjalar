@@ -148,7 +148,7 @@ enum class FjalarStringKey {
     DAY_NAME_FRIDAY,
     DAY_NAME_SATURDAY,
     DAY_NAME_SUNDAY,
-    NOTIF_WINDOW_STARTED_BODY,
+    NOTIF_SCHEDULE_REMINDER_BODY,
 
     // Languages
     LANG_ENGLISH,
@@ -167,7 +167,7 @@ object FjalarStrings {
         FjalarStringKey.DAY_NAME_FRIDAY to "Fri",
         FjalarStringKey.DAY_NAME_SATURDAY to "Sat",
         FjalarStringKey.DAY_NAME_SUNDAY to "Sun",
-        FjalarStringKey.NOTIF_WINDOW_STARTED_BODY to "Your scheduled time has started. Open the app to check your alarm.",
+        FjalarStringKey.NOTIF_SCHEDULE_REMINDER_BODY to "Open the app to check your scheduled alarm.",
         FjalarStringKey.DAY_CHIP_MONDAY to "Mo",
         FjalarStringKey.DAY_CHIP_TUESDAY to "Tu",
         FjalarStringKey.DAY_CHIP_WEDNESDAY to "We",
@@ -304,7 +304,7 @@ object FjalarStrings {
         FjalarStringKey.DAY_NAME_FRIDAY to "Jm",
         FjalarStringKey.DAY_NAME_SATURDAY to "Sb",
         FjalarStringKey.DAY_NAME_SUNDAY to "Mg",
-        FjalarStringKey.NOTIF_WINDOW_STARTED_BODY to "Waktu alarm terjadwal sudah dimulai. Buka aplikasi untuk memeriksa alarm.",
+        FjalarStringKey.NOTIF_SCHEDULE_REMINDER_BODY to "Buka aplikasi untuk memeriksa alarm terjadwal.",
         FjalarStringKey.DAY_CHIP_MONDAY to "Sn",
         FjalarStringKey.DAY_CHIP_TUESDAY to "Sl",
         FjalarStringKey.DAY_CHIP_WEDNESDAY to "Rb",

@@ -144,5 +144,5 @@
     <string name="day_name_friday">Jm</string>
     <string name="day_name_saturday">Sb</string>
     <string name="day_name_sunday">Mg</string>
-    <string name="notif_window_started_body">Waktu alarm terjadwal sudah dimulai. Buka aplikasi untuk memeriksa alarm.</string>
+    <string name="notif_schedule_reminder_body">Buka aplikasi untuk memeriksa alarm terjadwal.</string>
 </resources>

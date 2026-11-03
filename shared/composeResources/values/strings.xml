@@ -144,5 +144,5 @@
     <string name="day_name_friday">Fri</string>
     <string name="day_name_saturday">Sat</string>
     <string name="day_name_sunday">Sun</string>
-    <string name="notif_window_started_body">Your scheduled time has started. Open the app to check your alarm.</string>
+    <string name="notif_schedule_reminder_body">Open the app to check your scheduled alarm.</string>
 </resources>

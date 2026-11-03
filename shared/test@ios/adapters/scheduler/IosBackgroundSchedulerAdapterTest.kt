@@ -21,14 +21,14 @@ class IosBackgroundSchedulerAdapterTest {
         preferences.setLocale(AppLocale.ID)
         assertEquals("Bangunkan Saya di", adapter.resolveNotificationTitle())
         assertEquals(
-            "Waktu alarm terjadwal sudah dimulai. Buka aplikasi untuk memeriksa alarm.",
+            "Buka aplikasi untuk memeriksa alarm terjadwal.",
             adapter.resolveNotificationBody(),
         )
         assertEquals("Waktu tunda selesai. Buka aplikasi untuk menghentikan alarm.", adapter.resolveSnoozeBody())
         preferences.setLocale(AppLocale.EN)
         assertEquals("Wake Me at", adapter.resolveNotificationTitle())
         assertEquals("Snooze ended. Open the app to stop the alarm.", adapter.resolveSnoozeBody())
-        assertEquals("Your scheduled time has started. Open the app to check your alarm.", adapter.resolveNotificationBody())
+        assertEquals("Open the app to check your scheduled alarm.", adapter.resolveNotificationBody())
     }
 
     @Test
@@ -43,19 +43,19 @@ class IosBackgroundSchedulerAdapterTest {
     @Test
     fun resolveNotificationBody_indonesianPrefix_returnsIndonesianString() {
         val adapter = IosBackgroundSchedulerAdapter()
-        assertEquals("Waktu alarm terjadwal sudah dimulai. Buka aplikasi untuk memeriksa alarm.", adapter.resolveNotificationBody("id-ID"))
-        assertEquals("Waktu alarm terjadwal sudah dimulai. Buka aplikasi untuk memeriksa alarm.", adapter.resolveNotificationBody("id"))
-        assertEquals("Waktu alarm terjadwal sudah dimulai. Buka aplikasi untuk memeriksa alarm.", adapter.resolveNotificationBody("in-ID"))
+        assertEquals("Buka aplikasi untuk memeriksa alarm terjadwal.", adapter.resolveNotificationBody("id-ID"))
+        assertEquals("Buka aplikasi untuk memeriksa alarm terjadwal.", adapter.resolveNotificationBody("id"))
+        assertEquals("Buka aplikasi untuk memeriksa alarm terjadwal.", adapter.resolveNotificationBody("in-ID"))
     }
 
     @Test
     fun resolveNotificationBody_englishOrOther_returnsDefaultString() {
         val adapter = IosBackgroundSchedulerAdapter()
-        assertEquals("Your scheduled time has started. Open the app to check your alarm.", adapter.resolveNotificationBody("en-US"))
-        assertEquals("Your scheduled time has started. Open the app to check your alarm.", adapter.resolveNotificationBody("en"))
-        assertEquals("Your scheduled time has started. Open the app to check your alarm.", adapter.resolveNotificationBody("fr-FR"))
-        assertEquals("Your scheduled time has started. Open the app to check your alarm.", adapter.resolveNotificationBody("inh-RU"))
-        assertEquals("Your scheduled time has started. Open the app to check your alarm.", adapter.resolveNotificationBody(""))
+        assertEquals("Open the app to check your scheduled alarm.", adapter.resolveNotificationBody("en-US"))
+        assertEquals("Open the app to check your scheduled alarm.", adapter.resolveNotificationBody("en"))
+        assertEquals("Open the app to check your scheduled alarm.", adapter.resolveNotificationBody("fr-FR"))
+        assertEquals("Open the app to check your scheduled alarm.", adapter.resolveNotificationBody("inh-RU"))
+        assertEquals("Open the app to check your scheduled alarm.", adapter.resolveNotificationBody(""))
     }
 
     @Test

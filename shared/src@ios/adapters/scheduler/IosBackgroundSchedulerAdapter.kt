@@ -162,7 +162,7 @@ class IosBackgroundSchedulerAdapter(
     }
 
     internal fun resolveNotificationBody(preferredLanguage: String? = null): String =
-        FjalarStrings.get(FjalarStringKey.NOTIF_WINDOW_STARTED_BODY, notificationLocale(preferredLanguage))
+        FjalarStrings.get(FjalarStringKey.NOTIF_SCHEDULE_REMINDER_BODY, notificationLocale(preferredLanguage))
 
     internal fun resolveSnoozeBody(preferredLanguage: String? = null): String =
         FjalarStrings.get(FjalarStringKey.SNOOZE_NOTIFICATION_BODY, notificationLocale(preferredLanguage))
