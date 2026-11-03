@@ -21,7 +21,7 @@
 
 ---
 
-Fjalar (named after the mythical Norse rooster that heralds the dawn) solves a universal commuter problem: **traditional clock alarms fail on variable public transit commutes**. Whether riding commuter rail, metro trains, intercity buses, or ride-shares, commuters select a destination pin or search for a transit station, configure their trigger radius (100m - 10km), arm the alarm, and rest knowing that Fjalar will reliably wake them before their stop.
+Fjalar (named after the mythical Norse rooster that heralds the dawn) addresses a commuter problem: **clock alarms do not account for variable public transit commutes**. Riders choose a destination in the alarm's map picker, set a trigger radius, and arm the alarm. Background delivery depends on platform execution and permissions, especially on iOS.
 
 Contributor and agent development guidelines, architecture contracts, UI design tokens, and safety invariants live in [AGENTS.md](AGENTS.md). Production-ready 2D flat vector icon assets reside in [`assets/icons/`](assets/icons/).
 
@@ -29,6 +29,9 @@ Contributor and agent development guidelines, architecture contracts, UI design 
 
 ## Features
 
+- **Browse without changing alarms:** The main map accepts pan, zoom, and place search for camera movement. It shows the nearest active alarm's destination and the user location, without creating a draft or a temporary search marker. A new alarm needs an explicit destination choice in the map picker.
+- **Editor Back saves valid changes:** The toolbar Back control and Android system Back save a valid new or changed alarm. An invalid draft is discarded with a reason; a failed save keeps the editor open for retry. Picker and search navigation do not save the draft.
+- **Smaller trigger radii:** New alarms start at 100 m. The editor offers 50, 100, 200, 300, 500, and 1,000 m presets and a 50 m–3 km slider. The domain still accepts existing radii up to 10 km.
 - **One-Off & Recurring Scheduled Alarms:** Set a quick one-off alarm for an unfamiliar stop, or schedule recurring commute windows (e.g., *Office, Mon-Fri, 07:00-09:30*). Background GPS tracking runs only for active alarm monitoring. The visible foreground Map can independently request location.
 - **Curated Transit & Station Search:** Instant, privacy-preserving station autocomplete across Greater Jakarta (113 stations across KRL Commuter Line, MRT Jakarta, LRT, and airport terminals) with zero-telemetry online geocoding fallback (OSM Photon on Android, Apple CLGeocoder on iOS).
 - **Hexagonal Architecture (Ports & Adapters):** Core domain logic is 100% pure Kotlin with zero platform SDK imports. Map providers, location trackers, audio ringers, place search, and persistence can be swapped without touching domain code.

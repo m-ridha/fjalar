@@ -46,7 +46,7 @@ Follow strict **Hexagonal Architecture (Ports and Adapters)** (reference: Alista
    - Platform mechanisms (OpenStreetMap/MapLibre, Apple MapKit, Android `LocationManager`, iOS `CLLocationManager`, Android `RingtoneManager`, HybridPlaceSearch, SharedPreferences/NSUserDefaults) live solely in adapters.
    - Any adapter must be swappable without modifying domain entities, state machines, or unit tests.
 4. **Defensive Domain Validation:**
-   - Validate coordinate bounds (`-90..90`, `-180..180`), radius limits (`100m..10,000m`), and minute ranges (`0..1439`) before dispatching to ports or persistence.
+   - Validate coordinate bounds (`-90..90`, `-180..180`), radius limits (`50m..10,000m`), and minute ranges (`0..1439`) before dispatching to ports or persistence.
    - Distinguish absence from failure. Never swallow errors to fabricate false success.
 5. **Code Style & Readability:**
    - Write all Kotlin for human readability rather than compactness.
@@ -87,6 +87,9 @@ Follow the [Product and UI Design Specification](https://app.notion.com/p/4030ee
    - Day chips must display `Mo Tu We Th Fr Sa Su` in English and `Sn Sl Rb Km Jm Sb Mg` in Bahasa Indonesia to avoid ambiguous single-letter duplicates (*Senin, Selasa, Sabtu*).
 4. **Ergonomics & Tabular Numerals:**
    - Use tabular numbers (`tnum`) for all distance readouts (`420m`), telemetry speeds (`34 km/h`), and time windows (`07:00 – 09:30`).
+5. **Browse and edit separation:**
+   - Main-map taps, pans, and search results only change browsing state. A new alarm needs an explicit destination selection in the map picker. Valid editor changes save on toolbar Back and Android system Back; invalid drafts discard with a reason, and failed saves retain the editor for retry.
+   - New alarms default to 100 m. Editor presets are 50, 100, 200, 300, 500, and 1,000 m; the slider spans 50 m to 3 km. Keep the 10 km domain maximum for existing saved values.
 
 ---
 
