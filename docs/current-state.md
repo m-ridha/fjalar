@@ -48,6 +48,9 @@ in `shared/src/ui/`.
 Android uses `AndroidMapRendererAdapter` with MapLibre 11.5.1 and OSM-derived
 cartography. iOS uses `IosMapKitAdapter`. MapLibre is a renderer, not the OSM data
 provider. Neither platform provides turn-by-turn routing or a route ETA feature.
+Online maps request data for the viewed area from their provider. Centering on
+the user can disclose that area. Alarm records and distance calculations remain
+on-device.
 
 Despite its historical name, `AndroidFusedLocationAdapter` delegates to
 `FjalarLocationService`, which uses Android `LocationManager` GPS and network

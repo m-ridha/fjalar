@@ -25,7 +25,7 @@
     <string name="editor_title">Configure Alarm</string>
     <string name="editor_cancel">Cancel</string>
     <string name="editor_save">Save</string>
-    <string name="editor_back_saves_changes">Changes are saved when you go back.</string>
+    <string name="editor_back_saves_changes">Changes are saved when you go back if all fields are valid.</string>
     <string name="editor_not_saved_no_destination">Choose a destination before going back. Changes were not saved.</string>
     <string name="editor_not_saved_name_required">Enter an alarm name. Changes were not saved.</string>
     <string name="editor_not_saved_time_invalid">Enter valid start and end times. Changes were not saved.</string>
@@ -74,7 +74,7 @@
 
     <!-- Permissions modal -->
     <string name="perm_location_title">Allow Background Location for Wake-Up Alarms</string>
-    <string name="perm_location_body">Wake Me at checks your distance to a destination in the background only while an alarm is armed. Your location never leaves your phone.</string>
+    <string name="perm_location_body">Wake Me at checks your distance in the background only while an alarm is armed. Distances are calculated on your phone. Online map requests may reveal the viewed area to the map provider.</string>
     <string name="perm_location_grant">Grant Permission</string>
     <string name="perm_location_dismiss">Dismiss</string>
     <string name="perm_background_settings_body">Choose %s in the system location permission settings. You can skip this step and keep using the map, but scheduled alarms need background location.</string>

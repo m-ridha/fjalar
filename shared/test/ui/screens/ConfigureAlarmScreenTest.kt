@@ -384,11 +384,11 @@ class ConfigureAlarmScreenTest {
         assertEquals("Delete Alarm", enDelete)
         assertEquals("Hapus Alarm", idDelete)
         assertEquals(
-            "Changes are saved when you go back.",
+            "Changes are saved when you go back if all fields are valid.",
             FjalarStrings.get(FjalarStringKey.EDITOR_BACK_SAVES_CHANGES, AppLocale.EN),
         )
         assertEquals(
-            "Perubahan disimpan saat kembali.",
+            "Perubahan disimpan saat kembali jika semua isian valid.",
             FjalarStrings.get(FjalarStringKey.EDITOR_BACK_SAVES_CHANGES, AppLocale.ID),
         )
         assertEquals(

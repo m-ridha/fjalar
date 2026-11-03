@@ -25,7 +25,7 @@
     <string name="editor_title">Atur Alarm</string>
     <string name="editor_cancel">Batal</string>
     <string name="editor_save">Simpan</string>
-    <string name="editor_back_saves_changes">Perubahan disimpan saat kembali.</string>
+    <string name="editor_back_saves_changes">Perubahan disimpan saat kembali jika semua isian valid.</string>
     <string name="editor_not_saved_no_destination">Pilih tujuan sebelum kembali. Perubahan tidak disimpan.</string>
     <string name="editor_not_saved_name_required">Isi nama alarm. Perubahan tidak disimpan.</string>
     <string name="editor_not_saved_time_invalid">Masukkan waktu mulai dan selesai yang valid. Perubahan tidak disimpan.</string>
@@ -74,7 +74,7 @@
 
     <!-- Permissions modal -->
     <string name="perm_location_title">Izinkan Lokasi Latar Belakang untuk Alarm Tujuan</string>
-    <string name="perm_location_body">Bangunkan Saya di memeriksa jarak ke tujuan di latar belakang hanya saat alarm aktif. Lokasimu tidak dikirim dari ponsel.</string>
+    <string name="perm_location_body">Bangunkan Saya di memeriksa jarak di latar belakang hanya saat alarm aktif. Jarak dihitung di ponsel. Permintaan peta daring dapat mengungkap area yang dilihat kepada penyedia peta.</string>
     <string name="perm_location_grant">Izinkan Akses</string>
     <string name="perm_location_dismiss">Abaikan</string>
     <string name="perm_background_settings_body">Pilih %s di pengaturan izin lokasi sistem. Peta tetap dapat digunakan tanpa izin ini, tetapi alarm terjadwal memerlukan lokasi latar belakang.</string>
