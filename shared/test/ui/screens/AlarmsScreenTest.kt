@@ -48,9 +48,9 @@ class AlarmsScreenTest {
     @Test
     fun formatActiveCountBadge_formatsBilingually() {
         assertEquals("2 Active", formatActiveCountBadge(2, AppLocale.EN))
-        assertEquals("2 Aktif", formatActiveCountBadge(2, AppLocale.ID))
+        assertEquals("2 aktif", formatActiveCountBadge(2, AppLocale.ID))
         assertEquals("0 Active", formatActiveCountBadge(0, AppLocale.EN))
-        assertEquals("0 Aktif", formatActiveCountBadge(0, AppLocale.ID))
+        assertEquals("0 aktif", formatActiveCountBadge(0, AppLocale.ID))
     }
 
     @Test
@@ -72,7 +72,7 @@ class AlarmsScreenTest {
 
         assertEquals("No Alarms Yet", enTitle)
         assertEquals("Tap + Add to set your first wake-up alarm.", enBody)
-        assertEquals("Belum Ada Alarm", idTitle)
+        assertEquals("Belum ada alarm", idTitle)
         assertEquals("Ketuk + Tambah untuk membuat alarm pertama.", idBody)
     }
 

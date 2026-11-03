@@ -13,16 +13,16 @@
     <string name="status_armed_one_time">Aktif: %1$s • %2$s lagi</string>
 
     <!-- Bottom sheet and alarm cards -->
-    <string name="sheet_saved_title">Alarm Tersimpan</string>
-    <string name="sheet_active_count">%1$d Aktif</string>
+    <string name="sheet_saved_title">Alarm tersimpan</string>
+    <string name="sheet_active_count">%1$d aktif</string>
     <string name="sheet_new_alarm">+ Baru</string>
-    <string name="card_skip_today">Lewati alarm terjadwal berikutnya</string>
-    <string name="card_skipped_today">Selesai untuk waktu aktif ini</string>
+    <string name="card_skip_today">Lewati alarm berikutnya</string>
+    <string name="card_skipped_today">Selesai untuk periode ini</string>
     <string name="card_one_time_trip">Sekali jalan • radius %1$s</string>
     <string name="card_loud_and_vibrate">Suara + getaran</string>
 
     <!-- Alarm Editor modal -->
-    <string name="editor_title">Atur Alarm</string>
+    <string name="editor_title">Atur alarm</string>
     <string name="editor_cancel">Batal</string>
     <string name="editor_save">Simpan</string>
     <string name="editor_back_saves_changes">Perubahan disimpan saat kembali jika semua isian valid.</string>
@@ -35,10 +35,10 @@
     <string name="editor_not_saved_radius_invalid">Pilih radius antara 50 m dan 10 km. Perubahan tidak disimpan.</string>
     <string name="editor_alarm_deleted">Alarm ini sudah tidak ada.</string>
     <string name="editor_update_failed">Alarm belum berhasil diperbarui. Coba lagi.</string>
-    <string name="editor_label_placeholder">cth. Stasiun Manggarai</string>
+    <string name="editor_label_placeholder">Mis. Stasiun Manggarai</string>
     <string name="editor_start_time">Mulai: %1$s</string>
     <string name="editor_end_time">Selesai: %1$s</string>
-    <string name="editor_enable_alarm">Aktifkan Alarm</string>
+    <string name="editor_enable_alarm">Aktifkan alarm</string>
     <string name="editor_time_dial">Gunakan jam</string>
     <string name="editor_time_keyboard">Gunakan papan ketik</string>
     <string name="editor_time_hour">Jam</string>
@@ -49,11 +49,11 @@
     <string name="editor_time_confirm">Konfirmasi</string>
     <string name="editor_time_step_minus_15">-15m</string>
     <string name="editor_time_step_plus_15">+15m</string>
-    <string name="editor_trigger_radius">Radius Alarm</string>
-    <string name="editor_mode_one_time">Sekali Jalan</string>
+    <string name="editor_trigger_radius">Radius alarm</string>
+    <string name="editor_mode_one_time">Sekali jalan</string>
     <string name="editor_mode_scheduled">Terjadwal</string>
-    <string name="editor_active_window">Waktu Aktif (%1$s – %2$s)</string>
-    <string name="editor_alert_and_haptics">Suara &amp; Getaran</string>
+    <string name="editor_active_window">Waktu aktif (%1$s – %2$s)</string>
+    <string name="editor_alert_and_haptics">Suara dan getaran</string>
     <string name="editor_loud_sound">Suara</string>
     <string name="editor_strong_vibrate">Getaran</string>
     <string name="editor_earphone_override">Bunyi di Earphone + Speaker</string>
@@ -65,7 +65,7 @@
     <string name="ringing_snooze_action">Tunda (+2 mnt)</string>
     <string name="ringing_accessible_prompt">Aktifkan untuk bersiap mematikan alarm</string>
     <string name="ringing_accessible_confirm">Aktifkan lagi untuk mematikan alarm</string>
-    <string name="ringing_slide_to_stop">Geser untuk Matikan Alarm</string>
+    <string name="ringing_slide_to_stop">Geser untuk mematikan alarm</string>
 
     <!-- System notifications & background telemetry -->
     <string name="notif_monitoring_title">Memantau tujuan alarm</string>
@@ -73,9 +73,9 @@
     <string name="notif_alarm_approaching">Alarm: %1$s</string>
 
     <!-- Permissions modal -->
-    <string name="perm_location_title">Izinkan Lokasi Latar Belakang untuk Alarm Tujuan</string>
-    <string name="perm_location_body">Bangunkan Saya di memeriksa jarak di latar belakang hanya saat alarm aktif. Jarak dihitung di ponsel. Permintaan peta daring dapat mengungkap area yang dilihat kepada penyedia peta.</string>
-    <string name="perm_location_grant">Izinkan Akses</string>
+    <string name="perm_location_title">Izinkan lokasi latar belakang untuk alarm tujuan</string>
+    <string name="perm_location_body">Bangunkan Saya di memeriksa jarak di latar belakang hanya saat alarm aktif. Jarak dihitung di ponsel. Penyedia peta daring dapat mengetahui area yang ditampilkan.</string>
+    <string name="perm_location_grant">Izinkan akses</string>
     <string name="perm_location_dismiss">Abaikan</string>
     <string name="perm_background_settings_body">Pilih %s di pengaturan izin lokasi sistem. Peta tetap dapat digunakan tanpa izin ini, tetapi alarm terjadwal memerlukan lokasi latar belakang.</string>
     <string name="perm_background_settings_action">Lanjutkan</string>
@@ -97,11 +97,11 @@
     <string name="nav_add">Tambah</string>
 
     <!-- Delete confirmation dialog -->
-    <string name="dialog_delete_title">Hapus Alarm?</string>
+    <string name="dialog_delete_title">Hapus alarm?</string>
     <string name="dialog_delete_message">Hapus alarm \'%1$s\'?</string>
     <string name="dialog_delete_confirm">Hapus</string>
     <string name="dialog_delete_cancel">Batal</string>
-    <string name="editor_delete_alarm">Hapus Alarm</string>
+    <string name="editor_delete_alarm">Hapus alarm</string>
 
     <!-- Map pin picker -->
     <string name="picker_title">Pilih Titik Tujuan</string>
@@ -110,7 +110,7 @@
     <string name="picker_hint">Geser peta untuk memilih tujuan</string>
 
     <!-- Empty alarms list -->
-    <string name="alarms_empty_title">Belum Ada Alarm</string>
+    <string name="alarms_empty_title">Belum ada alarm</string>
     <string name="alarms_empty_body">Ketuk + Tambah untuk membuat alarm pertama.</string>
 
     <!-- Languages -->
@@ -127,7 +127,7 @@
     <string name="status_armed_one_time_unknown">Aktif: %1$s • Lokasi tidak tersedia</string>
     <string name="distance_unavailable">Jarak tidak tersedia</string>
     <string name="hud_compass_north">Arahkan peta ke utara</string>
-    <string name="nav_add_alarm">Tambah Alarm</string>
+    <string name="nav_add_alarm">Tambah alarm</string>
     <string name="day_chip_monday">Sn</string>
     <string name="day_chip_tuesday">Sl</string>
     <string name="day_chip_wednesday">Rb</string>
