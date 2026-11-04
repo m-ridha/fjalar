@@ -88,7 +88,7 @@ Follow the [Product and UI Design Specification](https://app.notion.com/p/4030ee
 4. **Ergonomics & Tabular Numerals:**
    - Use tabular numbers (`tnum`) for all distance readouts (`420m`), telemetry speeds (`34 km/h`), and time windows (`07:00 – 09:30`).
 5. **Browse and edit separation:**
-   - Main-map taps, pans, and search results only change browsing state. A new alarm needs an explicit destination selection in the map picker. Valid editor changes save on toolbar Back and Android system Back; invalid drafts discard with a reason, and failed saves retain the editor for retry.
+   - Main-map taps, pans, and search results only change browsing state. A new alarm needs an explicit destination selection in the map picker. Save validates in place and keeps invalid input for correction. Valid editor changes save on toolbar Back and Android system Back; invalid drafts discard with a reason, and failed saves retain the editor for retry.
    - New alarms default to 100 m. Editor presets are 50, 100, 200, 300, 500, and 1,000 m; the slider spans 50 m to 3 km. Keep the 10 km domain maximum for existing saved values.
 
 ---

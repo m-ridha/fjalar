@@ -20,7 +20,8 @@ before its confirmation button is enabled. Picker search changes its candidate
 selection, which is committed to the draft only by picker confirmation. Cancel
 returns without changing it.
 
-Configure Alarm has an enabled toggle, applied when saving. Toolbar Back and
+Configure Alarm has an enabled toggle, applied when saving. Save returns after
+success and keeps invalid drafts open with a reason. Toolbar Back and
 Android system Back save a valid new or changed draft. An invalid draft is
 discarded on return with a localized reason. A failed save keeps the editor and
 draft available for retry. Opening the picker, browsing search, and backgrounding

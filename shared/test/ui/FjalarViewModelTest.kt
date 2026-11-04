@@ -1350,6 +1350,11 @@ class FjalarViewModelTest {
         try {
             var exits = 0
             viewModel.onStartConfiguringAlarm(null)
+            val draft = viewModel.uiState.value.activeDraft
+            viewModel.onExitAlarmEditor(discardInvalid = false) { exits++ }
+            assertEquals(0, exits)
+            assertEquals(draft, viewModel.uiState.value.activeDraft)
+            assertEquals(AlarmEditorNotice.NO_DESTINATION, viewModel.uiState.value.pendingEditorNotice)
             viewModel.onExitAlarmEditor { exits++ }
             assertEquals(1, exits)
             assertNull(viewModel.uiState.value.activeDraft)

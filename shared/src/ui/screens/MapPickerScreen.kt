@@ -23,6 +23,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,6 +69,7 @@ fun MapPickerScreen(
     modifier: Modifier = Modifier,
     locale: AppLocale = LiquidGlassTheme.locale,
     initialZoom: Double = 15.0,
+    awaitInitialLocation: Boolean = false,
     hasInitialSelection: Boolean = true,
     userPosition: MapUserPosition? = null,
     geofenceRadius: TriggerRadius = TriggerRadius.DEFAULT,
@@ -87,6 +89,16 @@ fun MapPickerScreen(
     var mapBearing by remember { mutableStateOf(0.0) }
     var northRequestId by remember { mutableStateOf(0L) }
 
+
+    LaunchedEffect(userPosition?.coordinates) {
+        val coordinates = userPosition?.coordinates ?: return@LaunchedEffect
+        if (awaitInitialLocation && viewportRequestId == 0L && selection.coordinates == null) {
+            cameraTarget = coordinates
+            cameraZoom = 15.0
+            preserveZoom = false
+            viewportRequestId++
+        }
+    }
 
     Box(
         modifier = modifier
