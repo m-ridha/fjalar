@@ -16,9 +16,10 @@ import platform.MapKit.addOverlay
 import platform.MapKit.removeOverlay
 import platform.UIKit.UIColor
 import kotlin.math.PI
-import kotlin.math.cos
+import kotlin.math.ln
 import kotlin.math.pow
 import kotlin.math.log2
+import kotlin.math.tan
 
 internal class FjalarUserPositionAnnotation : MKPointAnnotation()
 
@@ -186,8 +187,41 @@ class IosMapKitAdapter(
     private fun fittedLatitudeSpan(map: MKMapView, latitude: Double, lonDelta: Double): Double {
         val (width, height) = map.bounds.useContents { size.width to size.height }
         if (width <= 0.0 || height <= 0.0) return lonDelta
-        val meridianScale = cos(latitude * PI / 180.0)
-        return (lonDelta * height / width * meridianScale).coerceIn(0.0001, 180.0)
+        // Height of the requested longitude span once projected into the view's aspect ratio.
+        val projectedHeight = lonDelta * PI / 180.0 * height / width
+        return latitudeSpanForProjectedHeight(latitude, projectedHeight).coerceIn(0.0001, 180.0)
+    }
+
+    /**
+     * Latitude degrees are not linear in the Mercator projection MapKit uses to fit a region,
+     * so scaling by the center-latitude cosine drifts at high latitudes or wide spans. This
+     * searches for the latitude span whose projected height matches [projectedHeight].
+     */
+    private fun latitudeSpanForProjectedHeight(latitude: Double, projectedHeight: Double): Double {
+        var low = 0.0
+        var high = 180.0
+        if (projectedLatitudeSpan(latitude, high) <= projectedHeight) return high
+        repeat(48) {
+            val middle = (low + high) / 2.0
+            if (projectedLatitudeSpan(latitude, middle) < projectedHeight) {
+                low = middle
+            } else {
+                high = middle
+            }
+        }
+        return (low + high) / 2.0
+    }
+
+    private fun projectedLatitudeSpan(latitude: Double, spanDegrees: Double): Double {
+        val south = latitude - spanDegrees / 2.0
+        val north = latitude + spanDegrees / 2.0
+        return mercatorY(north) - mercatorY(south)
+    }
+
+    private fun mercatorY(latitude: Double): Double {
+        val clamped = latitude.coerceIn(-MERCATOR_LATITUDE_LIMIT, MERCATOR_LATITUDE_LIMIT)
+        val radians = clamped * PI / 180.0
+        return ln(tan(PI / 4.0 + radians / 2.0))
     }
 
     private fun applyPin(coordinates: GeoCoordinates) {
@@ -276,6 +310,8 @@ class IosMapKitAdapter(
     }
 
     companion object {
+        /** Web Mercator's usable latitude limit, also the projection MapKit fits against. */
+        private const val MERCATOR_LATITUDE_LIMIT: Double = 85.05112878
         const val GEOFENCE_STROKE_WIDTH: Double = 2.0
         const val GEOFENCE_FILL_ALPHA: Double = 0.20
         const val GEOFENCE_STROKE_ALPHA: Double = 0.80

@@ -217,6 +217,23 @@ class IosMapKitAdapterTest {
     }
 
     @Test
+    fun appliedViewportMatchesTheProjectedAspectRatioAtHighLatitude() {
+        for (latitude in listOf(60.0, 70.0)) {
+            val adapter = IosMapKitAdapter()
+            val map = MKMapView(frame = CGRectMake(0.0, 0.0, 390.0, 844.0))
+            adapter.attachMap(map)
+
+            adapter.setViewport(GeoCoordinates(latitude, 10.0), 3.0)
+
+            val longitudeSpan = map.region.useContents { span.longitudeDelta }
+
+            val restoredZoom = IosMapKitAdapter.spanToZoom(longitudeSpan)
+            assertEquals(3.0, restoredZoom, 0.01, "Restored viewport must keep the requested zoom at $latitude°")
+            adapter.detachMap()
+        }
+    }
+
+    @Test
     fun stateManagement_tracksViewportPinAndGeofence() {
         val adapter = IosMapKitAdapter(isDarkTheme = false)
 
