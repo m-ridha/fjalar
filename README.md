@@ -62,8 +62,10 @@ flowchart TD
         UC3["ToggleAlarmPort"]
         UC4["HandleLocationUpdatePort"]
         UC5["DismissAlarmPort"]
-        UC6["SkipTodayPort"]
-        UC7["SyncSchedulesPort"]
+        UC6["SnoozeAlarmPort"]
+        UC7["SkipTodayPort"]
+        UC8["SyncSchedulesPort"]
+        UC9["DeleteAlarmPort"]
     end
 
     subgraph DomainCore["Core Domain (Pure Kotlin — shared/src/domain)"]
@@ -114,10 +116,11 @@ fjalar/
 │   ├── src/
 │   │   ├── domain/              # PURE KOTLIN CORE (Zero platform dependencies)
 │   │   │   ├── model/           # GeoCoordinates, TriggerRadius, AlarmSchedule, LocationAlarm, SearchResultPlace
-│   │   │   ├── ports/inbound/   # Use cases: Observe, Save, Toggle, HandleLocation, Dismiss, Skip
-│   │   │   ├── ports/outbound/  # SPIs: LocationTracker, AlarmScheduler, AlarmRinger, Map, Search, Repo
+│   │   │   ├── ports/inbound/   # Use cases: Observe, Save, Toggle, HandleLocation, Dismiss, Snooze, Skip, SyncSchedules, Delete
+│   │   │   ├── ports/outbound/  # SPIs: LocationTracker, AlarmScheduler, AlarmRinger, Map, Search, Repo, Preferences
 │   │   │   └── service/         # AlarmEvaluator, ScheduleEvaluator, HaversineCalculator, AlarmService
 │   │   ├── di/                  # Koin modules and application bootstrap
+│   │   ├── localization/        # Shared English & Indonesian string catalog (FjalarStrings.kt)
 │   │   ├── ui/                  # Compose Multiplatform UI (FjalarApp, sheets, HUD, LiquidGlassTheme)
 │   │   └── adapters/            # Platform implementations (location, ringer, scheduler, map, search, repo)
 │   ├── src@android/             # Android-specific adapters (LocationManager, AlarmManager, MapLibre, Photon)
@@ -126,9 +129,13 @@ fjalar/
 │   ├── test/                    # Shared tests and fakes
 │   ├── test@android/            # Android-specific tests
 │   └── test@ios/                # iOS-specific tests
-├── scripts/                     # Production asset pipeline & verification scripts
+├── scripts/                     # Asset, release, and verification scripts
 │   ├── generate_app_icons.py    # Generates all Android adaptive/legacy icons & iOS 18 asset catalog
-│   └── test_generated_icons.py  # Unit tests for icon dimensions, bit depths, and safe-zone constraints
+│   ├── test_generated_icons.py  # Unit tests for icon dimensions, bit depths, and safe-zone constraints
+│   ├── build_release_android.sh # Builds, aligns, signs, and verifies the release APK
+│   ├── release_metadata.py      # Validates release tags and derives app versions
+│   ├── upload_release_assets.py # Uploads missing assets after checksum comparison
+│   └── test_*.py                # Release, security, catalog, and workflow regression tests (plus test_control_safe_area.swift)
 ├── assets/icons/                # 1024x1024 master 2D flat vector icons (Light & Dark)
 ├── project.yaml                 # JetBrains Amper project definition
 └── libs.versions.toml           # Version catalog (Kotlin 2.x, Compose, Coroutines, DateTime)
@@ -153,7 +160,7 @@ All contributors and automated agents must preserve these core invariants:
 ## Prerequisites
 
 - **JDK 17+** (e.g. Temurin or OpenJDK)
-- **Android SDK** (CI/release builds install `platforms;android-37.0` and `build-tools;37.0.0`)
+- **Android SDK** (the release workflow installs `platforms;android-37.0` and `build-tools;37.0.0`; PR checks use the macOS runner image)
 - **macOS with Xcode 26.4+** (required for iOS 18 Asset Catalog and compiling iOS target / simulator)
 - **Python 3 with Pillow** (for automated icon pipeline: `pip install pillow`)
 - **JetBrains Amper** (`./kotlin` CLI wrapper bundled in repository)
@@ -201,7 +208,7 @@ for Android signing secrets, publication steps, and the current iOS signing limi
 ## Testing Standards
 
 - **Core domain is verified in `commonTest`:** Pure Kotlin unit tests run fast without Android emulators or iOS simulators.
-- **Test Doubles:** Use the provided in-memory fakes (`InMemoryAlarmRepository`, `FakeLocationTracker`, `FakeAlarmRinger`, `FakeAlarmScheduler`, `FakeSearchPlacesAdapter`) rather than mocking frameworks.
+- **Test Doubles:** Use the provided in-memory fakes (`InMemoryAlarmRepository`, `FakeLocationTracker`, `FakeAlarmRinger`, `FakeAlarmScheduler`) and the `SearchPlacesPort` fake in `shared/test/ui/FjalarViewModelTest.kt` rather than mocking frameworks.
 - **Boundary Verification:** Tests explicitly cover midnight-crossing commute windows (`23:00–02:00`), leap years, accuracy jitter, and ringer failure rollbacks.
 
 ---

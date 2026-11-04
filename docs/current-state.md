@@ -1,7 +1,7 @@
 # Current project state
 
-Source audit: 2026-11-04, based on main through PR #23. This records
-implemented behavior. Notion requirements and historical Stitch mockups may
+Source audit: 2026-11-04, based on main through PR #24 and the PR #25 branch. This
+records implemented behavior. Notion requirements and historical Stitch mockups may
 include planned behavior.
 
 ## Screens and controls
@@ -19,6 +19,13 @@ alarm opens without a destination, and the map picker requires an explicit choic
 before its confirmation button is enabled. Picker search changes its candidate
 selection, which is committed to the draft only by picker confirmation. Cancel
 returns without changing it.
+
+The picker frames a visit from the draft destination, then the current fix, then
+the last map viewport the user browsed (center and zoom), then the route arguments.
+It uses zoom 15 for a destination or fix and the browsed zoom otherwise. The main
+map records settled user pans and zooms for that fallback. A recenter tapped before
+the first fix stays pending and consumes the first arriving fix. The picker counts
+as a visible map for map-only location tracking.
 
 Configure Alarm has an enabled toggle, applied when saving. Save returns after
 success and keeps invalid drafts open with a reason. Toolbar Back and
@@ -40,8 +47,8 @@ Both maps use a blue-dot GPS recenter button with a white ring. The compass appe
 when rotated, restores north when tapped, and fades one second after returning
 within one degree of north. Its 48 dp slot remains reserved. Armed status shares
 the HUD row with the compass. User location and destination markers are distinct.
-See `MapNavigationControls.kt`, `FloatingHudBar.kt`, and `ConfigureAlarmScreen.kt`
-in `shared/src/ui/`.
+See `MapNavigationControls.kt` and `FloatingHudBar.kt` in
+`shared/src/ui/components/`, and `ConfigureAlarmScreen.kt` in `shared/src/ui/screens/`.
 
 ## Maps, location, and alarms
 
