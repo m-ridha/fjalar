@@ -19,6 +19,8 @@ expect fun PlatformMapView(
     destinationEditingEnabled: Boolean = false,
     // The Boolean is true only for a camera movement initiated by a user map gesture.
     onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)? = null,
+    // Reported once a user pan or zoom settles; programmatic camera moves are excluded.
+    onUserCameraIdle: ((GeoCoordinates, Double) -> Unit)? = null,
     viewportRequestId: Long = 0L,
     preserveZoomOnViewportRequest: Boolean = false,
     userPosition: MapUserPosition? = null,

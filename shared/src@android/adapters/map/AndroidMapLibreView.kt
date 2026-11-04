@@ -38,6 +38,7 @@ fun AndroidMapLibreView(
     onPinDrag: (GeoCoordinates) -> Unit,
     destinationEditingEnabled: Boolean = false,
     onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)? = null,
+    onUserCameraIdle: ((GeoCoordinates, Double) -> Unit)? = null,
     viewportRequestId: Long = 0L,
     preserveZoomOnViewportRequest: Boolean = false,
     userPosition: MapUserPosition? = null,
@@ -58,6 +59,7 @@ fun AndroidMapLibreView(
     var currentStyleUrl by remember { mutableStateOf<String?>(null) }
 
     val currentOnCameraCenterChanged by rememberUpdatedState(onCameraCenterChanged)
+    val currentOnUserCameraIdle by rememberUpdatedState(onUserCameraIdle)
     val currentOnMapClick by rememberUpdatedState(onMapClick)
     val currentOnPinDrag by rememberUpdatedState(onPinDrag)
     val currentPinLocation by rememberUpdatedState(pinLocation)
@@ -202,7 +204,17 @@ fun AndroidMapLibreView(
             map.addOnCameraMoveStartedListener { reason ->
                 cameraMovedByUser = reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE
             }
-            map.addOnCameraIdleListener { cameraMovedByUser = false }
+            map.addOnCameraIdleListener {
+                val movedByUser = cameraMovedByUser
+                cameraMovedByUser = false
+                val camera = map.cameraPosition
+                val target = camera.target
+                if (movedByUser && target != null) {
+                    with(AndroidMapRendererAdapter) {
+                        currentOnUserCameraIdle?.invoke(target.toGeoCoordinates(), camera.zoom)
+                    }
+                }
+            }
             map.addOnCameraMoveListener {
                 currentOnBearingChanged(map.cameraPosition.bearing)
                 val target = map.cameraPosition.target

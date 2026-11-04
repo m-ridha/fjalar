@@ -110,7 +110,7 @@ class IosMapKitAdapter(
     fun recenterPreservingZoom(center: GeoCoordinates) {
         val map = activeMap ?: return
         val longitudeSpan = map.region.useContents { span.longitudeDelta }
-        val nativeZoom = log2(360.0 / longitudeSpan).coerceIn(1.0, 20.0)
+        val nativeZoom = spanToZoom(longitudeSpan)
         currentViewport = center to nativeZoom
         (map.delegate as? FjalarMapKitDelegate)?.beginProgrammaticViewportChange()
         map.setCenterCoordinate(center.toCLLocationCoordinate2D(), animated = false)
@@ -319,6 +319,9 @@ class IosMapKitAdapter(
             while (l > 180.0) l -= 360.0
             return l
         }
+
+        /** Inverse of [zoomToSpan]; MapKit exposes regions rather than zoom levels. */
+        fun spanToZoom(longitudeSpan: Double): Double = log2(360.0 / longitudeSpan).coerceIn(1.0, 20.0)
 
         /**
          * Maps a Web Mercator zoom level (typically 1.0 to 20.0) to MapKit coordinate span delta degrees.

@@ -176,6 +176,7 @@ fun FjalarApp(
                             onMapClick = {},
                             onPinDrag = {},
                             destinationEditingEnabled = false,
+                            onUserCameraIdle = viewModel::onMapViewportBrowsed,
                             viewportRequestId = uiState.viewportRequestId,
                             modifier = Modifier.fillMaxSize(),
                         )

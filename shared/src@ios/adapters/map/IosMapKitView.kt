@@ -53,6 +53,7 @@ internal class FjalarMapKitDelegate(
 
     var userAccuracyOverlay: MKCircle? = null
     var onBearingChanged: (Double) -> Unit = {}
+    var onUserCameraIdle: ((GeoCoordinates, Double) -> Unit)? = null
 
     private var cameraMovedByUser = false
     private var programmaticViewportChange = false
@@ -82,6 +83,13 @@ internal class FjalarMapKitDelegate(
     override fun mapView(mapView: MKMapView, regionDidChangeAnimated: Boolean) {
         onBearingChanged(mapView.camera.heading)
         onCameraCenterChanged?.invoke(mapView.centerCoordinate.toGeoCoordinates(), cameraMovedByUser)
+        if (cameraMovedByUser) {
+            val longitudeSpan = mapView.region.useContents { span.longitudeDelta }
+            onUserCameraIdle?.invoke(
+                mapView.centerCoordinate.toGeoCoordinates(),
+                IosMapKitAdapter.spanToZoom(longitudeSpan),
+            )
+        }
         cameraMovedByUser = false
         programmaticViewportChange = false
     }
@@ -196,6 +204,7 @@ fun IosMapKitView(
     onPinDrag: (GeoCoordinates) -> Unit,
     destinationEditingEnabled: Boolean = false,
     onCameraCenterChanged: ((GeoCoordinates, Boolean) -> Unit)? = null,
+    onUserCameraIdle: ((GeoCoordinates, Double) -> Unit)? = null,
     viewportRequestId: Long = 0L,
     preserveZoomOnViewportRequest: Boolean = false,
     userPosition: MapUserPosition? = null,
@@ -207,6 +216,7 @@ fun IosMapKitView(
     val mapView = remember { MKMapView() }
 
     val currentOnCameraCenterChanged by rememberUpdatedState(onCameraCenterChanged)
+    val currentOnUserCameraIdle by rememberUpdatedState(onUserCameraIdle)
     val currentOnMapClick by rememberUpdatedState(onMapClick)
     val currentOnPinDrag by rememberUpdatedState(onPinDrag)
     val currentOnBearingChanged by rememberUpdatedState(onBearingChanged)
@@ -227,6 +237,7 @@ fun IosMapKitView(
         adapter.attachMap(mapView)
         mapView.delegate = delegate
         delegate.onBearingChanged = { currentOnBearingChanged(it) }
+        delegate.onUserCameraIdle = { coordinates, zoom -> currentOnUserCameraIdle?.invoke(coordinates, zoom) }
 
         onDispose {
             mapView.delegate = null

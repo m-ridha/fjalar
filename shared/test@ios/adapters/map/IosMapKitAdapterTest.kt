@@ -185,6 +185,17 @@ class IosMapKitAdapterTest {
     }
 
     @Test
+    fun spanToZoom_roundTripsZoomToSpan() {
+        for (zoom in listOf(2.0, 13.5, 15.0, 20.0)) {
+            val (_, lonSpan) = IosMapKitAdapter.zoomToSpan(zoom)
+            assertEquals(zoom, IosMapKitAdapter.spanToZoom(lonSpan), 0.000001)
+        }
+        // Out-of-range spans clamp to the supported zoom range.
+        assertEquals(20.0, IosMapKitAdapter.spanToZoom(0.0000001), 0.000001)
+        assertEquals(1.0, IosMapKitAdapter.spanToZoom(360.0), 0.000001)
+    }
+
+    @Test
     fun stateManagement_tracksViewportPinAndGeofence() {
         val adapter = IosMapKitAdapter(isDarkTheme = false)
 

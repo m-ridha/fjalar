@@ -745,6 +745,14 @@ class FjalarViewModel(
     // Platform foreground UI request; does not start the alarm tracking port.
     var requestCurrentLocation: (() -> Unit)? = null
 
+    /**
+     * Keeps the area the user browsed on the main map so the destination picker can open there.
+     * Deliberately leaves [FjalarUiState.viewportRequestId] alone: this is a report, not a camera command.
+     */
+    fun onMapViewportBrowsed(center: GeoCoordinates, zoom: Double) {
+        _uiState.update { it.copy(mapViewportCenter = center, mapViewportZoom = zoom) }
+    }
+
     fun onRecenterMap() {
         pendingRecenter = true
         requestCurrentLocation?.invoke()
