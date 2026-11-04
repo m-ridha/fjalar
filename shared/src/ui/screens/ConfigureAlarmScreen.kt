@@ -189,6 +189,7 @@ fun ConfigureAlarmScreen(
     draft: ConfigureAlarmDraft,
     onDraftChange: (ConfigureAlarmDraft) -> Unit,
     onBack: () -> Unit,
+    onSave: () -> Unit,
     onNavigateToPicker: (GeoCoordinates) -> Unit,
     onDelete: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -242,6 +243,20 @@ fun ConfigureAlarmScreen(
                 color = colors.textPrimary,
             )
 
+            Box(
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                    .clickable(enabled = !isOperationPending, role = Role.Button, onClick = onSave)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = FjalarStrings.get(FjalarStringKey.EDITOR_SAVE, locale),
+                    color = colors.primary,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
         }
 
         Text(

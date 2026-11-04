@@ -211,7 +211,7 @@ class EndToEndNavigationIntegrationTest {
             assertNull(viewModel.uiState.value.activeDraft)
             assertEquals(AlarmEditorNotice.NO_DESTINATION, viewModel.uiState.value.pendingEditorNotice)
             assertEquals(
-                "Choose a destination before going back. Changes were not saved.",
+                "Choose a destination. Changes were not saved.",
                 com.muhammadridha.fjalar.ui.theme.FjalarStrings.get(
                     editorNoticeStringKey(AlarmEditorNotice.NO_DESTINATION),
                     com.muhammadridha.fjalar.domain.model.AppLocale.EN,

@@ -34,6 +34,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -95,7 +96,8 @@ fun FjalarApp(
     var lastQueuedEditorNoticeId by remember(viewModel) { mutableStateOf(0L) }
     androidx.compose.runtime.DisposableEffect(currentRoute, viewModel) {
         viewModel.onMapVisibilityChanged(
-            currentRoute == null || com.muhammadridha.fjalar.ui.navigation.isMapRoute(currentRoute),
+            currentRoute == null || com.muhammadridha.fjalar.ui.navigation.isMapRoute(currentRoute) ||
+                navBackStackEntry?.destination?.hasRoute<MapPickerRoute>() == true,
         )
         onDispose { viewModel.onMapVisibilityChanged(false) }
     }
@@ -126,7 +128,7 @@ fun FjalarApp(
         val editorNotice = uiState.pendingEditorNotice
         val editorNoticeId = uiState.pendingEditorNoticeId
         val canShowEditorNotice = editorNotice == AlarmEditorNotice.UPDATE_FAILED ||
-            isBottomBarVisible(currentRoute)
+            isBottomBarVisible(currentRoute) || uiState.activeDraft != null
         LaunchedEffect(editorNoticeId, editorNotice, canShowEditorNotice, uiState.appLocale) {
             if (editorNotice != null && canShowEditorNotice && editorNoticeId > lastQueuedEditorNoticeId) {
                 lastQueuedEditorNoticeId = editorNoticeId
@@ -174,6 +176,7 @@ fun FjalarApp(
                             onMapClick = {},
                             onPinDrag = {},
                             destinationEditingEnabled = false,
+                            onUserCameraIdle = viewModel::onMapViewportBrowsed,
                             viewportRequestId = uiState.viewportRequestId,
                             modifier = Modifier.fillMaxSize(),
                         )
@@ -311,6 +314,13 @@ fun FjalarApp(
                         hasOperationFailure = uiState.hasOperationFailure,
                         onDraftChange = viewModel::onUpdateDraft,
                         onBack = handleBack,
+                        onSave = {
+                            if (isCurrentEditor()) {
+                                viewModel.onExitAlarmEditor(discardInvalid = false) {
+                                    if (isCurrentEditor()) navController.popBackStack()
+                                }
+                            }
+                        },
                         onNavigateToPicker = { coords ->
                             if (!viewModel.uiState.value.isOperationPending) {
                                 navController.navigate(
@@ -338,12 +348,15 @@ fun FjalarApp(
                     val route = backStackEntry.toRoute<MapPickerRoute>()
                     // Freeze initial framing for this visit so new GPS fixes cannot
                     // reset a local, unconfirmed destination selection.
-                    val initialCenter = remember(backStackEntry) {
-                        uiState.activeDraft?.coordinates ?: uiState.userLocation
-                            ?: GeoCoordinates(route.initialLat, route.initialLon)
-                    }
-                    val initialZoom = remember(backStackEntry) {
-                        if (uiState.activeDraft?.coordinates != null || uiState.userLocation != null) 15.0 else 2.0
+                    val initialState = remember(backStackEntry) { viewModel.uiState.value }
+                    val destination = initialState.activeDraft?.coordinates
+                    val location = initialState.userLocation
+                    val initialCenter = destination ?: location ?: initialState.mapViewportCenter
+                        ?: GeoCoordinates(route.initialLat, route.initialLon)
+                    val initialZoom = when {
+                        destination != null || location != null -> 15.0
+                        initialState.mapViewportCenter != null -> initialState.mapViewportZoom
+                        else -> 2.0
                     }
                     androidx.compose.runtime.DisposableEffect(backStackEntry) {
                         onDispose {
@@ -355,6 +368,7 @@ fun FjalarApp(
                     MapPickerScreen(
                         initialCoordinates = initialCenter,
                         initialZoom = initialZoom,
+                        awaitInitialLocation = destination == null && location == null,
                         hasInitialSelection = uiState.activeDraft?.coordinates != null,
                         userPosition = uiState.mapUserPosition(),
                         geofenceRadius = uiState.activeDraft

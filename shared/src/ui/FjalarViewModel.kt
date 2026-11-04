@@ -611,8 +611,8 @@ class FjalarViewModel(
         }
     }
 
-    /** The only editor Back operation: validate, discard invalid input, or persist changed fields. */
-    fun onExitAlarmEditor(onExit: () -> Unit) {
+    /** Validate and persist editor changes. Back discards invalid input. */
+    fun onExitAlarmEditor(discardInvalid: Boolean = true, onExit: () -> Unit) {
         val current = _uiState.value
         val draft = current.activeDraft ?: return
         if (current.isOperationPending) return
@@ -629,8 +629,15 @@ class FjalarViewModel(
         }
         val notice = draft.validationNotice()
         if (notice != null) {
-            discardEditor(notice)
-            onExit()
+            if (discardInvalid) {
+                discardEditor(notice)
+                onExit()
+            } else {
+                val noticeId = ++editorNoticeSequence
+                _uiState.update {
+                    it.copy(pendingEditorNotice = notice, pendingEditorNoticeId = noticeId)
+                }
+            }
             return
         }
         if (persistedId != null && draft == editorBaseline) {
@@ -737,6 +744,14 @@ class FjalarViewModel(
 
     // Platform foreground UI request; does not start the alarm tracking port.
     var requestCurrentLocation: (() -> Unit)? = null
+
+    /**
+     * Keeps the area the user browsed on the main map so the destination picker can open there.
+     * Deliberately leaves [FjalarUiState.viewportRequestId] alone: this is a report, not a camera command.
+     */
+    fun onMapViewportBrowsed(center: GeoCoordinates, zoom: Double) {
+        _uiState.update { it.copy(mapViewportCenter = center, mapViewportZoom = zoom) }
+    }
 
     fun onRecenterMap() {
         pendingRecenter = true

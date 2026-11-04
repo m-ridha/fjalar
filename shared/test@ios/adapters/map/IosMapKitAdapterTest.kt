@@ -185,6 +185,55 @@ class IosMapKitAdapterTest {
     }
 
     @Test
+    fun spanToZoom_roundTripsZoomToSpan() {
+        for (zoom in listOf(2.0, 13.5, 15.0, 20.0)) {
+            val (_, lonSpan) = IosMapKitAdapter.zoomToSpan(zoom)
+            assertEquals(zoom, IosMapKitAdapter.spanToZoom(lonSpan), 0.000001)
+        }
+        // Out-of-range spans clamp to the supported zoom range.
+        assertEquals(20.0, IosMapKitAdapter.spanToZoom(0.0000001), 0.000001)
+        assertEquals(1.0, IosMapKitAdapter.spanToZoom(360.0), 0.000001)
+    }
+
+    @Test
+    fun appliedViewportKeepsTheRequestedZoomAfterMapKitFitsTheView() {
+        val frames = listOf(
+            CGRectMake(0.0, 0.0, 390.0, 844.0),
+            CGRectMake(0.0, 0.0, 844.0, 390.0),
+        )
+        for (frame in frames) {
+            val adapter = IosMapKitAdapter()
+            val map = MKMapView(frame = frame)
+            adapter.attachMap(map)
+
+            adapter.setViewport(GeoCoordinates(-6.2088, 106.8456), 15.0)
+
+            val restoredZoom = map.region.useContents {
+                IosMapKitAdapter.spanToZoom(span.longitudeDelta)
+            }
+            assertEquals(15.0, restoredZoom, 0.01, "Restored viewport must keep the requested zoom")
+            adapter.detachMap()
+        }
+    }
+
+    @Test
+    fun appliedViewportMatchesTheProjectedAspectRatioAtHighLatitude() {
+        for (latitude in listOf(60.0, 70.0)) {
+            val adapter = IosMapKitAdapter()
+            val map = MKMapView(frame = CGRectMake(0.0, 0.0, 390.0, 844.0))
+            adapter.attachMap(map)
+
+            adapter.setViewport(GeoCoordinates(latitude, 10.0), 3.0)
+
+            val longitudeSpan = map.region.useContents { span.longitudeDelta }
+
+            val restoredZoom = IosMapKitAdapter.spanToZoom(longitudeSpan)
+            assertEquals(3.0, restoredZoom, 0.01, "Restored viewport must keep the requested zoom at $latitude°")
+            adapter.detachMap()
+        }
+    }
+
+    @Test
     fun stateManagement_tracksViewportPinAndGeofence() {
         val adapter = IosMapKitAdapter(isDarkTheme = false)
 

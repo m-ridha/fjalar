@@ -37,9 +37,9 @@ Follow strict **Hexagonal Architecture (Ports and Adapters)** (reference: Alista
 
 1. **Dependencies point strictly inward:**
    - **Core Domain (`shared/src/domain/`):** Pure Kotlin. Absolutely **zero platform imports** (no Android, UIKit, MapLibre, SQLDelight, or network/hardware SDKs).
-   - Domain contains only Entities, Value Objects (`GeoCoordinates`, `TriggerRadius`, `AlarmSchedule`, `SearchResultPlace`, `PlaceCategory`), and pure domain services (`AlarmEvaluator`, `ScheduleEvaluator`, `HaversineCalculator`).
+   - Domain contains only Entities, Value Objects (`GeoCoordinates`, `TriggerRadius`, `AlarmSchedule`, `SearchResultPlace`, `PlaceCategory`), and pure domain services (`AlarmEvaluator`, `ScheduleEvaluator`, `HaversineCalculator`, `DistanceCalculator`, `AlarmService`).
 2. **Ports define all external interactions:**
-   - **Inbound Ports (`domain/ports/inbound/`):** Explicit use cases driven by UI and system receivers (`ObserveAlarmsPort`, `SaveAlarmPort`, `HandleLocationUpdatePort`, `DismissAlarmPort`, `SkipTodayPort`, `SyncSchedulesPort`).
+   - **Inbound Ports (`domain/ports/inbound/`):** Explicit use cases driven by UI and system receivers (`ObserveAlarmsPort`, `SaveAlarmPort`, `ToggleAlarmPort`, `HandleLocationUpdatePort`, `DismissAlarmPort`, `SnoozeAlarmPort`, `SkipTodayPort`, `SyncSchedulesPort`, `DeleteAlarmPort`).
    - **Outbound Ports (`domain/ports/outbound/`):** SPI contracts declared by the domain for external capabilities (`LocationTrackerPort`, `AlarmSchedulerPort`, `AlarmRingerPort`, `MapRendererPort`, `SearchPlacesPort`, `AlarmRepositoryPort`, `PreferencesPort`).
    - Do not create interfaces for every internal concrete class. Use ports at architectural boundaries.
 3. **Pluggable & Interchangeable Adapters (`adapters/`):**
@@ -80,7 +80,7 @@ Follow the [Product and UI Design Specification](https://app.notion.com/p/4030ee
    - `Modifier.glassSurface` currently draws tinted backgrounds and gradient borders, without Gaussian backdrop blur. When its reduced-transparency flag is enabled, it selects 92% opaque tinted surfaces. Automatic OS accessibility-setting observation is not wired:
      - `ReducedTransparencyLightLiquidGlassColors`: `#F4F3F8` @ 92% with 1.5 dp high-contrast border.
      - `ReducedTransparencyDarkLiquidGlassColors`: `#191B22` @ 92% with 1.5 dp high-contrast border.
-   - Target `>= 4.5:1` WCAG AA contrast over surfaces. Token tests verify primary text above 15:1 against fallback colors, not every live map composition.
+   - Target `>= 4.5:1` WCAG AA contrast over surfaces. Token tests assert that threshold against the fallback colors; measured primary-text ratios exceed 15:1, but they do not prove contrast over every live map composition.
 3. **Bilingual Layout & Text Expansion (`en` & `id`):**
    - Keep shared UI and iOS notification text in the shared English and Indonesian catalog. Keep Android notification text in native string resources and resolve it using the saved app language. Launcher names and OS permission prompts follow system localization. Display names are *Wake Me at* (EN) and *Bangunkan Saya di* (ID).
    - Bahasa Indonesia strings are `15%–25%` longer (e.g. *Geser untuk Matikan Alarm*, *Alarm Tersimpan & Terjadwal*, *Lewati Hari Ini*). UI pills, cards, and bottom sheets must use adaptive auto-wrapping and flexible widths without text clipping at `320 dp–390 dp`.
@@ -88,7 +88,7 @@ Follow the [Product and UI Design Specification](https://app.notion.com/p/4030ee
 4. **Ergonomics & Tabular Numerals:**
    - Use tabular numbers (`tnum`) for all distance readouts (`420m`), telemetry speeds (`34 km/h`), and time windows (`07:00 – 09:30`).
 5. **Browse and edit separation:**
-   - Main-map taps, pans, and search results only change browsing state. A new alarm needs an explicit destination selection in the map picker. Valid editor changes save on toolbar Back and Android system Back; invalid drafts discard with a reason, and failed saves retain the editor for retry.
+   - Main-map taps, pans, and search results only change browsing state. A new alarm needs an explicit destination selection in the map picker. Save validates in place and keeps invalid input for correction. Valid editor changes save on toolbar Back and Android system Back; invalid drafts discard with a reason, and failed saves retain the editor for retry.
    - New alarms default to 100 m. Editor presets are 50, 100, 200, 300, 500, and 1,000 m; the slider spans 50 m to 3 km. Keep the 10 km domain maximum for existing saved values.
 
 ---

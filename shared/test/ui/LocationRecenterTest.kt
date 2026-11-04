@@ -124,6 +124,30 @@ class LocationRecenterTest {
     }
 
     @Test
+    fun browsedMapViewportIsRecordedWithoutCommandingTheCamera() = runTest {
+        val tracker = UiLocationTracker()
+        val fakeRenderer = FakeMapRendererPort()
+        val (viewModel, _, vmScope) = createTestViewModel(
+            locationTrackerPort = tracker,
+            mapRendererPort = fakeRenderer,
+        )
+        try {
+            val requestsBefore = viewModel.uiState.value.viewportRequestId
+            val browsed = GeoCoordinates(-6.2, 106.8)
+
+            viewModel.onMapViewportBrowsed(browsed, zoom = 13.5)
+
+            assertEquals(browsed, viewModel.uiState.value.mapViewportCenter)
+            assertEquals(13.5, viewModel.uiState.value.mapViewportZoom)
+            // The picker reads this state; replaying it as a command would fight the gesture.
+            assertEquals(requestsBefore, viewModel.uiState.value.viewportRequestId)
+            assertNull(fakeRenderer.lastViewport)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
     fun onPermissionResult_updatesHasLocationPermission() = runTest {
         val (viewModel, _, vmScope) = createTestViewModel()
         try {
