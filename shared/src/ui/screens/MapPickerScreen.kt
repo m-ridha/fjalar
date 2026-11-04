@@ -83,6 +83,10 @@ fun MapPickerScreen(
         mutableStateOf(MapPickerSelection(initialCoordinates.takeIf { hasInitialSelection }))
     }
     var viewportRequestId by remember(initialCoordinates, hasInitialSelection) { mutableStateOf(0L) }
+    // The next fix should still frame the map: initial framing, or a recenter before any fix.
+    var awaitingFirstFix by remember(initialCoordinates, hasInitialSelection) {
+        mutableStateOf(awaitInitialLocation)
+    }
     var cameraTarget by remember(initialCoordinates) { mutableStateOf(initialCoordinates) }
     var cameraZoom by remember(initialZoom) { mutableStateOf(initialZoom) }
     var preserveZoom by remember { mutableStateOf(true) }
@@ -92,11 +96,12 @@ fun MapPickerScreen(
 
     LaunchedEffect(userPosition?.coordinates) {
         val coordinates = userPosition?.coordinates ?: return@LaunchedEffect
-        if (awaitInitialLocation && viewportRequestId == 0L && selection.coordinates == null) {
+        if (awaitingFirstFix && selection.coordinates == null) {
             cameraTarget = coordinates
             cameraZoom = 15.0
             preserveZoom = false
             viewportRequestId++
+            awaitingFirstFix = false
         }
     }
 
@@ -228,10 +233,13 @@ fun MapPickerScreen(
 
             MapNavigationControls(
                 onRecenter = {
-                    cameraTarget = userPosition?.coordinates ?: selection.coordinates ?: GeoCoordinates(0.0, 0.0)
-                    cameraZoom = if (userPosition != null || selection.coordinates != null) 15.0 else 2.0
+                    val fix = userPosition?.coordinates
+                    cameraTarget = fix ?: selection.coordinates ?: GeoCoordinates(0.0, 0.0)
+                    cameraZoom = if (fix != null || selection.coordinates != null) 15.0 else 2.0
                     preserveZoom = false
                     viewportRequestId++
+                    // Tapping recenter before the first fix keeps waiting for it.
+                    awaitingFirstFix = fix == null && selection.coordinates == null
                 },
                 bearing = mapBearing,
                 onResetNorth = { northRequestId++ },
