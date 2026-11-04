@@ -82,7 +82,7 @@ Follow the [Product and UI Design Specification](https://app.notion.com/p/4030ee
      - `ReducedTransparencyDarkLiquidGlassColors`: `#191B22` @ 92% with 1.5 dp high-contrast border.
    - Target `>= 4.5:1` WCAG AA contrast over surfaces. Token tests verify primary text above 15:1 against fallback colors, not every live map composition.
 3. **Bilingual Layout & Text Expansion (`en` & `id`):**
-   - Every user-facing string must live in multiplatform `Res.string` catalogs (`en` and `id`), with OS-owned display names localized via native iOS `InfoPlist.strings` and Android manifest resource files. Display app names: *"Wake Me at"* (EN) and *"Bangunkan Saya di"* (ID).
+   - Keep shared UI and iOS notification text in the shared English and Indonesian catalog. Keep Android notification text in native string resources and resolve it using the saved app language. Launcher names and OS permission prompts follow system localization. Display names are *Wake Me at* (EN) and *Bangunkan Saya di* (ID).
    - Bahasa Indonesia strings are `15%–25%` longer (e.g. *Geser untuk Matikan Alarm*, *Alarm Tersimpan & Terjadwal*, *Lewati Hari Ini*). UI pills, cards, and bottom sheets must use adaptive auto-wrapping and flexible widths without text clipping at `320 dp–390 dp`.
    - Day chips must display `Mo Tu We Th Fr Sa Su` in English and `Sn Sl Rb Km Jm Sb Mg` in Bahasa Indonesia to avoid ambiguous single-letter duplicates (*Senin, Selasa, Sabtu*).
 4. **Ergonomics & Tabular Numerals:**
@@ -112,13 +112,13 @@ Read and strictly preserve these invariant behaviors:
    - When a scheduled alarm is dismissed during an active window, it transitions to `COMPLETED_FOR_WINDOW` and records `suppressedUntil` set to that window's end instant. It must not re-trigger while inside that window or before that instant (including across midnight).
 6. **Graceful GPS Degradation & Accuracy Filter:**
    - Reject inaccurate GPS fixes where `horizontalAccuracy > radius * 0.8` from transitioning an alarm to `RINGING`, preventing false wakeups.
-   - In tunnels and subways without satellite lock, accept fused network/cell coarse updates for degraded telemetry and user notification rather than failing silently. Only fixes meeting the accuracy threshold may trigger the alarm.
+   - Android uses GPS and network providers through `LocationManager`. Keep coarse fixes available for degraded telemetry. Only fixes meeting the accuracy threshold may trigger the alarm.
 7. **Snooze:**
    - Snooze persists a two-minute deadline. On iOS, its local notification is user-facing. Suspended state is reconciled on the next execution on a best-effort basis.
 8. **iOS Background Execution Boundary:**
    - On Android, `AlarmManager.setExactAndAllowWhileIdle()` triggers a broadcast receiver with a `WakeLock` to invoke `syncSchedules()`.
    - On iOS, local notifications scheduled via `UNUserNotificationCenter` are strictly user-facing alerts. They do not afford background code execution to transition an alarm from `SCHEDULED_IDLE` to `ARMED_MONITORING` while the app is suspended without user interaction.
-   - Background refresh on iOS via `BGAppRefreshTask` requires the `fetch` background mode (`UIBackgroundModes`) and the task identifier in `BGTaskSchedulerPermittedIdentifiers` in the app's Info.plist. It is strictly best-effort: `earliestBeginDate` serves only as a lower bound. If background execution is delayed or does not execute, the alarm remains in `SCHEDULED_IDLE` until schedule synchronization runs (either when the delayed background task executes or when the user foregrounds the application).
+   - iOS synchronizes schedules when the app executes again. Background refresh via `BGAppRefreshTask` is a future option. It requires the `fetch` background mode, a permitted task identifier in Info.plist, and task registration and submission. Delivery is best-effort.
 
 ---
 
