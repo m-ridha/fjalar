@@ -102,9 +102,11 @@ Koin 4.2.2 assembles application modules while domain and ordinary application
 classes stay constructor-injected. Persistence is JSON in platform key-value
 storage. See [Dependency injection](dependency-injection.md).
 
-Published version tags build a signed Android APK and SHA-256 checksum alongside
-multiplatform verification and upload assets after both jobs pass. iOS IPA publication is disabled. The Xcode wrapper
-still uses a placeholder bundle ID, requiring alignment before distribution.
+For published releases with valid version tags, the `android` job builds a
+signed APK and the `verify` job runs multiplatform verification. After both
+jobs pass, the `publish` job generates the SHA-256 checksum and uploads both
+assets. iOS IPA publication is disabled. The Xcode wrapper still uses a
+placeholder bundle ID, requiring alignment before distribution.
 See [Releasing](releasing.md) for signing secrets and workflow details.
 
 ## Verification boundaries
