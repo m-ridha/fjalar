@@ -15,6 +15,8 @@ import platform.MapKit.MKPointAnnotation
 import platform.MapKit.addOverlay
 import platform.MapKit.removeOverlay
 import platform.UIKit.UIColor
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.log2
 
@@ -164,7 +166,8 @@ class IosMapKitAdapter(
     private fun applyViewport(center: GeoCoordinates, zoom: Double, animate: Boolean) {
         val map = activeMap ?: return
         val centerCoord = center.toCLLocationCoordinate2D()
-        val (latDelta, lonDelta) = zoomToSpan(zoom)
+        val (_, lonDelta) = zoomToSpan(zoom)
+        val latDelta = fittedLatitudeSpan(map, center.latitude, lonDelta)
         val region = cValue<MKCoordinateRegion> {
             this.center.latitude = centerCoord.useContents { latitude }
             this.center.longitude = centerCoord.useContents { longitude }
@@ -173,6 +176,18 @@ class IosMapKitAdapter(
         }
         (map.delegate as? FjalarMapKitDelegate)?.beginProgrammaticViewportChange()
         map.setRegion(region, animated = animate)
+    }
+
+    /**
+     * Matches the requested region to the map's aspect ratio, so MapKit does not widen the
+     * longitude span (and therefore the zoom) while fitting the region to the view. Before the
+     * map is laid out there is no size to fit against, so the plain span is requested.
+     */
+    private fun fittedLatitudeSpan(map: MKMapView, latitude: Double, lonDelta: Double): Double {
+        val (width, height) = map.bounds.useContents { size.width to size.height }
+        if (width <= 0.0 || height <= 0.0) return lonDelta
+        val meridianScale = cos(latitude * PI / 180.0)
+        return (lonDelta * height / width * meridianScale).coerceIn(0.0001, 180.0)
     }
 
     private fun applyPin(coordinates: GeoCoordinates) {

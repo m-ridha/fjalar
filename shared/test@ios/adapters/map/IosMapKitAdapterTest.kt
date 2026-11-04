@@ -196,6 +196,27 @@ class IosMapKitAdapterTest {
     }
 
     @Test
+    fun appliedViewportKeepsTheRequestedZoomAfterMapKitFitsTheView() {
+        val frames = listOf(
+            CGRectMake(0.0, 0.0, 390.0, 844.0),
+            CGRectMake(0.0, 0.0, 844.0, 390.0),
+        )
+        for (frame in frames) {
+            val adapter = IosMapKitAdapter()
+            val map = MKMapView(frame = frame)
+            adapter.attachMap(map)
+
+            adapter.setViewport(GeoCoordinates(-6.2088, 106.8456), 15.0)
+
+            val restoredZoom = map.region.useContents {
+                IosMapKitAdapter.spanToZoom(span.longitudeDelta)
+            }
+            assertEquals(15.0, restoredZoom, 0.01, "Restored viewport must keep the requested zoom")
+            adapter.detachMap()
+        }
+    }
+
+    @Test
     fun stateManagement_tracksViewportPinAndGeofence() {
         val adapter = IosMapKitAdapter(isDarkTheme = false)
 
