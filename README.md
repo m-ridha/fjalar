@@ -33,15 +33,15 @@ Contributor and agent development guidelines, architecture contracts, UI design 
 - **Editor Back saves valid changes:** The toolbar Back control and Android system Back save a valid new or changed alarm. An invalid draft is discarded with a reason; a failed save keeps the editor open for retry. Picker and search navigation do not save the draft.
 - **Smaller trigger radii:** New alarms start at 100 m. The editor offers 50, 100, 200, 300, 500, and 1,000 m presets and a 50 m–3 km slider. The domain still accepts existing radii up to 10 km.
 - **One-Off & Recurring Scheduled Alarms:** Set a quick one-off alarm for an unfamiliar stop, or schedule recurring commute windows (e.g., *Office, Mon-Fri, 07:00-09:30*). Background GPS tracking runs only for active alarm monitoring. The visible foreground Map can independently request location.
-- **Curated Transit & Station Search:** Instant, privacy-preserving station autocomplete across Greater Jakarta (113 stations across KRL Commuter Line, MRT Jakarta, LRT, and airport terminals) with zero-telemetry online geocoding fallback (OSM Photon on Android, Apple CLGeocoder on iOS).
+- **Curated Transit & Station Search:** Instant, privacy-preserving station autocomplete across Greater Jakarta (113 stations across KRL Commuter Line, MRT Jakarta, LRT, and airport terminals) with online geocoding fallback (OSM Photon on Android, Apple CLGeocoder on iOS).
 - **Hexagonal Architecture (Ports & Adapters):** Core domain logic is 100% pure Kotlin with zero platform SDK imports. Map providers, location trackers, audio ringers, place search, and persistence can be swapped without touching domain code.
 - **iPhone-Inspired Liquid Glass UI:** Translucent tinted surfaces with specular borders floating over full-bleed maps, with instant **Light (`Daylight Glass`)** and **Dark (`Nocturnal Obsidian Glass`)** mode switching.
 - **Accessibility & Reduce Transparency Fallback:** Optional fallback to 92% opaque tinted surfaces (`#F4F3F8` Light / `#191B22` Dark) with 1.5 dp rim borders when the theme flag is enabled. Primary-text token contrast exceeds 15:1 against fallback colors. Automatic OS setting observation and live-map contrast verification remain pending.
 - **Bilingual Localization (`English` & `Bahasa Indonesia`):** Shared UI and app-owned notification text use the saved app language, with `Mo–Su` and `Sn–Mg` day chips. Launcher names (*"Wake Me at"* / *"Bangunkan Saya di"*) and platform permission prompts use system localization.
 - **Sleepy-Eyes Dismissal Safety:** Android presents a restricted alarm screen over the keyguard with high-contrast pulsing alerts and a tactile **Slide to Stop Alarm** (`Geser untuk Matikan Alarm`) track, preventing accidental pocket touches or sleepy dismissals.
 - **Automated App Icon Pipeline:** Single reproducible command (`python3 scripts/generate_app_icons.py`) exports all Android adaptive densities (strictly preserving the 66 dp safe circle), Material You monochrome layer, Google Play 512×512 master, and iOS 18 Asset Catalog (`AppIcon.appiconset` with Light, Dark, and Tinted appearances).
-- **On-Device Alarms & Privacy:** No accounts, no sign-in, and no telemetry. Alarm records and distance calculations stay on your device. Online map requests can reveal the viewed area to the map provider. Place search sends the typed query to the public geocoder when fewer than 5 offline curated stations match.
-- **Free & Open Cartography:** Uses **OpenStreetMap / MapLibre** on Android (zero API keys, zero billing) and native **Apple MapKit** on iOS.
+- **On-Device Alarms & Privacy:** No accounts, no sign-in, and no telemetry. Alarm records and distance calculations stay on your device. Online map requests can reveal the viewed area to the map provider. Eligible place searches can send the typed query to the geocoder when fewer than five offline stations match.
+- **Free & Open Cartography:** Android uses **MapLibre** to render CARTO styles with OpenStreetMap-derived data. iOS uses native **Apple MapKit**.
 
 ---
 
@@ -123,7 +123,9 @@ fjalar/
 │   ├── src@android/             # Android-specific adapters (LocationManager, AlarmManager, MapLibre, Photon)
 │   ├── src@ios/                 # iOS-specific adapters (CLLocation, IosBackgroundSchedulerAdapter, MapKit, CLGeocoder)
 │   ├── composeResources/        # Multiplatform strings (values, values-in, values-id) & drawables
-│   └── test/                    # In-memory test suites & fakes (commonTest, androidTest, iosTest)
+│   ├── test/                    # Shared tests and fakes
+│   ├── test@android/            # Android-specific tests
+│   └── test@ios/                # iOS-specific tests
 ├── scripts/                     # Production asset pipeline & verification scripts
 │   ├── generate_app_icons.py    # Generates all Android adaptive/legacy icons & iOS 18 asset catalog
 │   └── test_generated_icons.py  # Unit tests for icon dimensions, bit depths, and safe-zone constraints
@@ -151,7 +153,7 @@ All contributors and automated agents must preserve these core invariants:
 ## Prerequisites
 
 - **JDK 17+** (e.g. Temurin or OpenJDK)
-- **Android SDK** (CI/release builds install platform 37 and build-tools 37.0.0)
+- **Android SDK** (CI/release builds install `platforms;android-37.0` and `build-tools;37.0.0`)
 - **macOS with Xcode 26.4+** (required for iOS 18 Asset Catalog and compiling iOS target / simulator)
 - **Python 3 with Pillow** (for automated icon pipeline: `pip install pillow`)
 - **JetBrains Amper** (`./kotlin` CLI wrapper bundled in repository)

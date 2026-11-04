@@ -1,8 +1,7 @@
 # Current project state
 
-Source audit: 2026-11-03, based on merged PR #22 with wording and localization
-updates on `fix/english-copy-localization`. This records implementation, not
-release certification. Notion requirements and historical Stitch mockups may
+Source audit: 2026-11-04, based on main through PR #23. This records
+implemented behavior. Notion requirements and historical Stitch mockups may
 include planned behavior.
 
 ## Screens and controls
@@ -82,7 +81,8 @@ with matching English and Indonesian resources. Android notification content
 resolves native resources using the saved app language. A language change updates
 an ongoing Android monitoring notification and resynchronizes pending iOS
 notification content without replacing its schedule or snooze deadline.
-Platform-owned permission prompts and launcher names still use system localization.
+iOS scheduled reminders use neutral wording because wakeups can occur at either
+end of a scheduled window. Platform-owned permission prompts and launcher names still use system localization.
 
 Ringing distance text does not assert that the user is currently within the
 radius. Snooze can ring again on its timer even after the user leaves that area.
@@ -102,9 +102,11 @@ Koin 4.2.2 assembles application modules while domain and ordinary application
 classes stay constructor-injected. Persistence is JSON in platform key-value
 storage. See [Dependency injection](dependency-injection.md).
 
-Published version tags build a signed Android APK and SHA-256 checksum after
-multiplatform verification. iOS IPA publication is disabled. The Xcode wrapper
-still uses a placeholder bundle ID, requiring alignment before distribution.
+For published releases with valid version tags, the `android` job builds a
+signed APK and the `verify` job runs multiplatform verification. After both
+jobs pass, the `publish` job generates the SHA-256 checksum and uploads both
+assets. iOS IPA publication is disabled. The Xcode wrapper still uses a
+placeholder bundle ID, requiring alignment before distribution.
 See [Releasing](releasing.md) for signing secrets and workflow details.
 
 ## Verification boundaries
