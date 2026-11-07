@@ -292,6 +292,27 @@ class AlarmAudioPlaybackTest {
     }
 
     @Test
+    fun threeSources_triesBundledFallbackWhenPrimaryAndInstalledFail() {
+        val primary = Player(fails = true)
+        val installed = Player(fails = true)
+        val bundled = Player(fails = false)
+        val players = ArrayDeque(listOf(primary, installed, bundled))
+        val failures = mutableListOf<Exception>()
+        val playback = AlarmAudioPlayback({ players.removeFirst() }, { _, error -> failures.add(error) })
+
+        playback.start(listOf("primary", "installed", "bundled"), 0.9f)
+
+        assertEquals(1, primary.releases)
+        assertEquals(1, installed.releases)
+        assertEquals(0, bundled.releases)
+        assertTrue(bundled.playing)
+        assertEquals(2, failures.size)
+
+        playback.stop()
+        assertEquals(1, bundled.releases)
+    }
+
+    @Test
     fun asynchronousError_triesFallbackOnceAndIgnoresOldPlayerCallbacks() {
         val first = Player()
         val fallback = Player()

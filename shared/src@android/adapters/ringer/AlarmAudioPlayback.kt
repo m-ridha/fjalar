@@ -14,7 +14,7 @@ internal class AlarmAudioPlayback(
     fun start(sources: List<String>, volume: Float): Unit = synchronized(lock) {
         stop()
         paused = false
-        trySource(sources.distinct().take(2), 0, volume, generation)
+        trySource(sources.distinct().take(3), 0, volume, generation)
     }
 
     fun stop(): Unit = synchronized(lock) {

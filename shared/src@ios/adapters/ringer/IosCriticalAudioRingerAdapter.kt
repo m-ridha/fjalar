@@ -42,6 +42,12 @@ class IosCriticalAudioRingerAdapter(
     internal val isVibrating: Boolean
         get() = vibrationJob?.isActive == true
 
+    internal val isAudioPlaying: Boolean
+        get() = currentPlayer != null
+
+    internal val activeAlarmId: String?
+        get() = ringingAlarmId
+
     override suspend fun startRinging(alarm: LocationAlarm) {
         stopPlayback()
         ringingAlarmId = alarm.id

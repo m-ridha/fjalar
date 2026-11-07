@@ -258,7 +258,7 @@ open class DefaultAndroidRingerPlatformGateway(
         }
     }
 
-    private fun alarmSources(): List<String> {
+    internal fun alarmSources(): List<String> {
         val primary = RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
         // Use a real installed alarm as fallback: symbolic default URIs may resolve to a missing file.
@@ -274,7 +274,16 @@ open class DefaultAndroidRingerPlatformGateway(
             Log.e(TAG, "Resolving fallback alarm tone failed", error)
             null
         }
-        return listOfNotNull(primary, fallback).map { it.toString() }
+        val bundled = try {
+            val resId = context.resources.getIdentifier("alarm", "raw", context.packageName)
+            if (resId != 0) {
+                "android.resource://${context.packageName}/$resId"
+            } else null
+        } catch (error: Exception) {
+            Log.e(TAG, "Resolving bundled alarm audio failed", error)
+            null
+        }
+        return listOfNotNull(primary, fallback, bundled).map { it.toString() }
     }
 
     override fun stopAudio() {
