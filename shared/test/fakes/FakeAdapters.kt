@@ -1,11 +1,13 @@
 package com.muhammadridha.fjalar.fakes
 
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
+import com.muhammadridha.fjalar.domain.model.RecentDestination
 import com.muhammadridha.fjalar.domain.ports.outbound.AccessibilityPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
+import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -103,6 +105,20 @@ class FakeAccessibilityAdapter(
 
     fun setActive(active: Boolean) {
         isReduceTransparencyActive = active
+    }
+}
+
+class FakeRecentDestinationsAdapter(
+    initialDestinations: List<RecentDestination> = emptyList(),
+) : RecentDestinationsPort {
+    val flow = MutableStateFlow(initialDestinations)
+    override fun observeRecentDestinations(): Flow<List<RecentDestination>> = flow
+    override suspend fun getRecentDestinations(): List<RecentDestination> = flow.value
+    override suspend fun recordDestination(destination: RecentDestination) {
+        flow.value = RecentDestination.updateRecents(flow.value, destination)
+    }
+    override suspend fun clearRecentDestinations() {
+        flow.value = emptyList()
     }
 }
 

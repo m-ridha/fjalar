@@ -9,4 +9,6 @@
     <string name="notification_channel_alarm_desc">Peringatan saat mendekati tujuan alarm</string>
     <string name="notification_channel_monitoring_name">Pemantauan lokasi Bangunkan Saya di</string>
     <string name="notification_channel_monitoring_desc">Pemantauan lokasi saat alarm aktif</string>
+    <string name="search_quick_picks_title">Tujuan terakhir</string>
+    <string name="search_quick_pick_content_desc">%s, tujuan terakhir</string>
 </resources>

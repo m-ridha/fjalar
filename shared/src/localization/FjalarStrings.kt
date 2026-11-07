@@ -117,6 +117,8 @@ enum class FjalarStringKey {
     SEARCH_EMPTY_TITLE,
     SEARCH_EMPTY_BODY,
     SEARCH_RECENT_TITLE,
+    SEARCH_QUICK_PICKS_TITLE,
+    SEARCH_QUICK_PICK_CONTENT_DESC,
     SEARCH_CLEAR,
 
     // Bottom Navigation Tabs
@@ -274,6 +276,8 @@ object FjalarStrings {
         FjalarStringKey.SEARCH_EMPTY_TITLE to "No places found",
         FjalarStringKey.SEARCH_EMPTY_BODY to "Try another name or check the spelling.",
         FjalarStringKey.SEARCH_RECENT_TITLE to "Search places",
+        FjalarStringKey.SEARCH_QUICK_PICKS_TITLE to "Recent destinations",
+        FjalarStringKey.SEARCH_QUICK_PICK_CONTENT_DESC to "%s, recent destination",
         FjalarStringKey.SEARCH_CLEAR to "Clear search",
 
         FjalarStringKey.NAV_MAP to "Map",
@@ -413,6 +417,8 @@ object FjalarStrings {
         FjalarStringKey.SEARCH_EMPTY_TITLE to "Tempat tidak ditemukan",
         FjalarStringKey.SEARCH_EMPTY_BODY to "Coba nama lain atau periksa ejaannya.",
         FjalarStringKey.SEARCH_RECENT_TITLE to "Cari tempat",
+        FjalarStringKey.SEARCH_QUICK_PICKS_TITLE to "Tujuan terakhir",
+        FjalarStringKey.SEARCH_QUICK_PICK_CONTENT_DESC to "%s, tujuan terakhir",
         FjalarStringKey.SEARCH_CLEAR to "Hapus pencarian",
 
         FjalarStringKey.NAV_MAP to "Peta",

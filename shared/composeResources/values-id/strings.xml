@@ -91,6 +91,8 @@
     <string name="search_empty_title">Tempat tidak ditemukan</string>
     <string name="search_empty_body">Coba nama lain atau periksa ejaannya.</string>
     <string name="search_recent_title">Cari tempat</string>
+    <string name="search_quick_picks_title">Tujuan terakhir</string>
+    <string name="search_quick_pick_content_desc">%s, tujuan terakhir</string>
     <string name="search_clear">Hapus pencarian</string>
 
     <!-- Bottom navigation tabs -->
