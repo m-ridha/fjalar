@@ -119,22 +119,23 @@ class IosBackgroundSyncAdapter(
             }
         }
 
-        var job: Job? = null
-        task.expirationHandler = {
-            job?.cancel()
-            complete(false)
-        }
-        job = adapterScope.launch {
+        val job = adapterScope.launch {
             try {
                 val syncPort = syncSchedulesPortProvider()
                 syncPort.syncSchedules()
-                scheduleBackgroundSync(DEFAULT_BACKGROUND_SYNC_INTERVAL_MINUTES)
+                try {
+                    scheduleBackgroundSync(DEFAULT_BACKGROUND_SYNC_INTERVAL_MINUTES)
+                } catch (_: Throwable) {
+                    // Reschedule failure does not fail an already successful sync
+                }
                 complete(true)
             } catch (e: Throwable) {
-                if (e !is CancellationException) {
-                    complete(false)
-                }
+                complete(false)
             }
+        }
+        task.expirationHandler = {
+            job.cancel()
+            complete(false)
         }
         return job
     }
@@ -144,7 +145,8 @@ class IosBackgroundSyncAdapter(
         val request = BGAppRefreshTaskRequest(IOS_BACKGROUND_REFRESH_TASK_ID).apply {
             earliestBeginDate = NSDate.dateWithTimeIntervalSinceNow(minutes * 60.0)
         }
-        schedulerEngine.submit(request)
+        val submitted = schedulerEngine.submit(request)
+        check(submitted) { "Failed to submit BGAppRefreshTaskRequest for $IOS_BACKGROUND_REFRESH_TASK_ID" }
     }
 
     override suspend fun cancelBackgroundSync() {

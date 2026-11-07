@@ -104,4 +104,23 @@ class SynchronizeAlarmsUseCaseTest {
         assertEquals(1, syncSchedulesPort.callCount)
         assertEquals(expectedAlarms, result)
     }
+
+    @Test
+    fun invokeRethrowsCancellationException() = runTest {
+        val syncSchedulesPort = FakeSyncSchedulesPort()
+        val cancellingAdapter = object : com.muhammadridha.fjalar.domain.ports.outbound.BackgroundSyncPort {
+            override suspend fun scheduleBackgroundSync(earliestBeginMinutesFromNow: Long) {
+                throw kotlinx.coroutines.CancellationException("Coroutine cancelled")
+            }
+            override suspend fun cancelBackgroundSync() {}
+        }
+        val useCase = SynchronizeAlarmsUseCase(
+            syncSchedulesPort = syncSchedulesPort,
+            backgroundSyncPort = cancellingAdapter,
+        )
+
+        kotlin.test.assertFailsWith<kotlinx.coroutines.CancellationException> {
+            useCase()
+        }
+    }
 }

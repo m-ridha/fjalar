@@ -19,6 +19,7 @@ class FakeIosBgTaskSchedulerEngine : IosBgTaskSchedulerEngine {
     var submittedRequest: BGTaskRequest? = null
     var cancelledIdentifier: String? = null
     var registerCallCount: Int = 0
+    var shouldFailOnSubmit: Boolean = false
 
     override fun registerForTask(identifier: String, launchHandler: (BGTask) -> Unit): Boolean {
         registerCallCount++
@@ -32,6 +33,7 @@ class FakeIosBgTaskSchedulerEngine : IosBgTaskSchedulerEngine {
     }
 
     override fun submit(request: BGTaskRequest): Boolean {
+        if (shouldFailOnSubmit) return false
         submittedRequest = request
         return true
     }
@@ -195,5 +197,37 @@ class IosBackgroundSyncAdapterTest {
         // Must be called exactly once despite coroutine cancellation
         assertEquals(1, fakeTask.completionCallCount)
         assertEquals(false, fakeTask.lastSuccessValue)
+    }
+
+    @Test
+    fun scheduleBackgroundSync_throwsIllegalStateExceptionWhenSubmitFails() = runTest {
+        val fakeEngine = FakeIosBgTaskSchedulerEngine().apply { shouldFailOnSubmit = true }
+        val fakeSyncPort = FakeSyncSchedulesPort()
+        val adapter = IosBackgroundSyncAdapter(
+            syncSchedulesPortProvider = { fakeSyncPort },
+            engine = fakeEngine,
+        )
+
+        kotlin.test.assertFailsWith<IllegalStateException> {
+            adapter.scheduleBackgroundSync(15L)
+        }
+    }
+
+    @Test
+    fun handleTask_onRescheduleError_stillCompletesWithSuccess() = runTest {
+        val fakeEngine = FakeIosBgTaskSchedulerEngine().apply { shouldFailOnSubmit = true }
+        val fakeSyncPort = FakeSyncSchedulesPort()
+        val adapter = IosBackgroundSyncAdapter(
+            syncSchedulesPortProvider = { fakeSyncPort },
+            engine = fakeEngine,
+        )
+        val fakeTask = FakeBgTask()
+
+        val job = adapter.handleTask(fakeTask)
+        job.join()
+
+        assertEquals(1, fakeSyncPort.syncCallCount)
+        assertEquals(1, fakeTask.completionCallCount)
+        assertEquals(true, fakeTask.lastSuccessValue)
     }
 }

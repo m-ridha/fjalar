@@ -3,6 +3,7 @@ package com.muhammadridha.fjalar.domain.usecase
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.outbound.BackgroundSyncPort
+import kotlinx.coroutines.CancellationException
 
 class SynchronizeAlarmsUseCase(
     private val syncSchedulesPort: SyncSchedulesPort,
@@ -13,7 +14,9 @@ class SynchronizeAlarmsUseCase(
         val delayMinutes = nextSyncDelayMinutes.coerceAtLeast(MINIMUM_SYNC_DELAY_MINUTES)
         try {
             backgroundSyncPort?.scheduleBackgroundSync(delayMinutes)
-        } catch (_: Throwable) {
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
             // Auxiliary background refresh failure does not invalidate completed schedule synchronization
         }
         return updatedAlarms
