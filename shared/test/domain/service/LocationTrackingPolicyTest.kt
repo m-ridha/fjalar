@@ -49,6 +49,25 @@ class LocationTrackingPolicyTest {
     }
 
     @Test
+    fun minimumDistanceMeters_measuresDistanceToPerimeterClampedAtZero() {
+        // Alarm with 1,000m radius at MANGGARAI
+        val alarm = manggaraiAlarm(radius = com.muhammadridha.fjalar.domain.model.TriggerRadius(1_000))
+            .copy(id = "manggarai", coordinates = MANGGARAI)
+
+        // Point ~4,000m away from MANGGARAI
+        val point4000m = GeoCoordinates(MANGGARAI.latitude + 0.036, MANGGARAI.longitude)
+        val centerDist = HaversineCalculator.distanceMeters(point4000m, MANGGARAI)
+
+        val minDistance = LocationTrackingPolicy.minimumDistanceMeters(point4000m, listOf(alarm))
+        assertEquals(centerDist - 1_000.0, minDistance)
+
+        // Point inside the 1,000m radius -> clamped to 0.0
+        val insidePoint = GeoCoordinates(MANGGARAI.latitude + 0.002, MANGGARAI.longitude)
+        val insideDistance = LocationTrackingPolicy.minimumDistanceMeters(insidePoint, listOf(alarm))
+        assertEquals(0.0, insideDistance)
+    }
+
+    @Test
     fun minimumDistanceMeters_findsClosestDestinationAmongMultipleArmedAlarms() {
         val alarm1 = manggaraiAlarm().copy(id = "manggarai", coordinates = MANGGARAI)
         val alarm2 = manggaraiAlarm().copy(id = "sudirman", coordinates = SUDIRMAN)

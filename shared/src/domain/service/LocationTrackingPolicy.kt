@@ -56,7 +56,8 @@ object LocationTrackingPolicy {
     ): Double? {
         if (armedAlarms.isEmpty()) return null
         return armedAlarms.minOf { alarm ->
-            distanceCalculator.calculateDistanceMeters(position, alarm.coordinates)
+            val centerDistance = distanceCalculator.calculateDistanceMeters(position, alarm.coordinates)
+            maxOf(0.0, centerDistance - alarm.radius.meters)
         }
     }
 }

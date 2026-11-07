@@ -93,24 +93,28 @@ class AlarmServiceAdaptivePollingTest {
         )
         service.saveAlarm(alarm, enabled = true).getOrThrow()
 
-        // Establish APPROACH tier at 1.8 km (< 2.0 km)
-        // 1.8km north: ~0.0162 degrees
+        // Establish APPROACH tier at ~1.3 km to trigger perimeter (< 2.0 km)
+        // Center distance ~1.8 km - 500m radius = ~1.3 km
         val point1800m = GeoCoordinates(MANGGARAI.latitude + 0.0162, MANGGARAI.longitude)
         service.handleLocationUpdate(point1800m, 10f)
         assertEquals(TrackingTier.APPROACH, tracker.currentTier)
 
-        // GPS jitter shifts position to 2,050m (exceeds 2,000m, but within 2,000m + 100m hysteresis margin)
-        val point2050m = GeoCoordinates(MANGGARAI.latitude + 0.01845, MANGGARAI.longitude)
-        val dist2050 = HaversineCalculator.distanceMeters(point2050m, MANGGARAI)
-        assertTrue(dist2050 > 2_000.0 && dist2050 < 2_100.0, "Expected dist in (2000, 2100), was $dist2050")
+        // GPS jitter shifts position so distance to perimeter is 2,057.5m
+        // (exceeds 2,000m, but within 2,000m + 100m hysteresis margin)
+        val point2550m = GeoCoordinates(MANGGARAI.latitude + 0.023, MANGGARAI.longitude)
+        val edgeDist2550 = HaversineCalculator.distanceMeters(point2550m, MANGGARAI) - 500.0
+        assertTrue(edgeDist2550 > 2_000.0 && edgeDist2550 < 2_100.0, "Expected edge dist in (2000, 2100), was $edgeDist2550")
 
-        service.handleLocationUpdate(point2050m, 10f)
+        service.handleLocationUpdate(point2550m, 10f)
         // Must stay in APPROACH tier due to hysteresis guard
         assertEquals(TrackingTier.APPROACH, tracker.currentTier)
 
-        // When commuter departs further to 2,150m (> 2,100m), step down to MEDIUM
-        val point2150m = GeoCoordinates(MANGGARAI.latitude + 0.01935, MANGGARAI.longitude)
-        service.handleLocationUpdate(point2150m, 10f)
+        // When commuter departs further to edge distance 2,113.1m (> 2,100m), step down to MEDIUM
+        val point2610m = GeoCoordinates(MANGGARAI.latitude + 0.0235, MANGGARAI.longitude)
+        val edgeDist2610 = HaversineCalculator.distanceMeters(point2610m, MANGGARAI) - 500.0
+        assertTrue(edgeDist2610 > 2_100.0, "Expected edge dist > 2100, was $edgeDist2610")
+
+        service.handleLocationUpdate(point2610m, 10f)
         assertEquals(TrackingTier.MEDIUM, tracker.currentTier)
     }
 

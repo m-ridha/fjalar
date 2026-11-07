@@ -138,11 +138,11 @@ private class NativeIosLocationGateway : IosLocationGateway {
         when (tier) {
             TrackingTier.FAR -> {
                 manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-                manager.distanceFilter = 100.0
+                manager.distanceFilter = 50.0
             }
             TrackingTier.MEDIUM -> {
                 manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-                manager.distanceFilter = 20.0
+                manager.distanceFilter = 10.0
             }
             TrackingTier.APPROACH -> {
                 manager.desiredAccuracy = kCLLocationAccuracyBest
