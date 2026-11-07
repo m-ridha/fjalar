@@ -27,15 +27,23 @@ class FakeLocationTracker : LocationTrackerPort {
         private set
     var updateIntervalMillis: Long? = null
         private set
+    var currentTier: com.muhammadridha.fjalar.domain.model.TrackingTier? = null
+        private set
 
     override suspend fun startTracking(updateIntervalMillis: Long) {
+        startTracking(updateIntervalMillis, com.muhammadridha.fjalar.domain.model.TrackingTier.fromInterval(updateIntervalMillis))
+    }
+
+    override suspend fun startTracking(updateIntervalMillis: Long, tier: com.muhammadridha.fjalar.domain.model.TrackingTier) {
         isTracking = true
         this.updateIntervalMillis = updateIntervalMillis
+        this.currentTier = tier
     }
 
     override suspend fun stopTracking() {
         isTracking = false
         updateIntervalMillis = null
+        currentTier = null
     }
 }
 

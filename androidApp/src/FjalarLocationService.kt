@@ -34,6 +34,7 @@ import com.muhammadridha.fjalar.adapters.storage.PersistentAlarmRepository
 import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.LocationAvailability
 import com.muhammadridha.fjalar.domain.model.ScheduleType
+import com.muhammadridha.fjalar.domain.model.TrackingTier
 import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
@@ -84,6 +85,9 @@ class FjalarLocationService : Service() {
 
     @Volatile
     private var currentIntervalMillis: Long = DEFAULT_INTERVAL_MILLIS
+
+    @Volatile
+    private var currentTier: TrackingTier? = null
 
     private val trackingLock = Any()
 
@@ -186,16 +190,19 @@ class FjalarLocationService : Service() {
                     AndroidFusedLocationAdapter.EXTRA_UPDATE_INTERVAL,
                     DEFAULT_INTERVAL_MILLIS,
                 )
+                val tierName = intent.getStringExtra(AndroidFusedLocationAdapter.EXTRA_TRACKING_TIER)
+                val tier = tierName?.let { runCatching { TrackingTier.valueOf(it) }.getOrNull() }
+                    ?: TrackingTier.fromInterval(interval)
 
                 val alarmOwned = intent.getBooleanExtra(AndroidFusedLocationAdapter.EXTRA_ALARM_OWNED, true)
                 val started = if (alarmOwned) {
-                    startForegroundTracking(interval)
+                    startForegroundTracking(interval, tier)
                 } else {
                     // Map-only work is a regular service, bounded by the foreground UI owner.
                     stopForegroundMonitoring()
                     if (hasLocationPermission()) {
                         isServiceRunning = true
-                        startLocationUpdates(interval)
+                        startLocationUpdates(interval, tier)
                         true
                     } else {
                         reportAvailability(LocationAvailability.PERMISSION_DENIED)
@@ -223,7 +230,10 @@ class FjalarLocationService : Service() {
         return fineGranted || coarseGranted
     }
 
-    private fun startForegroundTracking(intervalMillis: Long): Boolean {
+    private fun startForegroundTracking(
+        intervalMillis: Long,
+        tier: TrackingTier = TrackingTier.fromInterval(intervalMillis),
+    ): Boolean {
         if (!hasLocationPermission()) {
             reportAvailability(LocationAvailability.PERMISSION_DENIED)
             stopTrackingAndSelf()
@@ -252,27 +262,44 @@ class FjalarLocationService : Service() {
         }
 
         isServiceRunning = true
-        startLocationUpdates(intervalMillis)
+        startLocationUpdates(intervalMillis, tier)
         return true
     }
 
-    private fun startLocationUpdates(intervalMillis: Long) {
+    private fun startLocationUpdates(
+        intervalMillis: Long,
+        tier: TrackingTier = TrackingTier.fromInterval(intervalMillis),
+    ) {
         if (!hasLocationPermission()) {
             return
         }
 
         synchronized(trackingLock) {
-            if (isTracking) return
+            if (isTracking && currentIntervalMillis == intervalMillis && currentTier == tier) return
+
+            if (isTracking) {
+                try {
+                    locationManager?.removeUpdates(locationListener)
+                } catch (_: Exception) {}
+            }
+
             currentIntervalMillis = intervalMillis
+            currentTier = tier
             isTracking = true
 
-            registerProvider(LocationManager.GPS_PROVIDER, intervalMillis)
-            registerProvider(LocationManager.NETWORK_PROVIDER, intervalMillis)
+            val minDistanceMeters = when (tier) {
+                TrackingTier.FAR -> 50f
+                TrackingTier.MEDIUM -> 10f
+                TrackingTier.APPROACH -> 0f
+            }
+
+            registerProvider(LocationManager.GPS_PROVIDER, intervalMillis, minDistanceMeters)
+            registerProvider(LocationManager.NETWORK_PROVIDER, intervalMillis, minDistanceMeters)
             reportProviderAvailability()
         }
     }
 
-    private fun registerProvider(provider: String, intervalMillis: Long) {
+    private fun registerProvider(provider: String, intervalMillis: Long, minDistanceMeters: Float = 0f) {
         val manager = locationManager ?: return
         if (!hasLocationPermission()) return
 
@@ -286,9 +313,7 @@ class FjalarLocationService : Service() {
                 manager.requestLocationUpdates(
                     provider,
                     intervalMillis,
-                    // Preserve the 10-second alarm cadence and zero displacement filter: a
-                    // stationary commuter still needs fresh accuracy updates near a destination.
-                    0f,
+                    minDistanceMeters,
                     locationListener,
                     looper,
                 )
@@ -319,6 +344,7 @@ class FjalarLocationService : Service() {
         synchronized(trackingLock) {
             if (!isTracking) return
             isTracking = false
+            currentTier = null
             try {
                 locationManager?.removeUpdates(locationListener)
             } catch (_: Exception) {}

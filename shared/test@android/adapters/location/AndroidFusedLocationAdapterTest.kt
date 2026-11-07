@@ -22,13 +22,22 @@ class AndroidFusedLocationAdapterTest {
         var startCount = 0
         var stopCount = 0
         var lastIntervalMillis: Long? = null
+        var lastTier: com.muhammadridha.fjalar.domain.model.TrackingTier? = null
         var tracking = false
         var listener: ((GeoCoordinates, Float) -> Unit)? = null
 
-        override fun startForegroundService(updateIntervalMillis: Long) {
+        override fun startForegroundService(updateIntervalMillis: Long, tier: com.muhammadridha.fjalar.domain.model.TrackingTier) {
             startCount++
             lastIntervalMillis = updateIntervalMillis
+            lastTier = tier
             tracking = true
+        }
+
+        override fun startForegroundService(updateIntervalMillis: Long) {
+            startForegroundService(
+                updateIntervalMillis,
+                com.muhammadridha.fjalar.domain.model.TrackingTier.fromInterval(updateIntervalMillis),
+            )
         }
 
         override fun stopForegroundService() {
@@ -290,4 +299,40 @@ class AndroidFusedLocationAdapterTest {
         adapter.close()
     }
 
+    @Test
+    fun startTracking_withExplicitTier_forwardsBothIntervalAndTierToGateway() = runTest {
+        val gateway = FakeLocationPlatformGateway()
+        val adapter = AndroidFusedLocationAdapter(gateway = gateway)
+
+        adapter.startTracking(60_000L, com.muhammadridha.fjalar.domain.model.TrackingTier.FAR)
+        assertEquals(60_000L, gateway.lastIntervalMillis)
+        assertEquals(com.muhammadridha.fjalar.domain.model.TrackingTier.FAR, gateway.lastTier)
+
+        adapter.startTracking(20_000L, com.muhammadridha.fjalar.domain.model.TrackingTier.MEDIUM)
+        assertEquals(20_000L, gateway.lastIntervalMillis)
+        assertEquals(com.muhammadridha.fjalar.domain.model.TrackingTier.MEDIUM, gateway.lastTier)
+        adapter.close()
+    }
+
+    @Test
+    fun setForegroundMapTracking_overridesAlarmTierToApproach_andRestoresOnDisable() = runTest {
+        val gateway = FakeLocationPlatformGateway()
+        val adapter = AndroidFusedLocationAdapter(gateway = gateway)
+
+        // Alarm is in FAR tier
+        adapter.startTracking(60_000L, com.muhammadridha.fjalar.domain.model.TrackingTier.FAR)
+        assertEquals(com.muhammadridha.fjalar.domain.model.TrackingTier.FAR, gateway.lastTier)
+        assertEquals(60_000L, gateway.lastIntervalMillis)
+
+        // Map is opened in foreground -> interactive APPROACH rate (10s) overrides
+        adapter.setForegroundMapTracking(true)
+        assertEquals(com.muhammadridha.fjalar.domain.model.TrackingTier.APPROACH, gateway.lastTier)
+        assertEquals(10_000L, gateway.lastIntervalMillis)
+
+        // Map is closed -> reverts back to background FAR tier (60s)
+        adapter.setForegroundMapTracking(false)
+        assertEquals(com.muhammadridha.fjalar.domain.model.TrackingTier.FAR, gateway.lastTier)
+        assertEquals(60_000L, gateway.lastIntervalMillis)
+        adapter.close()
+    }
 }

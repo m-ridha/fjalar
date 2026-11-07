@@ -18,6 +18,7 @@ class IosCLLocationAdapterTest {
         var starts = 0
         var stops = 0
         var background = false
+        var lastTier: com.muhammadridha.fjalar.domain.model.TrackingTier? = null
         var fixListener: (com.muhammadridha.fjalar.domain.model.LocationFix) -> Unit = {}
         var availabilityListener: (com.muhammadridha.fjalar.domain.model.LocationAvailability) -> Unit = {}
         override fun setListeners(onFix: (com.muhammadridha.fjalar.domain.model.LocationFix) -> Unit, onAvailability: (com.muhammadridha.fjalar.domain.model.LocationAvailability) -> Unit) {
@@ -25,6 +26,9 @@ class IosCLLocationAdapterTest {
             availabilityListener = onAvailability
         }
         override fun setBackgroundEnabled(enabled: Boolean) { background = enabled }
+        override fun updateTrackingTier(tier: com.muhammadridha.fjalar.domain.model.TrackingTier) {
+            lastTier = tier
+        }
         override fun start() { starts++ }
         override fun stop() { stops++ }
     }
@@ -184,4 +188,40 @@ class IosCLLocationAdapterTest {
         adapter.close()
     }
 
+    @Test
+    fun startTracking_withTier_updatesTrackingTierOnGateway() = runTest {
+        val gateway = FakeGateway()
+        val adapter = IosCLLocationAdapter(gateway = gateway, coroutineDispatcher = StandardTestDispatcher(testScheduler))
+
+        adapter.startTracking(60_000L, com.muhammadridha.fjalar.domain.model.TrackingTier.FAR)
+        testScheduler.runCurrent()
+        assertEquals(com.muhammadridha.fjalar.domain.model.TrackingTier.FAR, gateway.lastTier)
+        assertTrue(adapter.isTracking)
+
+        adapter.startTracking(20_000L, com.muhammadridha.fjalar.domain.model.TrackingTier.MEDIUM)
+        testScheduler.runCurrent()
+        assertEquals(com.muhammadridha.fjalar.domain.model.TrackingTier.MEDIUM, gateway.lastTier)
+        adapter.close()
+    }
+
+    @Test
+    fun setForegroundMapTracking_overridesAlarmTierToApproach_andRestoresOnDisable() = runTest {
+        val gateway = FakeGateway()
+        val adapter = IosCLLocationAdapter(gateway = gateway, coroutineDispatcher = StandardTestDispatcher(testScheduler))
+
+        adapter.startTracking(60_000L, com.muhammadridha.fjalar.domain.model.TrackingTier.FAR)
+        testScheduler.runCurrent()
+        assertEquals(com.muhammadridha.fjalar.domain.model.TrackingTier.FAR, gateway.lastTier)
+
+        // Open Map in foreground -> overrides with interactive APPROACH tier
+        adapter.setForegroundMapTracking(true)
+        testScheduler.runCurrent()
+        assertEquals(com.muhammadridha.fjalar.domain.model.TrackingTier.APPROACH, gateway.lastTier)
+
+        // Close Map -> reverts to alarm's FAR tier
+        adapter.setForegroundMapTracking(false)
+        testScheduler.runCurrent()
+        assertEquals(com.muhammadridha.fjalar.domain.model.TrackingTier.FAR, gateway.lastTier)
+        adapter.close()
+    }
 }

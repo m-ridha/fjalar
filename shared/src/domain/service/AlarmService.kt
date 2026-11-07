@@ -10,6 +10,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ScheduleType
+import com.muhammadridha.fjalar.domain.model.TrackingTier
 import com.muhammadridha.fjalar.domain.ports.inbound.DeleteAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.HandleLocationUpdatePort
@@ -52,6 +53,8 @@ class AlarmService(
     // Location fixes, OS wakeups and UI taps arrive concurrently; serialize read-modify-write cycles.
     private val mutex = Mutex()
     private var ringingOwnerId: String? = null
+    private var latestCoordinates: GeoCoordinates? = null
+    private var currentTrackingTier: TrackingTier = LocationTrackingPolicy.INITIAL_TIER
 
     override fun observeAlarms(): Flow<List<LocationAlarm>> = repository.observeAlarms()
 
@@ -162,6 +165,7 @@ class AlarmService(
         coordinates: GeoCoordinates,
         horizontalAccuracyMeters: Float,
     ): List<LocationAlarm> = mutex.withLock {
+        latestCoordinates = coordinates
         val now = clock.now()
         val triggered = repository.getAlarms().mapNotNull { old ->
             val new = evaluator.evaluateFix(evaluator.syncSchedule(old, now), coordinates, horizontalAccuracyMeters)
@@ -238,9 +242,23 @@ class AlarmService(
         val alarms = repository.getAlarms()
         val owner = alarms.filter { it.state == RINGING }.minByOrNull { it.id }
         reconcileRingingOwner(owner)
-        // shortcut: fixed interval; adaptive polling by distance-to-target (PRD L4) comes with the location adapters.
-        if (alarms.any { it.state == ARMED_MONITORING }) tracker.startTracking(TRACKING_INTERVAL_MILLIS)
-        else tracker.stopTracking()
+
+        val armedAlarms = alarms.filter { it.state == ARMED_MONITORING }
+        if (armedAlarms.isNotEmpty()) {
+            val minDistance = latestCoordinates?.let { coords ->
+                LocationTrackingPolicy.minimumDistanceMeters(coords, armedAlarms)
+            }
+            currentTrackingTier = if (minDistance != null) {
+                LocationTrackingPolicy.evaluateTier(minDistance, currentTrackingTier)
+            } else {
+                LocationTrackingPolicy.INITIAL_TIER
+            }
+            tracker.startTracking(currentTrackingTier.intervalMillis, currentTrackingTier)
+        } else {
+            tracker.stopTracking()
+            currentTrackingTier = LocationTrackingPolicy.INITIAL_TIER
+            latestCoordinates = null
+        }
 
         for (alarm in alarms) {
             if (alarm.id == alreadyScheduledId) continue

@@ -2,6 +2,7 @@ package com.muhammadridha.fjalar.domain.ports.outbound
 
 import com.muhammadridha.fjalar.domain.model.LocationFix
 import com.muhammadridha.fjalar.domain.model.LocationAvailability
+import com.muhammadridha.fjalar.domain.model.TrackingTier
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -15,5 +16,8 @@ interface LocationTrackerPort {
     /** Foreground map ownership is independent from alarm ownership. */
     suspend fun setForegroundMapTracking(enabled: Boolean) {}
     suspend fun startTracking(updateIntervalMillis: Long)
+    suspend fun startTracking(updateIntervalMillis: Long, tier: TrackingTier) {
+        startTracking(updateIntervalMillis)
+    }
     suspend fun stopTracking()
 }
