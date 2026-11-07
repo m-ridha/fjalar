@@ -26,7 +26,7 @@
     <string name="editor_cancel">Cancel</string>
     <string name="editor_save">Save</string>
     <string name="editor_back_saves_changes">Changes are saved when you go back if all fields are valid.</string>
-    <string name="editor_not_saved_no_destination">Choose a destination before going back. Changes were not saved.</string>
+    <string name="editor_not_saved_no_destination">Choose a destination. Changes were not saved.</string>
     <string name="editor_not_saved_name_required">Enter an alarm name. Changes were not saved.</string>
     <string name="editor_not_saved_time_invalid">Enter valid start and end times. Changes were not saved.</string>
     <string name="editor_not_saved_different_times">Start and end times must differ. Changes were not saved.</string>
