@@ -26,7 +26,7 @@
     <string name="editor_cancel">Batal</string>
     <string name="editor_save">Simpan</string>
     <string name="editor_back_saves_changes">Perubahan disimpan saat kembali jika semua isian valid.</string>
-    <string name="editor_not_saved_no_destination">Pilih tujuan sebelum kembali. Perubahan tidak disimpan.</string>
+    <string name="editor_not_saved_no_destination">Pilih tujuan. Perubahan tidak disimpan.</string>
     <string name="editor_not_saved_name_required">Isi nama alarm. Perubahan tidak disimpan.</string>
     <string name="editor_not_saved_time_invalid">Masukkan waktu mulai dan selesai yang valid. Perubahan tidak disimpan.</string>
     <string name="editor_not_saved_different_times">Waktu mulai dan selesai harus berbeda. Perubahan tidak disimpan.</string>
