@@ -47,7 +47,9 @@ class IosAppleGeocoderEngine(
                     preferredLocale = preferredLocale,
                 ) { placemarks, error ->
                     if (error != null || placemarks == null) {
-                        continuation.resume(emptyList())
+                        if (continuation.isActive) {
+                            continuation.resume(emptyList())
+                        }
                         return@geocodeAddressString
                     }
 
@@ -83,7 +85,9 @@ class IosAppleGeocoderEngine(
                         )
                     }
 
-                    continuation.resume(results)
+                    if (continuation.isActive) {
+                        continuation.resume(results)
+                    }
                 }
             }
         } catch (e: Throwable) {

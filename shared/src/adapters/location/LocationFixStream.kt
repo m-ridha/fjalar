@@ -3,8 +3,9 @@ package com.muhammadridha.fjalar.adapters.location
 import com.muhammadridha.fjalar.domain.model.LocationAvailability
 import com.muhammadridha.fjalar.domain.model.LocationFix
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.update
 
 /** Conflated latest observation shared by all consumers of the single native listener. */
 class LocationFixStream {
@@ -27,10 +28,7 @@ class LocationFixStream {
     fun isCurrent(generation: Long): Boolean = this.generation.value == generation
 
     fun invalidateQueuedFixes() {
-        while (true) {
-            val previous = generation.value
-            if (generation.compareAndSet(previous, previous + 1)) break
-        }
+        generation.update { it + 1 }
     }
 
     fun reportAvailability(value: LocationAvailability) {
