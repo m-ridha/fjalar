@@ -6,6 +6,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AccessibilityPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
+import com.muhammadridha.fjalar.domain.ports.outbound.BackgroundSyncPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import kotlinx.coroutines.flow.Flow
@@ -119,6 +120,21 @@ class FakeRecentDestinationsAdapter(
     }
     override suspend fun clearRecentDestinations() {
         flow.value = emptyList()
+    }
+}
+
+class FakeBackgroundSyncAdapter : BackgroundSyncPort {
+    var scheduledDelayMinutes: Long? = null
+    var isCancelled: Boolean = false
+
+    override suspend fun scheduleBackgroundSync(earliestBeginMinutesFromNow: Long) {
+        scheduledDelayMinutes = earliestBeginMinutesFromNow
+        isCancelled = false
+    }
+
+    override suspend fun cancelBackgroundSync() {
+        isCancelled = true
+        scheduledDelayMinutes = null
     }
 }
 

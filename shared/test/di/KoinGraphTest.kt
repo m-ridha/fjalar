@@ -11,6 +11,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.*
 import com.muhammadridha.fjalar.domain.ports.outbound.*
 import com.muhammadridha.fjalar.domain.service.AlarmService
 import com.muhammadridha.fjalar.domain.service.ScheduleEvaluator
+import com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase
 import com.muhammadridha.fjalar.fakes.*
 import com.muhammadridha.fjalar.ui.FjalarViewModel
 import com.muhammadridha.fjalar.ui.screens.MapPickerViewModel
@@ -29,6 +30,7 @@ internal fun fakePlatformModule() = module {
     single<AlarmSchedulerPort> { FakeAlarmScheduler() }
     single<AlarmRingerPort> { FakeAlarmRinger() }
     single<SearchPlacesPort> { HybridPlaceSearchAdapter() }
+    single<BackgroundSyncPort> { FakeBackgroundSyncAdapter() }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -57,6 +59,8 @@ class KoinGraphTest {
             assertTrue((koin.get<AlarmRingerPort>() as FakeAlarmRinger).ringingIds.isEmpty())
             koin.get<SystemTimeZone>().refresh(TimeZone.of("Asia/Tokyo"))
             assertEquals(TimeZone.of("Asia/Tokyo"), koin.get<ScheduleEvaluator>().timeZone)
+            assertNotNull(koin.getOrNull<BackgroundSyncPort>())
+            assertNotNull(koin.getOrNull<SynchronizeAlarmsUseCase>())
             assertSame(service, koin.get<AlarmService>())
             assertNotNull(koin.getOrNull<RecentDestinationsPort>())
             assertNotNull(koin.getOrNull<MapPickerViewModel>())

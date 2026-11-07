@@ -6,14 +6,17 @@ import com.muhammadridha.fjalar.adapters.ringer.IosCriticalAudioRingerAdapter
 import com.muhammadridha.fjalar.adapters.scheduler.IosBackgroundSchedulerAdapter
 import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
+import com.muhammadridha.fjalar.adapters.sync.IosBackgroundSyncAdapter
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AccessibilityPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
+import com.muhammadridha.fjalar.domain.ports.outbound.BackgroundSyncPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import com.muhammadridha.fjalar.domain.service.AlarmService
+import com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase
 import com.muhammadridha.fjalar.ui.screens.MapPickerViewModel
 import kotlinx.datetime.TimeZone
 import org.koin.dsl.koinApplication
@@ -47,6 +50,8 @@ class IosKoinGraphTest {
             koin.get<IosSystemEvents>()
             assertNotNull(koin.getOrNull<RecentDestinationsPort>())
             assertNotNull(koin.getOrNull<MapPickerViewModel>())
+            assertIs<IosBackgroundSyncAdapter>(koin.get<BackgroundSyncPort>())
+            assertNotNull(koin.getOrNull<SynchronizeAlarmsUseCase>())
         } finally {
             app.close()
         }

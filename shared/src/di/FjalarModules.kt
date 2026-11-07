@@ -9,6 +9,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
 import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import com.muhammadridha.fjalar.domain.service.AlarmService
 import com.muhammadridha.fjalar.domain.service.ScheduleEvaluator
+import com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase
 import com.muhammadridha.fjalar.ui.FjalarViewModel
 import com.muhammadridha.fjalar.ui.screens.MapPickerViewModel
 import kotlinx.datetime.TimeZone
@@ -48,6 +49,7 @@ val alarmModule = module {
     single<SkipTodayPort> { get<AlarmService>() }
     single<SyncSchedulesPort> { get<AlarmService>() }
     single<DeleteAlarmPort> { get<AlarmService>() }
+    single { SynchronizeAlarmsUseCase(get(), getOrNull()) }
 }
 
 val presentationModule = module {
