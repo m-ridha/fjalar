@@ -69,7 +69,13 @@ adaptive polling is implemented per PRD 7.3 L4 via pure domain `TrackingTier`
 `FjalarLocationService` adjusts `LocationManager` polling intervals (60s, 20s, 10s)
 and provider accuracy. On iOS, `IosCLLocationAdapter` adjusts Core Location
 `desiredAccuracy` (`kCLLocationAccuracyHundredMeters` to `kCLLocationAccuracyBest`)
-and `distanceFilter` (100 m down to none). Region-geofence registration is not implemented.
+and `distanceFilter` (100 m down to none). On iOS, native circular geofence monitoring is active via outbound `GeofencePort`
+(`IosRegionGeofenceAdapter` wrapping CoreLocation `CLCircularRegion` monitoring),
+enabling power-efficient hardware baseband transition detection (ENTER/EXIT) for
+commuter journeys. On Android, commuter tracking currently relies on `FjalarLocationService`
+distance-tiered polling (`AndroidGeofenceAdapter` implements `GeofencePort` with a testable
+engine interface ready for Google Play Services / OS geofence client binding, with the
+default fallback engine honestly reporting unavailable).
 
 Snooze persists a two-minute deadline without changing the radius. Scheduled-window
 completion suppression and GPS accuracy filtering live in the domain. When a scheduled
@@ -89,8 +95,9 @@ background mode). `IosBackgroundSyncAdapter` registers the task at launch and su
 refresh requests with a minimum 15-minute delay to invoke `SynchronizeAlarmsUseCase` /
 `SyncSchedulesPort.syncSchedules()`. Because `BGAppRefreshTask` execution timing is
 strictly best-effort and subject to iOS power heuristics, the app continues to
-resynchronize schedules when executed again in the foreground. Region monitoring is not
-implemented.
+resynchronize schedules when executed again in the foreground. Native circular
+geofence monitoring is supported via `IosRegionGeofenceAdapter` (`CLCircularRegion`),
+operating within iOS CoreLocation power heuristics.
 The ringer uses AVAudioSession/AVAudioPlayer with the bundled `alarm.wav` audio file
 for continuous looping alarm chime, falling back to system alert sound if unavailable.
 The adapter's name does not establish Apple Critical Alerts entitlement or delivery.

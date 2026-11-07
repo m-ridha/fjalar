@@ -1,5 +1,7 @@
 package com.muhammadridha.fjalar.fakes
 
+import com.muhammadridha.fjalar.domain.model.GeofenceRegion
+import com.muhammadridha.fjalar.domain.model.GeofenceTransitionEvent
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.RecentDestination
 import com.muhammadridha.fjalar.domain.ports.outbound.AccessibilityPort
@@ -7,9 +9,11 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.BackgroundSyncPort
+import com.muhammadridha.fjalar.domain.ports.outbound.GeofencePort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
@@ -135,6 +139,29 @@ class FakeBackgroundSyncAdapter : BackgroundSyncPort {
     override suspend fun cancelBackgroundSync() {
         isCancelled = true
         scheduledDelayMinutes = null
+    }
+}
+
+class FakeGeofenceAdapter : GeofencePort {
+    val registeredRegions = mutableMapOf<String, GeofenceRegion>()
+    val eventsFlow = MutableSharedFlow<GeofenceTransitionEvent>(extraBufferCapacity = 64)
+
+    override suspend fun registerGeofences(regions: List<GeofenceRegion>) {
+        for (region in regions) {
+            registeredRegions[region.id] = region
+        }
+    }
+
+    override suspend fun unregisterGeofences(regionIds: List<String>) {
+        for (id in regionIds) {
+            registeredRegions.remove(id)
+        }
+    }
+
+    override fun observeGeofenceTransitions(): Flow<GeofenceTransitionEvent> = eventsFlow
+
+    suspend fun emitTransition(event: GeofenceTransitionEvent) {
+        eventsFlow.emit(event)
     }
 }
 

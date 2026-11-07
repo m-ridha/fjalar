@@ -1,6 +1,7 @@
 package com.muhammadridha.fjalar.di
 
 import com.muhammadridha.fjalar.adapters.accessibility.AndroidAccessibilityAdapter
+import com.muhammadridha.fjalar.adapters.geofence.AndroidGeofenceAdapter
 import com.muhammadridha.fjalar.adapters.location.AndroidFusedLocationAdapter
 import com.muhammadridha.fjalar.adapters.ringer.AndroidSystemAlarmRingerAdapter
 import com.muhammadridha.fjalar.adapters.scheduler.AndroidAlarmManagerSchedulerAdapter
@@ -14,6 +15,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AccessibilityPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.BackgroundSyncPort
+import com.muhammadridha.fjalar.domain.ports.outbound.GeofencePort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import org.koin.android.ext.koin.androidContext
@@ -38,4 +40,6 @@ val androidPlatformModule = module {
     single<LocationTrackerPort> { get<AndroidFusedLocationAdapter>() }
     single<SearchPlacesPort> { HybridPlaceSearchAdapter(onlineEngine = AndroidNominatimEngine()) }
     single<BackgroundSyncPort> { AndroidBackgroundSyncAdapter() }
+    single { AndroidGeofenceAdapter(androidContext()) } onClose { it?.close() }
+    single<GeofencePort> { get<AndroidGeofenceAdapter>() }
 }

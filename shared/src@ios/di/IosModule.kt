@@ -1,6 +1,7 @@
 package com.muhammadridha.fjalar.di
 
 import com.muhammadridha.fjalar.adapters.accessibility.IosAccessibilityAdapter
+import com.muhammadridha.fjalar.adapters.geofence.IosRegionGeofenceAdapter
 import com.muhammadridha.fjalar.adapters.location.IosCLLocationAdapter
 import com.muhammadridha.fjalar.adapters.ringer.IosCriticalAudioRingerAdapter
 import com.muhammadridha.fjalar.adapters.scheduler.IosBackgroundSchedulerAdapter
@@ -16,6 +17,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import com.muhammadridha.fjalar.adapters.sync.IosBackgroundSyncAdapter
 import com.muhammadridha.fjalar.domain.ports.outbound.BackgroundSyncPort
+import com.muhammadridha.fjalar.domain.ports.outbound.GeofencePort
 import org.koin.dsl.module
 import org.koin.dsl.onClose
 
@@ -34,6 +36,8 @@ val iosPlatformModule = module {
     single<SearchPlacesPort> { HybridPlaceSearchAdapter(onlineEngine = IosAppleGeocoderEngine()) }
     single { IosBackgroundSyncAdapter(syncSchedulesPortProvider = { get() }) } onClose { it?.close() }
     single<BackgroundSyncPort> { get<IosBackgroundSyncAdapter>() }
+    single { IosRegionGeofenceAdapter() } onClose { it?.close() }
+    single<GeofencePort> { get<IosRegionGeofenceAdapter>() }
 }
 
 // SwiftUI may recreate controllers; application resources and observers live once per process.
