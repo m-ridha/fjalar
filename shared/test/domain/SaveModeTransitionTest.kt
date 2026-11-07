@@ -29,4 +29,17 @@ class SaveModeTransitionTest {
         assertEquals(end, saved.suppressedUntil)
         assertEquals(AlarmState.ARMED_MONITORING, evaluator.syncSchedule(saved, end).state)
     }
+
+    @Test fun convertingArmedOneTimeToActiveScheduledEnablesDepartureGuard() {
+        val windowActiveTime = jakarta(2026, 10, 26, 7, 5)
+        val old = manggaraiAlarm(schedule = AlarmSchedule.ONE_TIME).copy(
+            state = AlarmState.ARMED_MONITORING,
+            mustExitBeforeTrigger = false,
+        )
+        val edited = old.copy(schedule = WEEKDAY_COMMUTE)
+        val saved = evaluator.prepareSave(old, edited, windowActiveTime)
+
+        assertEquals(AlarmState.ARMED_MONITORING, saved.state)
+        assertTrue(saved.mustExitBeforeTrigger)
+    }
 }

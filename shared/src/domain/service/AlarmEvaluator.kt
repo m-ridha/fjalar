@@ -68,7 +68,11 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
             state = previous.state,
             suppressedUntil = previous.suppressedUntil,
             snoozedUntil = previous.snoozedUntil,
-            mustExitBeforeTrigger = previous.mustExitBeforeTrigger,
+            mustExitBeforeTrigger = if (previous.state == ARMED_MONITORING && carried.schedule.type == ScheduleType.SCHEDULED) {
+                true
+            } else {
+                previous.mustExitBeforeTrigger
+            },
         )
         if (preserved.state == SNOOZED) return syncSchedule(preserved, now)
         if (preserved.state == DISABLED || preserved.state == RINGING) return preserved
