@@ -64,18 +64,23 @@ Despite its historical name, `AndroidFusedLocationAdapter` delegates to
 providers, not Google Play Services. iOS uses `CLLocationManager` updates. Map-only
 tracking has its own foreground owner and stops when the map is hidden or the
 app backgrounds. Alarm monitoring has independent ownership. Distance-tiered
-adaptive polling is implemented per PRD 7.3 L4 via `TrackingTier` (Far: >5 km @ 60s,
-Medium: 2–5 km @ 20s, Near: <2 km @ 10s) with hysteresis margin, dynamically adjusting
-polling intervals and accuracy. Region-geofence registration is not implemented.
+adaptive polling is implemented per PRD 7.3 L4 via pure domain `TrackingTier`
+(Far: >5 km, Medium: 2–5 km, Near: <2 km) with hysteresis margin. On Android,
+`FjalarLocationService` adjusts `LocationManager` polling intervals (60s, 20s, 10s)
+and provider accuracy. On iOS, `IosCLLocationAdapter` adjusts Core Location
+`desiredAccuracy` (`kCLLocationAccuracyHundredMeters` to `kCLLocationAccuracyBest`)
+and `distanceFilter` (100 m down to none). Region-geofence registration is not implemented.
 
 Snooze persists a two-minute deadline without changing the radius. Scheduled-window
-completion suppression and GPS accuracy filtering live in the domain. The
-already-at-destination suppression guard is implemented via `mustExitBeforeTrigger`,
-which requires departing the radius before allowing triggers when a window opens while
-already at the destination. Android monitoring notifications feature Stop/Disarm and
-Snooze actions while ringing displays full-screen wake-lock alerts. Android uses
-AlarmManager wakeups and a restricted alarm activity. See [Security](security.md)
-for the keyguard boundary and device verification matrix.
+completion suppression and GPS accuracy filtering live in the domain. When a scheduled
+alarm transitions to armed monitoring, `AlarmEvaluator` sets `mustExitBeforeTrigger`;
+this guard clears only after an accurate fix confirms the commuter is outside the
+radius, keeping the alarm suppressed if initial fixes arrive inside the destination area.
+Android ongoing monitoring notifications feature a context-aware action: "Skip Today"
+for scheduled alarms or "Stop Monitoring" for one-time alarms; Snooze is offered in the
+restricted full-screen ringing `AlarmActivity`. Android uses AlarmManager wakeups and
+a restricted alarm activity. See [Security](security.md) for the keyguard boundary and
+device verification matrix.
 
 iOS schedules user-facing local notifications. They do not run domain code while
 the app is suspended. Schedule synchronization runs when the app executes again.
