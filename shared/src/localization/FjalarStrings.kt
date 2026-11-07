@@ -97,6 +97,8 @@ enum class FjalarStringKey {
     NOTIF_MONITORING_TITLE,
     NOTIF_MONITORING_BODY,
     NOTIF_ALARM_APPROACHING,
+    NOTIF_ACTION_SKIP_TODAY,
+    NOTIF_ACTION_STOP_MONITORING,
 
     // Permissions
     PERM_LOCATION_TITLE,
@@ -254,6 +256,8 @@ object FjalarStrings {
         FjalarStringKey.NOTIF_MONITORING_TITLE to "Monitoring alarm destination",
         FjalarStringKey.NOTIF_MONITORING_BODY to "Active: %1\$s • %2\$s remaining",
         FjalarStringKey.NOTIF_ALARM_APPROACHING to "Alarm: %1\$s",
+        FjalarStringKey.NOTIF_ACTION_SKIP_TODAY to "Skip Today",
+        FjalarStringKey.NOTIF_ACTION_STOP_MONITORING to "Stop Monitoring",
 
         FjalarStringKey.PERM_LOCATION_TITLE to "Allow Background Location for Wake-Up Alarms",
         FjalarStringKey.PERM_LOCATION_BODY to "Wake Me at checks your distance in the background only while an alarm is armed. Distances are calculated on your phone. Online map requests may reveal the viewed area to the map provider.",
@@ -391,6 +395,8 @@ object FjalarStrings {
         FjalarStringKey.NOTIF_MONITORING_TITLE to "Memantau tujuan alarm",
         FjalarStringKey.NOTIF_MONITORING_BODY to "Aktif: %1\$s • %2\$s lagi",
         FjalarStringKey.NOTIF_ALARM_APPROACHING to "Alarm: %1\$s",
+        FjalarStringKey.NOTIF_ACTION_SKIP_TODAY to "Lewati Hari Ini",
+        FjalarStringKey.NOTIF_ACTION_STOP_MONITORING to "Hentikan",
 
         FjalarStringKey.PERM_LOCATION_TITLE to "Izinkan lokasi latar belakang untuk alarm tujuan",
         FjalarStringKey.PERM_LOCATION_BODY to "Bangunkan Saya di memeriksa jarak di latar belakang hanya saat alarm aktif. Jarak dihitung di ponsel. Penyedia peta daring dapat mengetahui area yang ditampilkan.",

@@ -71,6 +71,8 @@
     <string name="notif_monitoring_title">Monitoring alarm destination</string>
     <string name="notif_monitoring_body">Active: %1$s • %2$s remaining</string>
     <string name="notif_alarm_approaching">Alarm: %1$s</string>
+    <string name="notif_action_skip_today">Skip Today</string>
+    <string name="notif_action_stop_monitoring">Stop Monitoring</string>
 
     <!-- Permissions modal -->
     <string name="perm_location_title">Allow Background Location for Wake-Up Alarms</string>

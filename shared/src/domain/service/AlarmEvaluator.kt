@@ -23,11 +23,24 @@ import com.muhammadridha.fjalar.domain.model.AlarmState.SNOOZED
 class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
 
     fun enable(alarm: LocationAlarm, now: Instant): LocationAlarm = when (alarm.schedule.type) {
-        ScheduleType.ONE_TIME -> alarm.copy(state = ARMED_MONITORING, suppressedUntil = null, snoozedUntil = null)
-        ScheduleType.SCHEDULED -> withWindowState(alarm.copy(suppressedUntil = null, snoozedUntil = null), now)
+        ScheduleType.ONE_TIME -> alarm.copy(
+            state = ARMED_MONITORING,
+            suppressedUntil = null,
+            snoozedUntil = null,
+            mustExitBeforeTrigger = true,
+        )
+        ScheduleType.SCHEDULED -> withWindowState(
+            alarm.copy(suppressedUntil = null, snoozedUntil = null),
+            now,
+        )
     }
 
-    fun disable(alarm: LocationAlarm): LocationAlarm = alarm.copy(state = DISABLED, suppressedUntil = null, snoozedUntil = null)
+    fun disable(alarm: LocationAlarm): LocationAlarm = alarm.copy(
+        state = DISABLED,
+        suppressedUntil = null,
+        snoozedUntil = null,
+        mustExitBeforeTrigger = false,
+    )
 
     /** Editing mode keeps disabled/ringing states and any unfinished completion guard. */
     fun prepareSave(previous: LocationAlarm?, edited: LocationAlarm, now: Instant): LocationAlarm {
@@ -35,7 +48,11 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
             edited.copy(
                 suppressedUntil = previous.suppressedUntil,
                 snoozedUntil = previous.snoozedUntil,
+                mustExitBeforeTrigger = previous.mustExitBeforeTrigger,
             )
+        } else if (previous != null && previous.state == ARMED_MONITORING && edited.state == ARMED_MONITORING) {
+            val destinationChanged = previous.coordinates != edited.coordinates || previous.radius != edited.radius
+            edited.copy(mustExitBeforeTrigger = if (destinationChanged) true else previous.mustExitBeforeTrigger)
         } else {
             edited
         }
@@ -46,11 +63,12 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
             state = previous.state,
             suppressedUntil = previous.suppressedUntil,
             snoozedUntil = previous.snoozedUntil,
+            mustExitBeforeTrigger = previous.mustExitBeforeTrigger,
         )
         if (preserved.state == SNOOZED) return syncSchedule(preserved, now)
         if (preserved.state == DISABLED || preserved.state == RINGING) return preserved
         if (preserved.suppressedUntil != null && now < preserved.suppressedUntil) {
-            return preserved.copy(state = COMPLETED_FOR_WINDOW)
+            return preserved.copy(state = COMPLETED_FOR_WINDOW, mustExitBeforeTrigger = false)
         }
         return enable(preserved, now)
     }
@@ -100,8 +118,18 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
     fun evaluateFix(alarm: LocationAlarm, position: GeoCoordinates, horizontalAccuracyMeters: Float): LocationAlarm {
         if (alarm.state != ARMED_MONITORING) return alarm
         if (!isAccurateEnough(horizontalAccuracyMeters, alarm.radius)) return alarm
-        val inside = HaversineCalculator.distanceMeters(position, alarm.coordinates) <= alarm.radius.meters
-        return if (inside) alarm.copy(state = RINGING) else alarm
+        val distance = HaversineCalculator.distanceMeters(position, alarm.coordinates)
+        val inside = distance <= alarm.radius.meters
+        if (inside) {
+            if (alarm.mustExitBeforeTrigger) {
+                return alarm
+            }
+            return alarm.copy(state = RINGING)
+        }
+        if (distance > alarm.radius.meters + horizontalAccuracyMeters && alarm.mustExitBeforeTrigger) {
+            return alarm.copy(mustExitBeforeTrigger = false)
+        }
+        return alarm
     }
 
     fun snooze(alarm: LocationAlarm, now: Instant): LocationAlarm {
@@ -112,16 +140,18 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
             suppressedUntil = if (alarm.schedule.type == ScheduleType.SCHEDULED) {
                 scheduleEvaluator.activeWindowAt(alarm.schedule, now)?.end ?: now
             } else null,
+            mustExitBeforeTrigger = false,
         )
     }
 
     fun dismiss(alarm: LocationAlarm, now: Instant): LocationAlarm {
         check(alarm.state == RINGING) { "alarm ${alarm.id} is not ringing" }
         return when (alarm.schedule.type) {
-            ScheduleType.ONE_TIME -> alarm.copy(state = DISABLED)
+            ScheduleType.ONE_TIME -> alarm.copy(state = DISABLED, mustExitBeforeTrigger = false)
             ScheduleType.SCHEDULED -> alarm.copy(
                 state = COMPLETED_FOR_WINDOW,
                 suppressedUntil = scheduleEvaluator.activeWindowAt(alarm.schedule, now)?.end ?: now,
+                mustExitBeforeTrigger = false,
             )
         }
     }
@@ -132,12 +162,25 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
         check(alarm.state != DISABLED) { "alarm ${alarm.id} is disabled" }
         val from = if (alarm.state == SNOOZED) now else maxOf(now, alarm.suppressedUntil ?: now)
         val window = checkNotNull(scheduleEvaluator.currentOrNextWindow(alarm.schedule, from))
-        return alarm.copy(state = COMPLETED_FOR_WINDOW, suppressedUntil = window.end, snoozedUntil = null)
+        return alarm.copy(
+            state = COMPLETED_FOR_WINDOW,
+            suppressedUntil = window.end,
+            snoozedUntil = null,
+            mustExitBeforeTrigger = false,
+        )
     }
 
     private fun withWindowState(alarm: LocationAlarm, now: Instant): LocationAlarm {
-        val state: AlarmState = if (scheduleEvaluator.isActive(alarm.schedule, now)) ARMED_MONITORING else SCHEDULED_IDLE
-        return alarm.copy(state = state)
+        val isActive = scheduleEvaluator.isActive(alarm.schedule, now)
+        val state: AlarmState = if (isActive) ARMED_MONITORING else SCHEDULED_IDLE
+        val mustExit = if (alarm.state != ARMED_MONITORING && state == ARMED_MONITORING) {
+            true
+        } else if (state == ARMED_MONITORING) {
+            alarm.mustExitBeforeTrigger
+        } else {
+            false
+        }
+        return alarm.copy(state = state, mustExitBeforeTrigger = mustExit)
     }
 
     companion object {

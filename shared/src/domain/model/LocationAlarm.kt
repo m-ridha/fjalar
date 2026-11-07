@@ -28,6 +28,8 @@ data class LocationAlarm(
     /** Original window end: completion suppression, or the latest allowed snooze deadline. */
     val suppressedUntil: Instant? = null,
     val snoozedUntil: Instant? = null,
+    /** Departure guard: when true, user must exit the radius before entering can trigger ringing (PRD S6). */
+    val mustExitBeforeTrigger: Boolean = false,
 ) {
     init {
         require(id.isNotBlank()) { "id must not be blank" }
