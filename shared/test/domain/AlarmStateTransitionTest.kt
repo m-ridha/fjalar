@@ -251,7 +251,6 @@ class AlarmStateTransitionTest {
         assertTrue(tracker.isTracking)
         assertTrue(scheduler.wakeups.isEmpty())
 
-        service.handleLocationUpdate(SUDIRMAN, 10f)
         service.handleLocationUpdate(MANGGARAI, 10f)
         assertEquals(AlarmState.RINGING, state())
 
