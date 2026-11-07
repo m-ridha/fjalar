@@ -199,6 +199,26 @@ class IosRegionGeofenceAdapterTest {
     }
 
     @Test
+    fun monitoringFailure_removesPreviouslyRegisteredRegion() = runTest {
+        val fakeEngine = FakeIosGeofenceEngine()
+        val adapter = IosRegionGeofenceAdapter(
+            engine = fakeEngine,
+            clock = { fixedInstant },
+        )
+
+        val region = GeofenceRegion(
+            id = "failing-region",
+            center = GeoCoordinates(-6.2, 106.8),
+            radiusMeters = 500.0,
+        )
+        adapter.registerGeofences(listOf(region))
+        assertEquals(1, adapter.getRegisteredRegions().size)
+
+        fakeEngine.simulateFailure("failing-region", 1L)
+        assertTrue(adapter.getRegisteredRegions().isEmpty())
+    }
+
+    @Test
     fun close_clearsListener() {
         val fakeEngine = FakeIosGeofenceEngine()
         val adapter = IosRegionGeofenceAdapter(

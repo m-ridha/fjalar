@@ -23,7 +23,7 @@ data class GeofenceRegion(
 
     companion object {
         const val MIN_RADIUS_METERS: Double = 50.0
-        const val MAX_RADIUS_METERS: Double = 100_000.0
+        const val MAX_RADIUS_METERS: Double = 10_000.0
     }
 }
 

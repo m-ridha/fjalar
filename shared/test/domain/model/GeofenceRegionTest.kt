@@ -51,7 +51,7 @@ class GeofenceRegionTest {
             center = defaultCenter,
             radiusMeters = GeofenceRegion.MAX_RADIUS_METERS,
         )
-        assertEquals(100_000.0, maxRegion.radiusMeters)
+        assertEquals(10_000.0, maxRegion.radiusMeters)
     }
 
     @Test
@@ -91,7 +91,7 @@ class GeofenceRegionTest {
             GeofenceRegion(
                 id = "too-large",
                 center = defaultCenter,
-                radiusMeters = 100_000.01,
+                radiusMeters = 10_000.01,
             )
         }
         assertTrue(exception.message?.contains("radiusMeters must be within") == true)

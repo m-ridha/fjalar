@@ -69,10 +69,13 @@ adaptive polling is implemented per PRD 7.3 L4 via pure domain `TrackingTier`
 `FjalarLocationService` adjusts `LocationManager` polling intervals (60s, 20s, 10s)
 and provider accuracy. On iOS, `IosCLLocationAdapter` adjusts Core Location
 `desiredAccuracy` (`kCLLocationAccuracyHundredMeters` to `kCLLocationAccuracyBest`)
-and `distanceFilter` (100 m down to none). Native circular geofence monitoring
-is implemented via outbound `GeofencePort` (`IosRegionGeofenceAdapter` wrapping
-CoreLocation `CLCircularRegion` monitoring and `AndroidGeofenceAdapter`), enabling
-power-efficient transition detection (ENTER/EXIT) for commuter journeys.
+and `distanceFilter` (100 m down to none). On iOS, native circular geofence monitoring is active via outbound `GeofencePort`
+(`IosRegionGeofenceAdapter` wrapping CoreLocation `CLCircularRegion` monitoring),
+enabling power-efficient hardware baseband transition detection (ENTER/EXIT) for
+commuter journeys. On Android, commuter tracking currently relies on `FjalarLocationService`
+distance-tiered polling (`AndroidGeofenceAdapter` implements `GeofencePort` with a testable
+engine interface ready for Google Play Services / OS geofence client binding, with the
+default fallback engine honestly reporting unavailable).
 
 Snooze persists a two-minute deadline without changing the radius. Scheduled-window
 completion suppression and GPS accuracy filtering live in the domain. When a scheduled

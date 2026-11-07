@@ -10,6 +10,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -194,5 +195,17 @@ class AndroidGeofenceAdapterTest {
         assertEquals(1, fakeEngine.unregisterCallCount)
         assertTrue(fakeEngine.registeredRegions.isEmpty())
         assertTrue(adapter.getActiveRegions().isEmpty())
+    }
+
+    @Test
+    fun defaultAndroidGeofenceEngine_isUnavailableByDefault() {
+        val engine = DefaultAndroidGeofenceEngine()
+        assertFalse(engine.isAvailable())
+        val region = GeofenceRegion(
+            id = "region-1",
+            center = GeoCoordinates(-6.2, 106.8),
+            radiusMeters = 500.0,
+        )
+        assertFalse(engine.registerRegion(region))
     }
 }

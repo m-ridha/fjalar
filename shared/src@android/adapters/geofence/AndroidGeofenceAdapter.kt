@@ -9,6 +9,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.GeofencePort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
@@ -47,8 +48,10 @@ class DefaultAndroidGeofenceEngine(
     override fun getRegisteredRegionIds(): Set<String> = registeredRegions.keys.toSet()
 
     override fun isAvailable(): Boolean {
-        val manager = locationManagerProvider() ?: return false
-        return manager.allProviders.isNotEmpty()
+        // Native circular geofencing on Android requires an explicit OS provider (e.g.
+        // Google Play Services GeofencingClient or platform HAL). The default fallback engine
+        // honestly reports unavailable so the system uses distance-tiered LocationManager polling.
+        return false
     }
 
     override fun setListener(listener: AndroidGeofenceListener?) {
@@ -104,12 +107,14 @@ class AndroidGeofenceAdapter(
 
     suspend fun getActiveRegions(): Map<String, GeofenceRegion> = mutex.withLock { activeRegions.toMap() }
 
-    fun close() {
-        engine.setListener(null)
-        val regionIds = activeRegions.keys.toList()
-        for (id in regionIds) {
-            engine.unregisterRegion(id)
+    fun close() = runBlocking {
+        mutex.withLock {
+            engine.setListener(null)
+            val regionIds = activeRegions.keys.toList()
+            for (id in regionIds) {
+                engine.unregisterRegion(id)
+            }
+            activeRegions.clear()
         }
-        activeRegions.clear()
     }
 }

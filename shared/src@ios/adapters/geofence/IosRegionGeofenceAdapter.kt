@@ -10,6 +10,7 @@ import kotlinx.cinterop.cValue
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import platform.CoreLocation.CLCircularRegion
@@ -119,7 +120,13 @@ class IosRegionGeofenceAdapter(
             }
 
             override fun onMonitoringFailed(identifier: String?, errorCode: Long) {
-                // Monitored region failure logged or handled defensively; transition events omitted.
+                if (identifier != null) {
+                    runBlocking {
+                        mutex.withLock {
+                            registered.remove(identifier)
+                        }
+                    }
+                }
             }
         })
     }
@@ -160,12 +167,14 @@ class IosRegionGeofenceAdapter(
 
     suspend fun getRegisteredRegions(): Map<String, GeofenceRegion> = mutex.withLock { registered.toMap() }
 
-    fun close() {
-        engine.setListener(null)
-        val regionIds = registered.keys.toList()
-        for (id in regionIds) {
-            engine.stopMonitoring(id)
+    fun close() = runBlocking {
+        mutex.withLock {
+            engine.setListener(null)
+            val regionIds = registered.keys.toList()
+            for (id in regionIds) {
+                engine.stopMonitoring(id)
+            }
+            registered.clear()
         }
-        registered.clear()
     }
 }
