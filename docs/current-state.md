@@ -118,6 +118,13 @@ via `AccessibilityPort` and `isReduceTransparencyActive()`: observing Android 14
 `UIAccessibilityReduceTransparencyStatusDidChangeNotification` on iOS.
 Primary-text token contrast tests do not prove contrast over every live map.
 
+Screen-reader semantics for TalkBack (Android) and VoiceOver (iOS) are certified under WCAG 2.2 Level AA across all primary screens:
+- **Alarm Card (`AlarmCard`)**: Merges descendants (`mergeDescendants = true`) into a single natural speech description including alarm label, address, schedule/one-time trip, trigger radius, sound/vibration mode, and active/completed/disabled status. Action buttons (Delete, Skip Today) provide distinct, labeled announcements (`ACCESSIBLE_DELETE_ALARM`).
+- **HUD & Navigation Controls (`FloatingHudBar`, `MapNavigationControls`, `ArmedStatusPill`)**: `ArmedStatusPill` announces commute monitoring state (`ACCESSIBLE_ARMED_STATE`); `MapCompassControl` calculates dynamic speech descriptions with normalized integer bearings and cardinal/intercardinal direction names (`ACCESSIBLE_COMPASS_BEARING`); `MapRecenterControl` and HUD Search Pill expose explicit button roles and content descriptions without raw emoji reading.
+- **Alarm Editor (`ConfigureAlarmScreen`)**: Radius slider exposes natural content description (`ACCESSIBLE_RADIUS_SLIDER`) and tabular state description (`stateDescription`); radius presets use `Role.RadioButton`; day-of-week chips use `Role.Checkbox` with full day names and localized selection state descriptions (`ACCESSIBLE_DAY_SELECTED` / `ACCESSIBLE_DAY_NOT_SELECTED`).
+- **Map Picker (`MapPickerScreen`)**: Center crosshair announces placement instructions; confirmation button dynamically announces the targeted place name or coordinate fallback (`ACCESSIBLE_PICKER_CONFIRM`) rather than symbol glyphs.
+All interactive controls enforce touch targets >= 48 dp.
+
 ## Commute quick-picks and recent destinations
 
 The map picker and place search support offline-first recent destination quick-picks

@@ -32,6 +32,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -52,6 +55,19 @@ import com.muhammadridha.fjalar.ui.theme.FjalarStrings
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
+
+fun mapPickerConfirmSemanticDescription(
+    selectionName: String?,
+    coordinates: GeoCoordinates?,
+    locale: AppLocale,
+): String {
+    if (coordinates == null) {
+        return FjalarStrings.get(FjalarStringKey.PICKER_CONFIRM, locale)
+    }
+    val targetLabel = selectionName?.takeIf { it.isNotBlank() }
+        ?: "${coordinates.latitude}, ${coordinates.longitude}"
+    return FjalarStrings.get(FjalarStringKey.ACCESSIBLE_PICKER_CONFIRM, locale, targetLabel)
+}
 
 @Composable
 fun MapPickerScreen(
@@ -157,7 +173,10 @@ fun MapPickerScreen(
         // A neutral crosshair invites deliberate selection; it never claims a user position.
         if (selection.coordinates == null) Box(
             modifier = Modifier
-                .align(Alignment.Center),
+                .align(Alignment.Center)
+                .semantics {
+                    contentDescription = FjalarStrings.get(FjalarStringKey.PICKER_HINT, locale)
+                },
             contentAlignment = Alignment.Center,
         ) {
             Box(
@@ -286,7 +305,15 @@ fun MapPickerScreen(
                 shape = CircleShape,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 52.dp),
+                    .heightIn(min = 52.dp)
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = mapPickerConfirmSemanticDescription(
+                            selectedPlaceName,
+                            selection.coordinates,
+                            locale,
+                        )
+                    },
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
             ) {
                 Text(

@@ -56,6 +56,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -178,6 +182,33 @@ data class ConfigureAlarmDraft(
             soundEnabled = alarm.soundConfig.soundEnabled,
             vibrateEnabled = alarm.soundConfig.vibrateEnabled,
         )
+    }
+}
+
+fun configureAlarmRadiusSemanticDescription(radiusMeters: Int, locale: AppLocale): String {
+    val formattedRadius = formatDistance(radiusMeters, locale)
+    return FjalarStrings.get(FjalarStringKey.ACCESSIBLE_RADIUS_SLIDER, locale, formattedRadius)
+}
+
+val CONFIGURE_ALARM_DAY_NAME_KEYS = listOf(
+    FjalarStringKey.DAY_NAME_MONDAY,
+    FjalarStringKey.DAY_NAME_TUESDAY,
+    FjalarStringKey.DAY_NAME_WEDNESDAY,
+    FjalarStringKey.DAY_NAME_THURSDAY,
+    FjalarStringKey.DAY_NAME_FRIDAY,
+    FjalarStringKey.DAY_NAME_SATURDAY,
+    FjalarStringKey.DAY_NAME_SUNDAY,
+)
+
+fun configureAlarmDayChipContentDescription(dayIndex: Int, locale: AppLocale): String {
+    return FjalarStrings.get(CONFIGURE_ALARM_DAY_NAME_KEYS[dayIndex], locale)
+}
+
+fun configureAlarmDayChipStateDescription(isSelected: Boolean, locale: AppLocale): String {
+    return if (isSelected) {
+        FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_SELECTED, locale)
+    } else {
+        FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_NOT_SELECTED, locale)
     }
 }
 
@@ -436,8 +467,16 @@ fun ConfigureAlarmScreen(
                             .heightIn(min = 48.dp)
                             .clip(CircleShape)
                             .background(if (isSelected) colors.primary else colors.glassPill)
-                            .clickable(role = Role.Button, enabled = !isOperationPending) {
+                            .clickable(role = Role.RadioButton, enabled = !isOperationPending) {
                                 onDraftChange(draft.copy(radiusMeters = preset.meters))
+                            }
+                            .semantics {
+                                role = Role.RadioButton
+                                stateDescription = if (isSelected) {
+                                    FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_SELECTED, locale)
+                                } else {
+                                    FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_NOT_SELECTED, locale)
+                                }
                             }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center,
@@ -457,6 +496,8 @@ fun ConfigureAlarmScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Slider
+            val formattedRadius = formatDistance(draft.radiusMeters, locale)
+            val radiusDescription = FjalarStrings.get(FjalarStringKey.ACCESSIBLE_RADIUS_SLIDER, locale, formattedRadius)
             Slider(
                 value = draft.radiusMeters.toFloat(),
                 enabled = !isOperationPending,
@@ -470,6 +511,10 @@ fun ConfigureAlarmScreen(
                     activeTrackColor = colors.primary,
                     inactiveTrackColor = colors.textSecondary.copy(alpha = 0.2f),
                 ),
+                modifier = Modifier.semantics {
+                    contentDescription = radiusDescription
+                    stateDescription = formattedRadius
+                },
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -592,10 +637,19 @@ fun ConfigureAlarmScreen(
                                 .heightIn(min = 48.dp)
                                 .clip(CircleShape)
                                 .background(if (isDayActive) colors.primary else colors.glassPill)
-                                .clickable(role = Role.Button, enabled = !isOperationPending) {
+                                .clickable(role = Role.Checkbox, enabled = !isOperationPending) {
                                     val toggled = draft.daysOfWeekMask xor bit
                                     if (toggled != 0) {
                                         onDraftChange(draft.copy(daysOfWeekMask = toggled))
+                                    }
+                                }
+                                .semantics {
+                                    role = Role.Checkbox
+                                    contentDescription = FjalarStrings.get(CONFIGURE_ALARM_DAY_NAME_KEYS[i], locale)
+                                    stateDescription = if (isDayActive) {
+                                        FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_SELECTED, locale)
+                                    } else {
+                                        FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_NOT_SELECTED, locale)
                                     }
                                 }
                                 .padding(vertical = 10.dp),

@@ -149,4 +149,23 @@
     <string name="day_name_saturday">Sb</string>
     <string name="day_name_sunday">Mg</string>
     <string name="notif_schedule_reminder_body">Buka aplikasi untuk memeriksa alarm terjadwal.</string>
+
+    <!-- Accessibility & Screen Reader Semantics -->
+    <string name="accessible_delete_alarm">Hapus alarm %s</string>
+    <string name="accessible_armed_state">Pemantauan komuter aktif</string>
+    <string name="accessible_compass_bearing">Kompas mengarah %1$d derajat %2$s, ketuk untuk atur ulang utara</string>
+    <string name="compass_dir_n">utara</string>
+    <string name="compass_dir_ne">timur laut</string>
+    <string name="compass_dir_e">timur</string>
+    <string name="compass_dir_se">tenggara</string>
+    <string name="compass_dir_s">selatan</string>
+    <string name="compass_dir_sw">barat daya</string>
+    <string name="compass_dir_w">barat</string>
+    <string name="compass_dir_nw">barat laut</string>
+    <string name="accessible_radius_slider">Radius pemantauan: %s</string>
+    <string name="accessible_day_selected">dipilih</string>
+    <string name="accessible_day_not_selected">tidak dipilih</string>
+    <string name="accessible_picker_confirm">Konfirmasi tujuan %s</string>
+    <string name="accessible_picker_candidate">Tujuan kandidat di %s</string>
+    <string name="accessible_status_inactive">tidak aktif</string>
 </resources>

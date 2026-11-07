@@ -149,4 +149,23 @@
     <string name="day_name_saturday">Sat</string>
     <string name="day_name_sunday">Sun</string>
     <string name="notif_schedule_reminder_body">Open the app to check your scheduled alarm.</string>
+
+    <!-- Accessibility & Screen Reader Semantics -->
+    <string name="accessible_delete_alarm">Delete alarm %s</string>
+    <string name="accessible_armed_state">Commute monitoring active</string>
+    <string name="accessible_compass_bearing">Compass pointing %1$d degrees %2$s, tap to reset north</string>
+    <string name="compass_dir_n">north</string>
+    <string name="compass_dir_ne">north-east</string>
+    <string name="compass_dir_e">east</string>
+    <string name="compass_dir_se">south-east</string>
+    <string name="compass_dir_s">south</string>
+    <string name="compass_dir_sw">south-west</string>
+    <string name="compass_dir_w">west</string>
+    <string name="compass_dir_nw">north-west</string>
+    <string name="accessible_radius_slider">Trigger radius: %s</string>
+    <string name="accessible_day_selected">selected</string>
+    <string name="accessible_day_not_selected">not selected</string>
+    <string name="accessible_picker_confirm">Confirm destination %s</string>
+    <string name="accessible_picker_candidate">Candidate destination at %s</string>
+    <string name="accessible_status_inactive">inactive</string>
 </resources>
