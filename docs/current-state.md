@@ -111,9 +111,10 @@ can apply to the next scheduled window, including one starting the next day.
 `glassSurface` draws translucent tinted backgrounds and gradient borders. It does
 not implement Gaussian backdrop blur or Haze. Reduced-transparency colors and
 1.5 dp high-contrast borders dynamically react to live OS accessibility settings
-via `AccessibilityPort` and `isReduceTransparencyActive()`: observing Android 14+
-`Settings.Secure.accessibility_reduce_transparency` and `AccessibilityManager.isHighContrastTextEnabled`
-on Android, and `UIAccessibility.isReduceTransparencyEnabled` and
+via `AccessibilityPort` and `isReduceTransparencyActive()`: observing Android 14+ / API 34+
+`Settings.Secure.accessibility_reduce_transparency` and API 36+
+`AccessibilityManager.isHighContrastTextEnabled` on Android, and
+`UIAccessibility.isReduceTransparencyEnabled` and
 `UIAccessibilityReduceTransparencyStatusDidChangeNotification` on iOS.
 Primary-text token contrast tests do not prove contrast over every live map.
 

@@ -34,7 +34,12 @@ open class DefaultAndroidAccessibilityPlatformGateway(
         context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
 
     override fun isHighTextContrastEnabled(): Boolean {
-        return accessibilityManager?.isHighContrastTextEnabled == true
+        if (Build.VERSION.SDK_INT < 36) return false
+        return try {
+            accessibilityManager?.isHighContrastTextEnabled == true
+        } catch (_: Throwable) {
+            false
+        }
     }
 
     override fun isReduceTransparencySettingEnabled(): Boolean {
@@ -66,16 +71,16 @@ open class DefaultAndroidAccessibilityPlatformGateway(
             }
         }
 
-        val highContrastListener = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val listener = AccessibilityManager.HighContrastTextStateChangeListener {
-                onChange()
-            }
+        val highContrastListener = if (Build.VERSION.SDK_INT >= 36) {
             try {
+                val listener = AccessibilityManager.HighContrastTextStateChangeListener {
+                    onChange()
+                }
                 accessibilityManager?.addHighContrastTextStateChangeListener(context.mainExecutor, listener)
+                listener
             } catch (_: Throwable) {
-                // Defensive in environments without mainExecutor
+                null
             }
-            listener
         } else {
             null
         }
@@ -86,7 +91,7 @@ open class DefaultAndroidAccessibilityPlatformGateway(
             } catch (_: Throwable) {
                 // Ignore
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && highContrastListener != null) {
+            if (Build.VERSION.SDK_INT >= 36 && highContrastListener != null) {
                 try {
                     accessibilityManager?.removeHighContrastTextStateChangeListener(highContrastListener)
                 } catch (_: Throwable) {
