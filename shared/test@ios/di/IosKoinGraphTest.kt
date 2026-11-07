@@ -1,11 +1,13 @@
 package com.muhammadridha.fjalar.di
 
+import com.muhammadridha.fjalar.adapters.accessibility.IosAccessibilityAdapter
 import com.muhammadridha.fjalar.adapters.location.IosCLLocationAdapter
 import com.muhammadridha.fjalar.adapters.ringer.IosCriticalAudioRingerAdapter
 import com.muhammadridha.fjalar.adapters.scheduler.IosBackgroundSchedulerAdapter
 import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
+import com.muhammadridha.fjalar.domain.ports.outbound.AccessibilityPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
@@ -31,6 +33,7 @@ class IosKoinGraphTest {
         try {
             val koin = app.koin
             assertIs<IosBackgroundSchedulerAdapter>(koin.get<AlarmSchedulerPort>())
+            assertIs<IosAccessibilityAdapter>(koin.get<AccessibilityPort>())
             assertIs<IosCriticalAudioRingerAdapter>(koin.get<AlarmRingerPort>())
             val tracker = assertIs<IosCLLocationAdapter>(koin.get<LocationTrackerPort>())
             assertSame(tracker, koin.get<IosCLLocationAdapter>())

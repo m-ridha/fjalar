@@ -23,6 +23,7 @@ import kotlin.test.*
 
 internal fun fakePlatformModule() = module {
     single<KeyValueStorage> { InMemoryKeyValueStorage() }
+    single<AccessibilityPort> { FakeAccessibilityAdapter() }
     single<LocationTrackerPort> { FakeLocationTracker() }
     single<AlarmSchedulerPort> { FakeAlarmScheduler() }
     single<AlarmRingerPort> { FakeAlarmRinger() }
@@ -46,6 +47,8 @@ class KoinGraphTest {
             assertSame(service, koin.get<SkipTodayPort>())
             assertSame(service, koin.get<SyncSchedulesPort>())
             assertSame(service, koin.get<DeleteAlarmPort>())
+            assertIs<AccessibilityPort>(koin.get<AccessibilityPort>())
+            assertFalse(koin.get<AccessibilityPort>().isReduceTransparencyActive)
             assertIs<PersistentAlarmRepository>(koin.get<AlarmRepositoryPort>())
             assertSame(koin.get<AlarmRepositoryPort>(), koin.get<AlarmRepositoryPort>())
             assertSame(koin.get<PreferencesPort>(), koin.get<PreferencesPort>())

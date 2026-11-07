@@ -33,6 +33,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.muhammadridha.fjalar.ui.accessibility.isReduceTransparencyActive
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
@@ -83,7 +84,7 @@ import kotlinx.coroutines.launch
 fun FjalarApp(
     viewModel: FjalarViewModel,
     modifier: Modifier = Modifier,
-    reducedTransparency: Boolean = false,
+    reducedTransparency: Boolean = isReduceTransparencyActive(),
     onRequestPermission: (() -> Unit)? = null,
     navController: NavHostController = rememberNavController(),
 ) {
