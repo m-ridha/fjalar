@@ -2,6 +2,7 @@ package com.muhammadridha.fjalar.adapters.location
 
 import com.muhammadridha.fjalar.domain.model.LocationFix
 import com.muhammadridha.fjalar.domain.model.LocationAvailability
+import com.muhammadridha.fjalar.domain.model.TrackingTier
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.time.TimeSource
@@ -42,6 +43,9 @@ class AndroidFusedLocationAdapter(
     private val ownershipMutex = Mutex()
     private var alarmOwned = false
     private var mapOwned = false
+    private var alarmIntervalMillis: Long = 10_000L
+    private var alarmTier: TrackingTier = TrackingTier.APPROACH
+    private var lastConfiguredTier: TrackingTier? = null
     override fun observeFixes() = stream.fixes
     override fun observeAvailability() = stream.availability
     fun reportAvailability(value: LocationAvailability) = stream.reportAvailability(value)
@@ -60,33 +64,46 @@ class AndroidFusedLocationAdapter(
         }
     }
 
-    override suspend fun startTracking(updateIntervalMillis: Long) = ownershipMutex.withLock {
+    override suspend fun startTracking(updateIntervalMillis: Long) = startTracking(
+        updateIntervalMillis,
+        TrackingTier.fromInterval(updateIntervalMillis),
+    )
+
+    override suspend fun startTracking(updateIntervalMillis: Long, tier: TrackingTier) = ownershipMutex.withLock {
         if (!alarmOwned) stream.invalidateQueuedFixes()
         alarmOwned = true
+        alarmIntervalMillis = updateIntervalMillis
+        alarmTier = tier
         gateway.setAlarmOwnership(true)
-        reconcileTracking(updateIntervalMillis)
+        reconcileTracking()
     }
 
     override suspend fun stopTracking() = ownershipMutex.withLock {
         if (alarmOwned) stream.invalidateQueuedFixes()
         alarmOwned = false
         gateway.setAlarmOwnership(false)
-        reconcileTracking(10_000L)
+        reconcileTracking()
     }
 
     override suspend fun setForegroundMapTracking(enabled: Boolean) = ownershipMutex.withLock {
         if (mapOwned != enabled) stream.invalidateQueuedFixes()
         mapOwned = enabled
-        reconcileTracking(10_000L)
+        reconcileTracking()
     }
 
-    private fun reconcileTracking(interval: Long) {
+    private fun reconcileTracking() {
         if (alarmOwned || mapOwned) {
-            if (!isTrackingActive || !gateway.isTracking()) gateway.startForegroundService(interval)
+            val effectiveInterval = if (mapOwned) 10_000L else alarmIntervalMillis
+            val effectiveTier = if (mapOwned) TrackingTier.APPROACH else alarmTier
+            if (!isTrackingActive || !gateway.isTracking() || effectiveTier != lastConfiguredTier) {
+                gateway.startForegroundService(effectiveInterval, effectiveTier)
+                lastConfiguredTier = effectiveTier
+            }
             isTrackingActive = true
         } else {
             if (isTrackingActive || gateway.isTracking()) gateway.stopForegroundService()
             isTrackingActive = false
+            lastConfiguredTier = null
             stream.reportAvailability(LocationAvailability.PROVIDER_UNAVAILABLE)
         }
     }
@@ -136,6 +153,7 @@ class AndroidFusedLocationAdapter(
         const val ACTION_STOP_TRACKING = "com.muhammadridha.fjalar.action.STOP_TRACKING"
         const val EXTRA_ALARM_OWNED = "com.muhammadridha.fjalar.extra.ALARM_OWNED"
         const val EXTRA_UPDATE_INTERVAL = "com.muhammadridha.fjalar.extra.UPDATE_INTERVAL"
+        const val EXTRA_TRACKING_TIER = "com.muhammadridha.fjalar.extra.TRACKING_TIER"
 
         fun resolveDefaultService(): Class<*>? {
             return try {
@@ -154,6 +172,9 @@ class AndroidFusedLocationAdapter(
 interface LocationPlatformGateway {
     fun setAlarmOwnership(enabled: Boolean) {}
     fun startForegroundService(updateIntervalMillis: Long)
+    fun startForegroundService(updateIntervalMillis: Long, tier: TrackingTier) {
+        startForegroundService(updateIntervalMillis)
+    }
     fun stopForegroundService()
     fun isTracking(): Boolean
     fun setLocationListener(listener: ((coordinates: GeoCoordinates, horizontalAccuracyMeters: Float) -> Unit)?)
@@ -175,17 +196,25 @@ open class DefaultAndroidLocationPlatformGateway(
 
     private var alarmOwned = false
     private var intervalMillis = 10_000L
+    private var currentTier = TrackingTier.APPROACH
 
     override fun setAlarmOwnership(enabled: Boolean) {
         if (alarmOwned == enabled) return
         alarmOwned = enabled
-        if (tracking) startForegroundService(intervalMillis)
+        if (tracking) startForegroundService(intervalMillis, currentTier)
     }
 
     override fun startForegroundService(updateIntervalMillis: Long) {
+        startForegroundService(updateIntervalMillis, TrackingTier.fromInterval(updateIntervalMillis))
+    }
+
+    override fun startForegroundService(updateIntervalMillis: Long, tier: TrackingTier) {
+        if (tracking && intervalMillis == updateIntervalMillis && currentTier == tier) return
         intervalMillis = updateIntervalMillis
+        currentTier = tier
         val intent = createServiceIntent(AndroidFusedLocationAdapter.ACTION_START_TRACKING).apply {
             putExtra(AndroidFusedLocationAdapter.EXTRA_UPDATE_INTERVAL, updateIntervalMillis)
+            putExtra(AndroidFusedLocationAdapter.EXTRA_TRACKING_TIER, tier.name)
             putExtra(AndroidFusedLocationAdapter.EXTRA_ALARM_OWNED, alarmOwned)
         }
         try {

@@ -3,6 +3,7 @@ package com.muhammadridha.fjalar.adapters.location
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationFix
 import com.muhammadridha.fjalar.domain.model.LocationAvailability
+import com.muhammadridha.fjalar.domain.model.TrackingTier
 import com.muhammadridha.fjalar.domain.ports.inbound.HandleLocationUpdatePort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -27,6 +28,7 @@ class IosCLLocationAdapter(
     private val stream = LocationFixStream()
     private var alarmOwned = false
     private var mapOwned = false
+    private var currentTier: TrackingTier = TrackingTier.APPROACH
     var isTracking: Boolean = false
         private set
 
@@ -46,9 +48,15 @@ class IosCLLocationAdapter(
         )
     }
 
-    override suspend fun startTracking(updateIntervalMillis: Long) = withContext(coroutineDispatcher) {
+    override suspend fun startTracking(updateIntervalMillis: Long) = startTracking(
+        updateIntervalMillis,
+        TrackingTier.fromInterval(updateIntervalMillis),
+    )
+
+    override suspend fun startTracking(updateIntervalMillis: Long, tier: TrackingTier) = withContext(coroutineDispatcher) {
         if (!alarmOwned) stream.invalidateQueuedFixes()
         alarmOwned = true
+        currentTier = tier
         reconcileTracking()
     }
 
@@ -67,6 +75,8 @@ class IosCLLocationAdapter(
     private fun reconcileTracking() {
         gateway.setBackgroundEnabled(alarmOwned)
         if (alarmOwned || mapOwned) {
+            val effectiveTier = if (mapOwned) TrackingTier.APPROACH else currentTier
+            gateway.updateTrackingTier(effectiveTier)
             if (!isTracking) {
                 gateway.start()
                 isTracking = true
@@ -104,6 +114,7 @@ class IosCLLocationAdapter(
 interface IosLocationGateway {
     fun setListeners(onFix: (LocationFix) -> Unit, onAvailability: (LocationAvailability) -> Unit)
     fun setBackgroundEnabled(enabled: Boolean)
+    fun updateTrackingTier(tier: TrackingTier) {}
     fun start()
     fun stop()
 }
@@ -116,6 +127,30 @@ private class NativeIosLocationGateway : IosLocationGateway {
     private var requested = false
     private var running = false
     private var background = false
+    private var currentTier: TrackingTier = TrackingTier.APPROACH
+
+    override fun updateTrackingTier(tier: TrackingTier) {
+        currentTier = tier
+        applyTrackingTier(tier)
+    }
+
+    private fun applyTrackingTier(tier: TrackingTier) {
+        when (tier) {
+            TrackingTier.FAR -> {
+                manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+                manager.distanceFilter = 50.0
+            }
+            TrackingTier.MEDIUM -> {
+                manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+                manager.distanceFilter = 10.0
+            }
+            TrackingTier.APPROACH -> {
+                manager.desiredAccuracy = kCLLocationAccuracyBest
+                manager.distanceFilter = kCLDistanceFilterNone
+            }
+        }
+    }
+
     private val delegate = object : NSObject(), CLLocationManagerDelegateProtocol {
         override fun locationManager(manager: CLLocationManager, didUpdateLocations: List<*>) {
             if (!running) return
@@ -170,10 +205,7 @@ private class NativeIosLocationGateway : IosLocationGateway {
 
     override fun start() {
         requested = true
-        // No distance filter: a stationary commuter still needs current accuracy/telemetry.
-        // CoreLocation chooses cadence; unlike Android it has no 10-second interval setting.
-        manager.desiredAccuracy = kCLLocationAccuracyBest
-        manager.distanceFilter = kCLDistanceFilterNone
+        applyTrackingTier(currentTier)
         manager.pausesLocationUpdatesAutomatically = false
         if (background) manager.requestAlwaysAuthorization() else manager.requestWhenInUseAuthorization()
         reconcileAuthorization()
