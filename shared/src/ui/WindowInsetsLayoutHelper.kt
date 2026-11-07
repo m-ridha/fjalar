@@ -47,7 +47,7 @@ object WindowInsetsLayoutHelper {
         .padding(horizontal = horizontal, vertical = vertical)
 
     /**
-     * Modifier for bottom surfaces (e.g. GlassBottomSheet, ConfigureSheet, SearchPlacesSheet).
+     * Modifier for bottom surfaces (e.g. SearchPlacesSheet, bottom action bars).
      * Applies bottom and side safe areas to avoid system navigation and cutouts.
      */
     @Composable
