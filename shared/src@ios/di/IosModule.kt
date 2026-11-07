@@ -14,6 +14,8 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
+import com.muhammadridha.fjalar.adapters.sync.IosBackgroundSyncAdapter
+import com.muhammadridha.fjalar.domain.ports.outbound.BackgroundSyncPort
 import org.koin.dsl.module
 import org.koin.dsl.onClose
 
@@ -30,12 +32,15 @@ val iosPlatformModule = module {
     single { IosSystemEvents(get()) } onClose { it?.close() }
     single<LocationTrackerPort> { get<IosCLLocationAdapter>() }
     single<SearchPlacesPort> { HybridPlaceSearchAdapter(onlineEngine = IosAppleGeocoderEngine()) }
+    single { IosBackgroundSyncAdapter(syncSchedulesPortProvider = { get() }) } onClose { it?.close() }
+    single<BackgroundSyncPort> { get<IosBackgroundSyncAdapter>() }
 }
 
 // SwiftUI may recreate controllers; application resources and observers live once per process.
 private val iosApplication by lazy {
     startFjalar(iosPlatformModule).also { application ->
         application.koin.get<IosBackgroundSchedulerAdapter>().requestAuthorization()
+        application.koin.get<IosBackgroundSyncAdapter>().registerBackgroundSyncTask()
         application.koin.get<IosSystemEvents>()
     }
 }

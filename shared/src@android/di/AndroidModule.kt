@@ -9,9 +9,11 @@ import com.muhammadridha.fjalar.adapters.search.HybridPlaceSearchAdapter
 import com.muhammadridha.fjalar.adapters.storage.PersistentPreferencesAdapter
 import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.SharedPreferencesKeyValueStorage
+import com.muhammadridha.fjalar.adapters.sync.AndroidBackgroundSyncAdapter
 import com.muhammadridha.fjalar.domain.ports.outbound.AccessibilityPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
+import com.muhammadridha.fjalar.domain.ports.outbound.BackgroundSyncPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import org.koin.android.ext.koin.androidContext
@@ -35,4 +37,5 @@ val androidPlatformModule = module {
     } onClose { it?.close() }
     single<LocationTrackerPort> { get<AndroidFusedLocationAdapter>() }
     single<SearchPlacesPort> { HybridPlaceSearchAdapter(onlineEngine = AndroidNominatimEngine()) }
+    single<BackgroundSyncPort> { AndroidBackgroundSyncAdapter() }
 }

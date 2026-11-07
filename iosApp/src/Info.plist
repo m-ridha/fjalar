@@ -45,6 +45,10 @@
 		<string>audio</string>
 		<string>fetch</string>
 	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.muhammadridha.fjalar.refresh</string>
+	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Wake Me at uses your location to show your position on the map and check distance to an alarm destination.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

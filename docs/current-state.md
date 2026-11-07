@@ -82,10 +82,15 @@ restricted full-screen ringing `AlarmActivity`. Android uses AlarmManager wakeup
 a restricted alarm activity. See [Security](security.md) for the keyguard boundary and
 device verification matrix.
 
-iOS schedules user-facing local notifications. They do not run domain code while
-the app is suspended. Schedule synchronization runs when the app executes again.
-No BGAppRefreshTask registration/submission or region monitoring is implemented.
-The plist includes `fetch`, but no permitted task identifier is configured.
+iOS schedules user-facing local notifications via `UNUserNotificationCenter` and
+supports background schedule synchronization via `BGTaskScheduler` with the permitted
+task identifier `com.muhammadridha.fjalar.refresh` (registered in Info.plist with `fetch`
+background mode). `IosBackgroundSyncAdapter` registers the task at launch and submits
+refresh requests with a minimum 15-minute delay to invoke `SynchronizeAlarmsUseCase` /
+`SyncSchedulesPort.syncSchedules()`. Because `BGAppRefreshTask` execution timing is
+strictly best-effort and subject to iOS power heuristics, the app continues to
+resynchronize schedules when executed again in the foreground. Region monitoring is not
+implemented.
 The ringer uses AVAudioSession/AVAudioPlayer with the bundled `alarm.wav` audio file
 for continuous looping alarm chime, falling back to system alert sound if unavailable.
 The adapter's name does not establish Apple Critical Alerts entitlement or delivery.
