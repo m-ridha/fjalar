@@ -98,6 +98,12 @@ jobs:
           python3 scripts/test_release_metadata.py
           python3 scripts/test_upload_release_assets.py
 
+      - name: Verify String Catalogs, Icons & Audio Assets
+        run: |
+          python3 scripts/test_string_catalogs.py
+          python3 scripts/test_generated_icons.py
+          python3 scripts/test_generated_audio.py
+
       - name: Run Multiplatform Checks (./kotlin check)
         run: ./kotlin check
 
