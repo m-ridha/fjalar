@@ -23,6 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -36,6 +39,71 @@ import com.muhammadridha.fjalar.ui.theme.fjalarString
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
+
+/**
+ * Builds a natural, complete accessibility speech sentence describing the alarm.
+ */
+fun alarmCardSemanticDescription(alarm: LocationAlarm, locale: AppLocale): String {
+    val parts = buildList {
+        if (alarm.label.isNotBlank()) {
+            add(alarm.label)
+        }
+        if (!alarm.addressLabel.isNullOrBlank()) {
+            add(alarm.addressLabel)
+        }
+
+        val schedulePart = if (alarm.schedule.type == ScheduleType.SCHEDULED) {
+            val startStr = formatMinuteOfDay(alarm.schedule.startMinuteOfDay ?: 0)
+            val endStr = formatMinuteOfDay(alarm.schedule.endMinuteOfDay ?: 0)
+            val daysStr = formatDaysOfWeek(alarm.schedule.daysOfWeekMask, locale)
+            if (daysStr.isNotBlank()) "$startStr – $endStr • $daysStr" else "$startStr – $endStr"
+        } else {
+            FjalarStrings.get(
+                FjalarStringKey.CARD_ONE_TIME_TRIP,
+                locale,
+                formatDistance(alarm.radius.meters, locale),
+            )
+        }
+        if (schedulePart.isNotBlank()) {
+            add(schedulePart)
+        }
+
+        val radiusPart = FjalarStrings.get(
+            FjalarStringKey.ACCESSIBLE_RADIUS_SLIDER,
+            locale,
+            formatDistance(alarm.radius.meters, locale),
+        )
+        if (radiusPart.isNotBlank()) {
+            add(radiusPart)
+        }
+
+        val soundPart = when {
+            alarm.soundConfig.soundEnabled && alarm.soundConfig.vibrateEnabled ->
+                FjalarStrings.get(FjalarStringKey.CARD_LOUD_AND_VIBRATE, locale)
+            alarm.soundConfig.soundEnabled ->
+                FjalarStrings.get(FjalarStringKey.EDITOR_LOUD_SOUND, locale)
+            alarm.soundConfig.vibrateEnabled ->
+                FjalarStrings.get(FjalarStringKey.EDITOR_STRONG_VIBRATE, locale)
+            else -> null
+        }
+        if (!soundPart.isNullOrBlank()) {
+            add(soundPart)
+        }
+
+        val statusPart = when {
+            alarm.state == AlarmState.COMPLETED_FOR_WINDOW ->
+                FjalarStrings.get(FjalarStringKey.CARD_SKIPPED_TODAY, locale)
+            alarm.isEnabled ->
+                FjalarStrings.get(FjalarStringKey.ACCESSIBLE_ARMED_STATE, locale)
+            else ->
+                FjalarStrings.get(FjalarStringKey.ACCESSIBLE_STATUS_INACTIVE, locale)
+        }
+        if (statusPart.isNotBlank()) {
+            add(statusPart)
+        }
+    }
+    return parts.joinToString(", ")
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -65,6 +133,9 @@ fun AlarmCard(
             .fillMaxWidth()
             .glassSurface(level = GlassLevel.PILL, shape = RoundedCornerShape(20.dp))
             .clickable(role = Role.Button, onClick = { onEdit(alarm) })
+            .semantics(mergeDescendants = true) {
+                contentDescription = alarmCardSemanticDescription(alarm, locale)
+            }
             .padding(16.dp),
     ) {
         // Top row: Label + optional address, Switch
@@ -176,6 +247,10 @@ fun AlarmCard(
                         modifier = Modifier
                             .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                             .clickable(role = Role.Button) { onSkipToday(alarm.id) }
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = FjalarStrings.get(FjalarStringKey.CARD_SKIP_TODAY, locale)
+                            }
                             .heightIn(min = 48.dp)
                             .padding(horizontal = 12.dp, vertical = 14.dp),
                     )
@@ -186,7 +261,16 @@ fun AlarmCard(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 OutlinedButton(
                     onClick = { onDelete(alarm) },
-                    modifier = Modifier.heightIn(min = 48.dp),
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .semantics {
+                            contentDescription = FjalarStrings.get(
+                                FjalarStringKey.ACCESSIBLE_DELETE_ALARM,
+                                locale,
+                                alarm.label,
+                            )
+                            role = Role.Button
+                        },
                     shape = CircleShape,
                     border = BorderStroke(1.dp, colors.danger),
                     colors = ButtonDefaults.outlinedButtonColors(

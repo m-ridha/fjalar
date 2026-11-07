@@ -16,12 +16,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
+import com.muhammadridha.fjalar.localization.FjalarStringKey
+import com.muhammadridha.fjalar.localization.FjalarStrings
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
+
+fun armedStatusPillStateDescription(locale: AppLocale): String =
+    FjalarStrings.get(FjalarStringKey.ACCESSIBLE_ARMED_STATE, locale)
 
 @Composable
 fun ArmedStatusPill(
@@ -31,13 +41,20 @@ fun ArmedStatusPill(
     onClick: () -> Unit = {},
 ) {
     val colors = LiquidGlassTheme.colors
-    val statusText = armedStatusText(alarm, distanceMeters, LiquidGlassTheme.locale)
+    val locale = LiquidGlassTheme.locale
+    val statusText = armedStatusText(alarm, distanceMeters, locale)
+    val armedStateDesc = armedStatusPillStateDescription(locale)
 
     Row(
         modifier = modifier
             .heightIn(min = 48.dp)
             .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
             .clickable(role = Role.Button, onClick = onClick)
+            .semantics {
+                role = Role.Button
+                contentDescription = statusText
+                stateDescription = armedStateDesc
+            }
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

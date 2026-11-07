@@ -157,6 +157,25 @@ enum class FjalarStringKey {
     // Languages
     LANG_ENGLISH,
     LANG_INDONESIAN,
+
+    // Accessibility & Screen Reader Semantics
+    ACCESSIBLE_DELETE_ALARM,
+    ACCESSIBLE_ARMED_STATE,
+    ACCESSIBLE_COMPASS_BEARING,
+    COMPASS_DIR_N,
+    COMPASS_DIR_NE,
+    COMPASS_DIR_E,
+    COMPASS_DIR_SE,
+    COMPASS_DIR_S,
+    COMPASS_DIR_SW,
+    COMPASS_DIR_W,
+    COMPASS_DIR_NW,
+    ACCESSIBLE_RADIUS_SLIDER,
+    ACCESSIBLE_DAY_SELECTED,
+    ACCESSIBLE_DAY_NOT_SELECTED,
+    ACCESSIBLE_PICKER_CONFIRM,
+    ACCESSIBLE_PICKER_CANDIDATE,
+    ACCESSIBLE_STATUS_INACTIVE,
 }
 
 object FjalarStrings {
@@ -300,6 +319,24 @@ object FjalarStrings {
 
         FjalarStringKey.LANG_ENGLISH to "English (EN)",
         FjalarStringKey.LANG_INDONESIAN to "Bahasa Indonesia (ID)",
+
+        FjalarStringKey.ACCESSIBLE_DELETE_ALARM to "Delete alarm %s",
+        FjalarStringKey.ACCESSIBLE_ARMED_STATE to "Commute monitoring active",
+        FjalarStringKey.ACCESSIBLE_COMPASS_BEARING to "Compass pointing %1\$d degrees %2\$s, tap to reset north",
+        FjalarStringKey.COMPASS_DIR_N to "north",
+        FjalarStringKey.COMPASS_DIR_NE to "north-east",
+        FjalarStringKey.COMPASS_DIR_E to "east",
+        FjalarStringKey.COMPASS_DIR_SE to "south-east",
+        FjalarStringKey.COMPASS_DIR_S to "south",
+        FjalarStringKey.COMPASS_DIR_SW to "south-west",
+        FjalarStringKey.COMPASS_DIR_W to "west",
+        FjalarStringKey.COMPASS_DIR_NW to "north-west",
+        FjalarStringKey.ACCESSIBLE_RADIUS_SLIDER to "Trigger radius: %s",
+        FjalarStringKey.ACCESSIBLE_DAY_SELECTED to "selected",
+        FjalarStringKey.ACCESSIBLE_DAY_NOT_SELECTED to "not selected",
+        FjalarStringKey.ACCESSIBLE_PICKER_CONFIRM to "Confirm destination %s",
+        FjalarStringKey.ACCESSIBLE_PICKER_CANDIDATE to "Candidate destination at %s",
+        FjalarStringKey.ACCESSIBLE_STATUS_INACTIVE to "inactive",
     )
 
     private val indonesianCatalog: Map<FjalarStringKey, String> = mapOf(
@@ -441,6 +478,24 @@ object FjalarStrings {
 
         FjalarStringKey.LANG_ENGLISH to "English (EN)",
         FjalarStringKey.LANG_INDONESIAN to "Bahasa Indonesia (ID)",
+
+        FjalarStringKey.ACCESSIBLE_DELETE_ALARM to "Hapus alarm %s",
+        FjalarStringKey.ACCESSIBLE_ARMED_STATE to "Pemantauan komuter aktif",
+        FjalarStringKey.ACCESSIBLE_COMPASS_BEARING to "Kompas mengarah %1\$d derajat %2\$s, ketuk untuk atur ulang utara",
+        FjalarStringKey.COMPASS_DIR_N to "utara",
+        FjalarStringKey.COMPASS_DIR_NE to "timur laut",
+        FjalarStringKey.COMPASS_DIR_E to "timur",
+        FjalarStringKey.COMPASS_DIR_SE to "tenggara",
+        FjalarStringKey.COMPASS_DIR_S to "selatan",
+        FjalarStringKey.COMPASS_DIR_SW to "barat daya",
+        FjalarStringKey.COMPASS_DIR_W to "barat",
+        FjalarStringKey.COMPASS_DIR_NW to "barat laut",
+        FjalarStringKey.ACCESSIBLE_RADIUS_SLIDER to "Radius pemantauan: %s",
+        FjalarStringKey.ACCESSIBLE_DAY_SELECTED to "dipilih",
+        FjalarStringKey.ACCESSIBLE_DAY_NOT_SELECTED to "tidak dipilih",
+        FjalarStringKey.ACCESSIBLE_PICKER_CONFIRM to "Konfirmasi tujuan %s",
+        FjalarStringKey.ACCESSIBLE_PICKER_CANDIDATE to "Tujuan kandidat di %s",
+        FjalarStringKey.ACCESSIBLE_STATUS_INACTIVE to "tidak aktif",
     )
 
     fun get(key: FjalarStringKey, locale: AppLocale, vararg args: Any): String {
@@ -463,4 +518,21 @@ object FjalarStrings {
             args.getOrNull(index)?.toString() ?: match.value
         }
     }
+
+    fun compassDirectionKey(bearing: Double): FjalarStringKey {
+        val normalized = ((bearing % 360.0) + 360.0) % 360.0
+        return when (normalized) {
+            in 337.5..360.0, in 0.0..<22.5 -> FjalarStringKey.COMPASS_DIR_N
+            in 22.5..<67.5 -> FjalarStringKey.COMPASS_DIR_NE
+            in 67.5..<112.5 -> FjalarStringKey.COMPASS_DIR_E
+            in 112.5..<157.5 -> FjalarStringKey.COMPASS_DIR_SE
+            in 157.5..<202.5 -> FjalarStringKey.COMPASS_DIR_S
+            in 202.5..<247.5 -> FjalarStringKey.COMPASS_DIR_SW
+            in 247.5..<292.5 -> FjalarStringKey.COMPASS_DIR_W
+            else -> FjalarStringKey.COMPASS_DIR_NW
+        }
+    }
 }
+
+fun compassDirectionKey(bearing: Double): FjalarStringKey = FjalarStrings.compassDirectionKey(bearing)
+

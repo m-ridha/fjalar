@@ -155,6 +155,10 @@ fun FloatingHudBar(
                             role = Role.Button,
                             onClick = onSearchClick,
                         )
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = searchPlaceholder
+                        }
                         .padding(horizontal = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

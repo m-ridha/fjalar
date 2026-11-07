@@ -24,8 +24,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.muhammadridha.fjalar.domain.model.AppLocale
+import com.muhammadridha.fjalar.localization.FjalarStrings
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
@@ -33,6 +36,15 @@ import com.muhammadridha.fjalar.ui.theme.fjalarString
 import com.muhammadridha.fjalar.ui.theme.glassSurface
 import kotlinx.coroutines.delay
 import kotlin.math.abs
+import kotlin.math.roundToInt
+
+fun compassSemanticDescription(bearing: Double, locale: AppLocale): String {
+    val normalized = if (!bearing.isFinite()) 0.0 else ((bearing % 360.0) + 360.0) % 360.0
+    val rounded = (normalized.roundToInt()) % 360
+    val dirKey = FjalarStrings.compassDirectionKey(normalized)
+    val dirName = FjalarStrings.get(dirKey, locale)
+    return FjalarStrings.get(FjalarStringKey.ACCESSIBLE_COMPASS_BEARING, locale, rounded, dirName)
+}
 
 /**
  * The compass follows the measured GPS button with an 8 dp touch gap. Keeping both in the
@@ -58,7 +70,10 @@ fun MapRecenterControl(onRecenter: () -> Unit) {
         modifier = Modifier.size(48.dp)
             .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
             .clickable(role = Role.Button, onClick = onRecenter)
-            .semantics { contentDescription = recenterDescription },
+            .semantics {
+                role = Role.Button
+                contentDescription = recenterDescription
+            },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(28.dp)) {
@@ -99,12 +114,15 @@ fun MapCompassControl(bearing: Double, onResetNorth: () -> Unit) {
 @Composable
 private fun CompassButton(bearing: Double, onResetNorth: () -> Unit) {
     val colors = LiquidGlassTheme.colors
-    val compassDescription = fjalarString(FjalarStringKey.HUD_COMPASS_NORTH)
+    val compassDescription = compassSemanticDescription(bearing, LiquidGlassTheme.locale)
     Box(
         modifier = Modifier.size(48.dp)
             .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
             .clickable(role = Role.Button, onClick = onResetNorth)
-            .semantics { contentDescription = compassDescription },
+            .semantics {
+                role = Role.Button
+                contentDescription = compassDescription
+            },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(28.dp).rotate(-bearing.toFloat())) {
