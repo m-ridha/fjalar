@@ -98,16 +98,22 @@ class IosBackgroundSchedulerAdapter(
             suspendCancellableCoroutine<Unit> { continuation ->
                 center.requestAuthorizationWithOptions(
                     options = UNAuthorizationOptionAlert or UNAuthorizationOptionSound or UNAuthorizationOptionBadge,
-                ) { _, _ -> continuation.resume(Unit) }
+                ) { _, _ ->
+                    if (continuation.isActive) {
+                        continuation.resume(Unit)
+                    }
+                }
             }
             val deliveryAvailable = suspendCancellableCoroutine<Boolean> { continuation ->
                 center.getNotificationSettingsWithCompletionHandler { settings ->
-                    continuation.resume(snoozeDeliveryAvailable(
-                        authorized = settings?.authorizationStatus == UNAuthorizationStatusAuthorized,
-                        alertsEnabled = settings?.alertSetting == UNNotificationSettingEnabled,
-                        soundEnabled = settings?.soundSetting == UNNotificationSettingEnabled,
-                        soundRequired = snoozedAlarm.soundConfig.soundEnabled,
-                    ))
+                    if (continuation.isActive) {
+                        continuation.resume(snoozeDeliveryAvailable(
+                            authorized = settings?.authorizationStatus == UNAuthorizationStatusAuthorized,
+                            alertsEnabled = settings?.alertSetting == UNNotificationSettingEnabled,
+                            soundEnabled = settings?.soundSetting == UNNotificationSettingEnabled,
+                            soundRequired = snoozedAlarm.soundConfig.soundEnabled,
+                        ))
+                    }
                 }
             }
             if (!deliveryAvailable) throw SnoozeDeliveryUnavailableException()
@@ -142,11 +148,15 @@ class IosBackgroundSchedulerAdapter(
                 if (error != null) {
                     onError?.invoke(alarmId, error)
                     if (snoozedAlarm != null) {
-                        continuation.resumeWithException(IllegalStateException(error.localizedDescription))
+                        if (continuation.isActive) {
+                            continuation.resumeWithException(IllegalStateException(error.localizedDescription))
+                        }
                         return@addNotificationRequest
                     }
                 }
-                continuation.resume(Unit)
+                if (continuation.isActive) {
+                    continuation.resume(Unit)
+                }
             }
         }
     }
