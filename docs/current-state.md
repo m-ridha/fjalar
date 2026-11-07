@@ -1,6 +1,6 @@
 # Current project state
 
-Source audit: 2026-11-04, based on main through PR #24 and the PR #25 branch. This
+Source audit: 2026-11-07, based on main through PR #33. This
 records implemented behavior. Notion requirements and historical Stitch mockups may
 include planned behavior.
 
@@ -63,13 +63,17 @@ Despite its historical name, `AndroidFusedLocationAdapter` delegates to
 `FjalarLocationService`, which uses Android `LocationManager` GPS and network
 providers, not Google Play Services. iOS uses `CLLocationManager` updates. Map-only
 tracking has its own foreground owner and stops when the map is hidden or the
-app backgrounds. Alarm monitoring has independent ownership. Distance-based
-adaptive polling and region-geofence registration are not implemented.
+app backgrounds. Alarm monitoring has independent ownership. Distance-tiered
+adaptive polling is implemented per PRD 7.3 L4 via `TrackingTier` (Far: >5 km @ 60s,
+Medium: 2–5 km @ 20s, Near: <2 km @ 10s) with hysteresis margin, dynamically adjusting
+polling intervals and accuracy. Region-geofence registration is not implemented.
 
 Snooze persists a two-minute deadline without changing the radius. Scheduled-window
-completion suppression and GPS accuracy filtering live in the domain. The planned
-already-at-destination suppression guard is not implemented. Android monitoring
-notifications use generic copy and have no quick Stop/Disarm action. Android uses
+completion suppression and GPS accuracy filtering live in the domain. The
+already-at-destination suppression guard is implemented via `mustExitBeforeTrigger`,
+which requires departing the radius before allowing triggers when a window opens while
+already at the destination. Android monitoring notifications feature Stop/Disarm and
+Snooze actions while ringing displays full-screen wake-lock alerts. Android uses
 AlarmManager wakeups and a restricted alarm activity. See [Security](security.md)
 for the keyguard boundary and device verification matrix.
 
@@ -77,9 +81,9 @@ iOS schedules user-facing local notifications. They do not run domain code while
 the app is suspended. Schedule synchronization runs when the app executes again.
 No BGAppRefreshTask registration/submission or region monitoring is implemented.
 The plist includes `fetch`, but no permitted task identifier is configured.
-The ringer uses AVAudioSession/AVAudioPlayer when bundled alarm audio is available,
-otherwise a system alert sound. No mp3/wav alarm file is currently bundled. The
-adapter's name does not establish Apple Critical Alerts entitlement or delivery.
+The ringer uses AVAudioSession/AVAudioPlayer with the bundled `alarm.wav` audio file
+for continuous looping alarm chime, falling back to system alert sound if unavailable.
+The adapter's name does not establish Apple Critical Alerts entitlement or delivery.
 Do not promise reliable automatic iOS window activation while suspended.
 
 ## Language and notification text
@@ -113,8 +117,8 @@ storage. See [Dependency injection](dependency-injection.md).
 For published releases with valid version tags, the `android` job builds a
 signed APK and the `verify` job runs multiplatform verification. After both
 jobs pass, the `publish` job generates the SHA-256 checksum and uploads both
-assets. iOS IPA publication is disabled. The Xcode wrapper still uses a
-placeholder bundle ID, requiring alignment before distribution.
+assets. iOS IPA publication is disabled. The Xcode project bundle identifier
+is aligned to canonical `com.muhammadridha.fjalar` across configurations.
 See [Releasing](releasing.md) for signing secrets and workflow details.
 
 ## Verification boundaries
@@ -133,6 +137,7 @@ and exit codes.
 | Android API 37, landscape at 1.3 font scale | Scrolling exposed the destination action and radius controls. The original size, font scale, and rotation settings were restored. |
 | iPhone 17, iOS 27.0 | Fresh app showed Indonesian Dark and English Light maps/editors. Browse search moved the camera without selecting a destination. Picker search candidate canceled without draft change and confirmed into the draft. Toolbar Back created a valid alarm, returned from an unchanged editor, saved a changed radius, and showed the invalid-draft reason. A destination-selected blank-name draft and an existing edit with equal start/end times discarded with visible reasons; the existing list retained its original 07:00–09:30 window and 200 m radius. The 50 m preset and intermediate slider values changed on screen; exact slider maximum was not reached through the available coordinate input. |
 | iPhone Duo, iOS 27.2 | Fresh app launched and rendered its primary display behind a first-run notification prompt. The second display capture was black; interactive layout checks were not completed. |
+| Android API 34 (Cloud Device, 720 × 1616) | Verified PR #33 debug APK via Ramus: foreground location and notification permissions accepted; background location rationale dismissed. MapLibre canvas edge-to-edge; Light mode and Dark mode tokens toggled cleanly. Real-time language switch between English and Bahasa Indonesia verified across HUD, navigation, and day chips (`Sn Sl Rb Km Jm Sb Mg`). Offline station search and Metro/MRT category filtering loaded without network requests. MapPicker pin placement confirmed destination; alarm created with 200m preset and custom label; alarm card rendered with active badge; skip today transitioned to `COMPLETED_FOR_WINDOW` once-per-window state; alarm delete confirmation dialog cancelled and confirmed cleanly with safe empty-state return. |
 
 These observations do not establish map-bearing rotation or reproduce the earlier
 missing-pin report. Device injection of persistence failure, an iOS soft keyboard,
