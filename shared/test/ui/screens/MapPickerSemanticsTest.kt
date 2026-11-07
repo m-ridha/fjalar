@@ -68,4 +68,17 @@ class MapPickerSemanticsTest {
             mapPickerConfirmSemanticDescription("Monas", sampleCoordinates, AppLocale.ID),
         )
     }
+
+    @Test
+    fun confirmSemanticDescription_roundsHighPrecisionCoordinatesToFourDecimalPlaces() {
+        val highPrecisionCoordinates = GeoCoordinates(-6.20881234567, 106.84567890123)
+        assertEquals(
+            "Confirm destination -6.2088, 106.8457",
+            mapPickerConfirmSemanticDescription(null, highPrecisionCoordinates, AppLocale.EN),
+        )
+        assertEquals(
+            "Konfirmasi tujuan -6.2088, 106.8457",
+            mapPickerConfirmSemanticDescription(null, highPrecisionCoordinates, AppLocale.ID),
+        )
+    }
 }

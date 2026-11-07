@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -55,6 +56,7 @@ import com.muhammadridha.fjalar.ui.theme.FjalarStrings
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
+import kotlin.math.roundToInt
 
 fun mapPickerConfirmSemanticDescription(
     selectionName: String?,
@@ -65,7 +67,11 @@ fun mapPickerConfirmSemanticDescription(
         return FjalarStrings.get(FjalarStringKey.PICKER_CONFIRM, locale)
     }
     val targetLabel = selectionName?.takeIf { it.isNotBlank() }
-        ?: "${coordinates.latitude}, ${coordinates.longitude}"
+        ?: run {
+            val lat = (coordinates.latitude * 10000.0).roundToInt() / 10000.0
+            val lon = (coordinates.longitude * 10000.0).roundToInt() / 10000.0
+            "$lat, $lon"
+        }
     return FjalarStrings.get(FjalarStringKey.ACCESSIBLE_PICKER_CONFIRM, locale, targetLabel)
 }
 
@@ -174,7 +180,7 @@ fun MapPickerScreen(
         if (selection.coordinates == null) Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .semantics {
+                .clearAndSetSemantics {
                     contentDescription = FjalarStrings.get(FjalarStringKey.PICKER_HINT, locale)
                 },
             contentAlignment = Alignment.Center,
