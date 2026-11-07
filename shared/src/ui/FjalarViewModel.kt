@@ -12,6 +12,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SnoozeDeliveryUnavailableException
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.PlaceCategory
+import com.muhammadridha.fjalar.domain.model.RecentDestination
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
@@ -27,6 +28,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
 import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
+import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import com.muhammadridha.fjalar.ui.screens.ConfigureAlarmDraft
 import kotlinx.coroutines.CoroutineScope
@@ -80,6 +82,7 @@ data class FjalarUiState(
     val isOperationPending: Boolean = false,
     val ringingOperationFailureId: Long = 0L,
     val snoozeDeliveryUnavailable: Boolean = false,
+    val recentDestinations: List<RecentDestination> = emptyList(),
 )
 
 /**
@@ -101,6 +104,7 @@ class FjalarViewModel(
     private val locationTrackerPort: LocationTrackerPort? = null,
     private val snoozeAlarmPort: SnoozeAlarmPort? = null,
     private val clock: Clock = Clock.System,
+    private val recentDestinationsPort: RecentDestinationsPort? = null,
 ) : ViewModel() {
 
     internal val scope: CoroutineScope = coroutineScope ?: viewModelScope
@@ -214,6 +218,12 @@ class FjalarViewModel(
                 _uiState.update { current ->
                     current.copy(appLocale = locale)
                 }
+            }
+        }
+
+        scope.launch {
+            recentDestinationsPort?.observeRecentDestinations()?.collect { recents ->
+                _uiState.update { it.copy(recentDestinations = recents) }
             }
         }
     }
@@ -565,12 +575,18 @@ class FjalarViewModel(
         draft.radiusMeters.takeIf { it in TriggerRadius.MIN_METERS..TriggerRadius.MAX_METERS }
             ?.let(::TriggerRadius)
 
-    fun onDraftCoordinatesChanged(coordinates: GeoCoordinates) {
+    fun onDraftCoordinatesChanged(coordinates: GeoCoordinates, label: String? = null) {
         if (pendingEditorRevision == draftRevision) return
         draftRevision++
         _uiState.update { current ->
-            val updatedDraft = current.activeDraft?.withNewCoordinates(coordinates)
+            val existingLabel = label ?: current.activeDraft?.takeIf { it.coordinates == coordinates }?.addressLabel
+            val baseDraft = current.activeDraft?.withNewCoordinates(coordinates)
                 ?: ConfigureAlarmDraft(alarmId = newDraftIdentity(), coordinates = coordinates)
+            val updatedDraft = if (existingLabel != null) {
+                baseDraft.copy(addressLabel = existingLabel)
+            } else {
+                baseDraft
+            }
             current.copy(
                 activeDraft = updatedDraft,
                 selectedCoordinates = coordinates,
@@ -579,6 +595,24 @@ class FjalarViewModel(
         val radius = _uiState.value.activeDraft?.let { TriggerRadius(it.radiusMeters) } ?: TriggerRadius.DEFAULT
         mapRendererPort?.placePin(coordinates)
         mapRendererPort?.showGeofence(coordinates, radius)
+    }
+
+    fun onConfirmDestination(
+        coordinates: GeoCoordinates,
+        label: String? = null,
+        category: PlaceCategory = PlaceCategory.GENERAL,
+    ) {
+        val name = label ?: "Location"
+        val recent = RecentDestination(
+            id = "recent-${coordinates.latitude}-${coordinates.longitude}",
+            name = name,
+            coordinates = coordinates,
+            timestamp = clock.now(),
+            category = category,
+        )
+        scope.launch {
+            recentDestinationsPort?.recordDestination(recent)
+        }
     }
 
     fun onSaveDraftAlarm(draft: ConfigureAlarmDraft, onSuccess: () -> Unit = {}) {

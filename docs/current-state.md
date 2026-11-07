@@ -118,6 +118,19 @@ via `AccessibilityPort` and `isReduceTransparencyActive()`: observing Android 14
 `UIAccessibilityReduceTransparencyStatusDidChangeNotification` on iOS.
 Primary-text token contrast tests do not prove contrast over every live map.
 
+## Commute quick-picks and recent destinations
+
+The map picker and place search support offline-first recent destination quick-picks
+via `RecentDestinationsPort` backed by `PersistentRecentDestinationsAdapter` in
+platform key-value storage. Confirmed destinations in `MapPickerViewModel` and
+`FjalarViewModel` are stored in an LRU list capped at 5 entries, deduplicated by ID,
+case-insensitive trimmed name, and coordinate proximity within 50 meters.
+In `SearchPlacesSheet`, when the query is blank and recent destinations exist,
+horizontal quick-pick chips render station/place icons, destination names, and
+accessible content descriptions. Tapping a quick-pick centers the map picker,
+focuses the marker, and enables confirmation. All destination coordinates and history
+remain 100% on-device.
+
 ## Architecture and distribution
 
 Koin 4.2.2 assembles application modules while domain and ordinary application

@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.PlaceCategory
+import com.muhammadridha.fjalar.domain.model.RecentDestination
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
@@ -67,6 +68,8 @@ fun MapPickerScreen(
     onSelectCategory: (PlaceCategory?) -> Unit,
     onDismissSearch: () -> Unit,
     modifier: Modifier = Modifier,
+    recentDestinations: List<RecentDestination> = emptyList(),
+    onSelectRecentDestination: (RecentDestination) -> Unit = {},
     locale: AppLocale = LiquidGlassTheme.locale,
     initialZoom: Double = 15.0,
     awaitInitialLocation: Boolean = false,
@@ -282,6 +285,16 @@ fun MapPickerScreen(
                 results = searchResults,
                 selectedCategory = selectedCategory,
                 onCategorySelect = onSelectCategory,
+                recentDestinations = recentDestinations,
+                onRecentSelect = { destination ->
+                    selection = selection.select(destination.coordinates)
+                    cameraTarget = destination.coordinates
+                    cameraZoom = 15.0
+                    preserveZoom = false
+                    viewportRequestId++
+                    onSelectRecentDestination(destination)
+                    onDismissSearch()
+                },
                 onPlaceSelect = { place ->
                     selection = selection.select(place)
                     cameraTarget = place.coordinates

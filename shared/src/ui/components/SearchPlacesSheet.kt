@@ -45,16 +45,24 @@ import androidx.compose.ui.unit.sp
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.PlaceCategory
+import com.muhammadridha.fjalar.domain.model.RecentDestination
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.service.DistanceCalculator
 import com.muhammadridha.fjalar.domain.service.HaversineCalculator
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
+import com.muhammadridha.fjalar.ui.theme.FjalarStrings
 import com.muhammadridha.fjalar.ui.theme.fjalarString
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassColors
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
 import kotlin.math.roundToInt
+
+internal fun shouldShowQuickPicks(query: String, recentDestinations: List<RecentDestination>): Boolean =
+    query.isBlank() && recentDestinations.isNotEmpty()
+
+internal fun quickPickContentDescription(destination: RecentDestination, locale: AppLocale): String =
+    FjalarStrings.get(FjalarStringKey.SEARCH_QUICK_PICK_CONTENT_DESC, locale, destination.name)
 
 internal fun categoryEmoji(category: PlaceCategory): String = when (category) {
     PlaceCategory.TRAIN_STATION -> "🚆"
@@ -74,6 +82,8 @@ fun SearchPlacesSheet(
     onPlaceSelect: (SearchResultPlace) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    recentDestinations: List<RecentDestination> = emptyList(),
+    onRecentSelect: (RecentDestination) -> Unit = {},
     isLoading: Boolean = false,
     userLocation: GeoCoordinates? = null,
     distanceCalculator: DistanceCalculator = HaversineCalculator,
@@ -243,6 +253,66 @@ fun SearchPlacesSheet(
                 },
                 colors = colors,
             )
+        }
+
+        // Quick-Pick Carousel (when query is blank and recents are present)
+        if (shouldShowQuickPicks(query, recentDestinations)) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = fjalarString(FjalarStringKey.SEARCH_QUICK_PICKS_TITLE),
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = colors.textPrimary,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                recentDestinations.forEach { recent ->
+                    val contentDesc = quickPickContentDescription(recent, locale)
+                    Box(
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                            .clip(CircleShape)
+                            .clickable(
+                                role = Role.Button,
+                                onClick = { onRecentSelect(recent) },
+                            )
+                            .semantics { contentDescription = contentDesc }
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = categoryEmoji(recent.category),
+                                fontSize = 15.sp,
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = recent.name,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = colors.textPrimary,
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(6.dp))

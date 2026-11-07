@@ -13,6 +13,7 @@ import com.muhammadridha.fjalar.domain.service.AlarmService
 import com.muhammadridha.fjalar.domain.service.ScheduleEvaluator
 import com.muhammadridha.fjalar.fakes.*
 import com.muhammadridha.fjalar.ui.FjalarViewModel
+import com.muhammadridha.fjalar.ui.screens.MapPickerViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.*
@@ -57,6 +58,8 @@ class KoinGraphTest {
             koin.get<SystemTimeZone>().refresh(TimeZone.of("Asia/Tokyo"))
             assertEquals(TimeZone.of("Asia/Tokyo"), koin.get<ScheduleEvaluator>().timeZone)
             assertSame(service, koin.get<AlarmService>())
+            assertNotNull(koin.getOrNull<RecentDestinationsPort>())
+            assertNotNull(koin.getOrNull<MapPickerViewModel>())
         } finally {
             app.close()
         }

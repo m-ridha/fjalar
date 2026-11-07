@@ -9,4 +9,6 @@
     <string name="notification_channel_alarm_desc">Alerts near an alarm destination</string>
     <string name="notification_channel_monitoring_name">Wake Me at location monitoring</string>
     <string name="notification_channel_monitoring_desc">Location monitoring while an alarm is armed</string>
+    <string name="search_quick_picks_title">Recent destinations</string>
+    <string name="search_quick_pick_content_desc">%s, recent destination</string>
 </resources>

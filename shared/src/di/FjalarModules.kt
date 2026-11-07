@@ -2,12 +2,15 @@ package com.muhammadridha.fjalar.di
 
 import com.muhammadridha.fjalar.adapters.storage.PersistentAlarmRepository
 import com.muhammadridha.fjalar.adapters.storage.PersistentPreferencesAdapter
+import com.muhammadridha.fjalar.adapters.storage.PersistentRecentDestinationsAdapter
 import com.muhammadridha.fjalar.domain.ports.inbound.*
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
+import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import com.muhammadridha.fjalar.domain.service.AlarmService
 import com.muhammadridha.fjalar.domain.service.ScheduleEvaluator
 import com.muhammadridha.fjalar.ui.FjalarViewModel
+import com.muhammadridha.fjalar.ui.screens.MapPickerViewModel
 import kotlinx.datetime.TimeZone
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
@@ -29,6 +32,7 @@ class SystemTimeZone {
 val persistenceModule = module {
     single<AlarmRepositoryPort> { PersistentAlarmRepository(get()) }
     single<PreferencesPort> { PersistentPreferencesAdapter(get()) }
+    single<RecentDestinationsPort> { PersistentRecentDestinationsAdapter(get()) }
 }
 
 val alarmModule = module {
@@ -60,6 +64,13 @@ val presentationModule = module {
             deleteAlarmPort = get(),
             locationTrackerPort = get(),
             snoozeAlarmPort = get(),
+            recentDestinationsPort = getOrNull(),
+        )
+    }
+    viewModel {
+        MapPickerViewModel(
+            recentDestinationsPort = get(),
+            searchPlacesPort = getOrNull(),
         )
     }
 }

@@ -44,6 +44,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
+import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.ui.components.ArmedStatusPill
@@ -252,6 +253,17 @@ fun FjalarApp(
                                 onCategorySelect = viewModel::onSelectCategoryFilter,
                                 onPlaceSelect = viewModel::onBrowsePlaceSelected,
                                 onDismiss = viewModel::onDismissSearch,
+                                recentDestinations = uiState.recentDestinations,
+                                onRecentSelect = { recent ->
+                                    viewModel.onBrowsePlaceSelected(
+                                        SearchResultPlace(
+                                            id = recent.id,
+                                            name = recent.name,
+                                            coordinates = recent.coordinates,
+                                            category = recent.category,
+                                        )
+                                    )
+                                },
                                 isLoading = uiState.isSearching,
                                 userLocation = uiState.userLocation,
                                 locale = uiState.appLocale,
@@ -384,9 +396,11 @@ fun FjalarApp(
                         onSearchQueryChange = viewModel::onSearchQueryChanged,
                         onSelectCategory = viewModel::onSelectCategoryFilter,
                         onDismissSearch = viewModel::onDismissSearch,
+                        recentDestinations = uiState.recentDestinations,
                         onConfirmCoordinates = { coords ->
                             viewModel.onDismissSearch()
                             viewModel.onDraftCoordinatesChanged(coords)
+                            viewModel.onConfirmDestination(coords)
                             navController.popBackStack()
                         },
                         onBack = {

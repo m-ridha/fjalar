@@ -11,14 +11,17 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AccessibilityPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
+import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import com.muhammadridha.fjalar.domain.service.AlarmService
+import com.muhammadridha.fjalar.ui.screens.MapPickerViewModel
 import kotlinx.datetime.TimeZone
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 
 class IosKoinGraphTest {
@@ -42,6 +45,8 @@ class IosKoinGraphTest {
             koin.get<SearchPlacesPort>()
             koin.get<SystemTimeZone>().refresh(TimeZone.of("Asia/Tokyo"))
             koin.get<IosSystemEvents>()
+            assertNotNull(koin.getOrNull<RecentDestinationsPort>())
+            assertNotNull(koin.getOrNull<MapPickerViewModel>())
         } finally {
             app.close()
         }

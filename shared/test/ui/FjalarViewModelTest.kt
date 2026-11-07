@@ -8,6 +8,7 @@ import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.PlaceCategory
+import com.muhammadridha.fjalar.domain.model.RecentDestination
 import com.muhammadridha.fjalar.domain.model.ScheduleType
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.ThemeMode
@@ -23,6 +24,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
+import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -163,6 +165,7 @@ class FjalarViewModelTest {
         locationTrackerPort: LocationTrackerPort? = null,
         searchPlacesPort: SearchPlacesPort? = null,
         snoozePort: com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort? = null,
+        recentDestinationsPort: RecentDestinationsPort? = null,
         clock: kotlin.time.Clock = kotlin.time.Clock.System,
         storage: InMemoryKeyValueStorage = InMemoryKeyValueStorage(),
     ): Triple<FjalarViewModel, PersistentPreferencesAdapter, CoroutineScope> {
@@ -184,6 +187,7 @@ class FjalarViewModelTest {
             coroutineScope = vmScope,
             snoozeAlarmPort = snoozePort,
             clock = clock,
+            recentDestinationsPort = recentDestinationsPort,
         )
         return Triple(viewModel, preferencesPort, vmScope)
     }
@@ -1702,6 +1706,30 @@ class FjalarViewModelTest {
             assertEquals(0, exits)
             assertEquals(newer, viewModel.uiState.value.activeDraft)
             assertFalse(viewModel.uiState.value.isOperationPending)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun recentDestinations_areObservedAndConfirmedDestinationsAreRecorded() = runTest {
+        val fakeRecentsPort = com.muhammadridha.fjalar.fakes.FakeRecentDestinationsAdapter()
+        val (viewModel, _, vmScope) = createTestViewModel(recentDestinationsPort = fakeRecentsPort)
+        try {
+            assertTrue(viewModel.uiState.value.recentDestinations.isEmpty())
+
+            val targetCoords = GeoCoordinates(latitude = -6.1767, longitude = 106.8306)
+            viewModel.onConfirmDestination(
+                coordinates = targetCoords,
+                label = "Gambir Station",
+                category = PlaceCategory.TRAIN_STATION,
+            )
+
+            val recents = viewModel.uiState.value.recentDestinations
+            assertEquals(1, recents.size)
+            assertEquals("Gambir Station", recents.first().name)
+            assertEquals(targetCoords, recents.first().coordinates)
+            assertEquals(PlaceCategory.TRAIN_STATION, recents.first().category)
         } finally {
             vmScope.cancel()
         }

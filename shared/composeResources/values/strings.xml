@@ -91,6 +91,8 @@
     <string name="search_empty_title">No places found</string>
     <string name="search_empty_body">Try another name or check the spelling.</string>
     <string name="search_recent_title">Search places</string>
+    <string name="search_quick_picks_title">Recent destinations</string>
+    <string name="search_quick_pick_content_desc">%s, recent destination</string>
     <string name="search_clear">Clear search</string>
 
     <!-- Bottom navigation tabs -->
