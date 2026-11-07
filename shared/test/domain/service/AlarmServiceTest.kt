@@ -1,6 +1,7 @@
 package com.muhammadridha.fjalar.domain.service
 
 import com.muhammadridha.fjalar.domain.JAKARTA
+import com.muhammadridha.fjalar.domain.jakarta
 import com.muhammadridha.fjalar.domain.model.AlarmSchedule
 import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
@@ -22,6 +23,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import com.muhammadridha.fjalar.domain.ports.inbound.AlarmConfigurationMissingException
 import com.muhammadridha.fjalar.domain.ports.inbound.AlarmConfigurationRingingException
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -330,5 +332,51 @@ class AlarmServiceTest {
     fun deleteAlarm_nonExistentAlarm_succeedsWithoutError() = runTest {
         val result = service.deleteAlarm("non-existent")
         assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun syncSchedule_enteringActiveWindowInsideRadius_suppressesImmediateRinging() = runTest {
+        val window = AlarmSchedule(
+            type = ScheduleType.SCHEDULED,
+            startMinuteOfDay = 7 * 60,
+            endMinuteOfDay = 9 * 60 + 30,
+            daysOfWeekMask = AlarmSchedule.WEEKDAYS,
+        )
+        val alarm = createSampleAlarm(
+            id = "sched-dep",
+            coordinates = GeoCoordinates(-6.209944, 106.850306), // Manggarai
+            radius = TriggerRadius(500),
+            schedule = window,
+            state = AlarmState.DISABLED,
+        )
+        service.saveAlarm(alarm, enabled = true).getOrThrow()
+
+        // Time moves into the active window at 07:05 (Monday 2026-10-26)
+        clock.now = jakarta(2026, 10, 26, 7, 5)
+        service.syncSchedules()
+
+        val armed = repository.getAlarm("sched-dep")!!
+        assertEquals(AlarmState.ARMED_MONITORING, armed.state)
+        assertTrue(armed.mustExitBeforeTrigger)
+
+        // Fix received while commuter is already at Manggarai
+        val triggered1 = service.handleLocationUpdate(GeoCoordinates(-6.209944, 106.850306), 10f)
+        assertTrue(triggered1.isEmpty(), "Should not trigger alarm while commuter is already inside radius")
+        val stillArmed = repository.getAlarm("sched-dep")!!
+        assertEquals(AlarmState.ARMED_MONITORING, stillArmed.state)
+        assertTrue(stillArmed.mustExitBeforeTrigger)
+
+        // Commuter departs to Sudirman (~3 km away)
+        val triggered2 = service.handleLocationUpdate(GeoCoordinates(-6.202444, 106.823194), 10f)
+        assertTrue(triggered2.isEmpty())
+        val departed = repository.getAlarm("sched-dep")!!
+        assertEquals(AlarmState.ARMED_MONITORING, departed.state)
+        assertFalse(departed.mustExitBeforeTrigger)
+
+        // Commuter arrives back at Manggarai
+        val triggered3 = service.handleLocationUpdate(GeoCoordinates(-6.209944, 106.850306), 10f)
+        assertEquals(1, triggered3.size)
+        assertEquals("sched-dep", triggered3[0].id)
+        assertEquals(AlarmState.RINGING, triggered3[0].state)
     }
 }

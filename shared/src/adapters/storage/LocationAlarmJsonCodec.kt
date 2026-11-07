@@ -51,6 +51,9 @@ object LocationAlarmJsonCodec {
         if (alarm.snoozedUntil != null) {
             append(",\"snoozedUntil\":").append(escapeJsonString(alarm.snoozedUntil.toString()))
         }
+        if (alarm.mustExitBeforeTrigger) {
+            append(",\"mustExitBeforeTrigger\":true")
+        }
         append("}")
     }
 
@@ -136,6 +139,8 @@ object LocationAlarmJsonCodec {
                 else -> null
             }
 
+            val mustExitBeforeTrigger = obj.getBoolean("mustExitBeforeTrigger") ?: false
+
             LocationAlarm(
                 id = id,
                 label = label,
@@ -147,6 +152,7 @@ object LocationAlarmJsonCodec {
                 addressLabel = addressLabel,
                 suppressedUntil = suppressedUntil,
                 snoozedUntil = obj.getString("snoozedUntil")?.let { Instant.parse(it) },
+                mustExitBeforeTrigger = mustExitBeforeTrigger,
             )
         }.getOrNull()
     }

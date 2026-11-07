@@ -71,6 +71,8 @@
     <string name="notif_monitoring_title">Memantau tujuan alarm</string>
     <string name="notif_monitoring_body">Aktif: %1$s • %2$s lagi</string>
     <string name="notif_alarm_approaching">Alarm: %1$s</string>
+    <string name="notif_action_skip_today">Lewati Hari Ini</string>
+    <string name="notif_action_stop_monitoring">Hentikan</string>
 
     <!-- Permissions modal -->
     <string name="perm_location_title">Izinkan lokasi latar belakang untuk alarm tujuan</string>

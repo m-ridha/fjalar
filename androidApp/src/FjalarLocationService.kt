@@ -29,7 +29,14 @@ import android.os.SystemClock
 import com.muhammadridha.fjalar.adapters.location.isFreshLocationFix
 import androidx.core.content.ContextCompat
 import com.muhammadridha.fjalar.adapters.location.AndroidFusedLocationAdapter
+import com.muhammadridha.fjalar.adapters.storage.LocationAlarmJsonCodec
+import com.muhammadridha.fjalar.adapters.storage.PersistentAlarmRepository
+import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.LocationAvailability
+import com.muhammadridha.fjalar.domain.model.ScheduleType
+import com.muhammadridha.fjalar.domain.ports.inbound.SkipTodayPort
+import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
+import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import kotlin.time.Instant
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import kotlinx.coroutines.CoroutineScope
@@ -53,6 +60,9 @@ class FjalarLocationService : Service() {
     private val syncSchedules: SyncSchedulesPort by inject()
     private val preferences: PreferencesPort by inject()
     private val storage: KeyValueStorage by inject()
+    private val repository: AlarmRepositoryPort by inject()
+    private val skipTodayPort: SkipTodayPort by inject()
+    private val toggleAlarmPort: ToggleAlarmPort by inject()
     private var isForegroundForAlarm = false
 
     private val serviceJob = SupervisorJob()
@@ -146,6 +156,27 @@ class FjalarLocationService : Service() {
         val action = intent.action ?: AndroidFusedLocationAdapter.ACTION_START_TRACKING
 
         when (action) {
+            ACTION_DISARM_ACTIVE_ALARM -> {
+                val targetAlarmId = intent.getStringExtra(EXTRA_ALARM_ID)
+                serviceScope.launch {
+                    val alarms = repository.getAlarms()
+                    val targets = if (targetAlarmId != null) {
+                        alarms.filter { it.id == targetAlarmId }
+                    } else {
+                        alarms.filter { it.state == AlarmState.ARMED_MONITORING }
+                    }
+                    for (alarm in targets) {
+                        when (alarm.schedule.type) {
+                            ScheduleType.SCHEDULED -> skipTodayPort.skipToday(alarm.id)
+                            ScheduleType.ONE_TIME -> toggleAlarmPort.toggleAlarm(alarm.id, enabled = false)
+                        }
+                    }
+                    if (latestStartId == startId) {
+                        stopTrackingAndSelf(startId)
+                    }
+                }
+                return START_NOT_STICKY
+            }
             AndroidFusedLocationAdapter.ACTION_STOP_TRACKING -> {
                 stopTrackingAndSelf(startId)
                 return START_NOT_STICKY
@@ -376,6 +407,40 @@ class FjalarLocationService : Service() {
             .setOngoing(true)
             .setAutoCancel(false)
 
+        // Attach quick-action disarm button (PRD S7 & L2)
+        val storedAlarms = storage.getString(PersistentAlarmRepository.KEY_ALARMS)?.let {
+            LocationAlarmJsonCodec.fromJsonList(it)
+        } ?: emptyList()
+        val armedAlarm = storedAlarms.firstOrNull { it.state == AlarmState.ARMED_MONITORING }
+
+        val isScheduled = armedAlarm?.schedule?.type == ScheduleType.SCHEDULED
+        val actionText = if (isScheduled) {
+            localizedContext().getString(R.string.notif_action_skip_today)
+        } else {
+            localizedContext().getString(R.string.notif_action_stop_monitoring)
+        }
+
+        val disarmIntent = Intent(this, FjalarLocationService::class.java).apply {
+            action = ACTION_DISARM_ACTIVE_ALARM
+            if (armedAlarm != null) {
+                putExtra(EXTRA_ALARM_ID, armedAlarm.id)
+            }
+        }
+        val disarmPendingIntent = PendingIntent.getService(this, DISARM_REQUEST_CODE, disarmIntent, flags)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
+            @Suppress("DEPRECATION")
+            val actionObj = Notification.Action.Builder(
+                0,
+                actionText,
+                disarmPendingIntent,
+            ).build()
+            builder.addAction(actionObj)
+        } else {
+            @Suppress("DEPRECATION")
+            builder.addAction(0, actionText, disarmPendingIntent)
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             builder.setCategory(Notification.CATEGORY_SERVICE)
         }
@@ -430,7 +495,11 @@ class FjalarLocationService : Service() {
         const val CHANNEL_ID = "fjalar_monitoring_channel"
         const val CHANNEL_NAME = "Fjalar Location Monitoring"
         const val NOTIFICATION_ID = 1002
+        const val DISARM_REQUEST_CODE = 1003
         const val DEFAULT_INTERVAL_MILLIS = 10_000L
+
+        const val ACTION_DISARM_ACTIVE_ALARM = "com.muhammadridha.fjalar.ACTION_DISARM_ACTIVE_ALARM"
+        const val EXTRA_ALARM_ID = "extra_alarm_id"
 
         @JvmField
         @Volatile

@@ -251,6 +251,7 @@ class AlarmStateTransitionTest {
         assertTrue(tracker.isTracking)
         assertTrue(scheduler.wakeups.isEmpty())
 
+        service.handleLocationUpdate(SUDIRMAN, 10f)
         service.handleLocationUpdate(MANGGARAI, 10f)
         assertEquals(AlarmState.RINGING, state())
 
@@ -284,6 +285,7 @@ class AlarmStateTransitionTest {
         clock.now = jakarta(2026, 10, 26, 8)
         service.saveAlarm(manggaraiAlarm()).getOrThrow()
         service.toggleAlarm("manggarai", enabled = true).getOrThrow()
+        service.handleLocationUpdate(SUDIRMAN, 10f)
         service.handleLocationUpdate(MANGGARAI, 10f)
 
         service.skipToday("manggarai").getOrThrow()
@@ -296,6 +298,7 @@ class AlarmStateTransitionTest {
         clock.now = jakarta(2026, 10, 26, 8)
         service.saveAlarm(manggaraiAlarm()).getOrThrow()
         service.toggleAlarm("manggarai", enabled = true).getOrThrow()
+        service.handleLocationUpdate(SUDIRMAN, 10f)
         service.handleLocationUpdate(MANGGARAI, 10f)
 
         service.toggleAlarm("manggarai", enabled = false).getOrThrow()
@@ -319,6 +322,7 @@ class AlarmStateTransitionTest {
         clock.now = jakarta(2026, 10, 26, 8)
         service.saveAlarm(manggaraiAlarm()).getOrThrow()
         service.toggleAlarm("manggarai", enabled = true).getOrThrow()
+        service.handleLocationUpdate(SUDIRMAN, 10f)
         service.handleLocationUpdate(MANGGARAI, 10f)
         assertEquals(AlarmState.RINGING, state())
 
