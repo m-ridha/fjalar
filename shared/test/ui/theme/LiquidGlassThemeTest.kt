@@ -242,6 +242,57 @@ class LiquidGlassThemeTest {
         assertNotNull(darkModifier)
     }
 
+    @Test
+    fun dynamicSwitchingFromFalseToTrueTogglesHighContrastTokens() {
+        // Initial state: standard translucent frosted glass
+        val standardLight = resolveLiquidGlassColors(
+            themeMode = ThemeMode.LIGHT,
+            systemInDark = false,
+            reducedTransparency = false,
+        )
+        assertFalse(standardLight.isReducedTransparency)
+        assertEquals(0.65f, standardLight.glassPill.alpha, 0.01f)
+
+        // Dynamic transition to true: 92% opaque tinted surface
+        val reducedLight = resolveLiquidGlassColors(
+            themeMode = ThemeMode.LIGHT,
+            systemInDark = false,
+            reducedTransparency = true,
+        )
+        assertTrue(reducedLight.isReducedTransparency)
+        assertEquals(0.92f, reducedLight.glassPill.alpha, 0.01f)
+        assertEquals(ReducedTransparencyLightLiquidGlassColors, reducedLight)
+
+        // Initial dark state: standard translucent dark glass
+        val standardDark = resolveLiquidGlassColors(
+            themeMode = ThemeMode.DARK,
+            systemInDark = true,
+            reducedTransparency = false,
+        )
+        assertFalse(standardDark.isReducedTransparency)
+        assertEquals(DarkLiquidGlassColors.glassPill.alpha, standardDark.glassPill.alpha, 0.01f)
+        assertEquals(DarkLiquidGlassColors, standardDark)
+
+        // Dynamic transition to true for dark mode
+        val reducedDark = resolveLiquidGlassColors(
+            themeMode = ThemeMode.DARK,
+            systemInDark = true,
+            reducedTransparency = true,
+        )
+        assertTrue(reducedDark.isReducedTransparency)
+        assertEquals(0.92f, reducedDark.glassPill.alpha, 0.01f)
+        assertEquals(ReducedTransparencyDarkLiquidGlassColors, reducedDark)
+
+        // Spec transition: 1 dp to 1.5 dp border
+        val standardSpec = resolveGlassSurfaceSpec(standardLight, GlassLevel.PILL, reducedTransparency = false)
+        assertEquals(1.dp, standardSpec.borderWidth)
+        assertFalse(standardSpec.isReducedTransparency)
+
+        val reducedSpec = resolveGlassSurfaceSpec(reducedLight, GlassLevel.PILL, reducedTransparency = true)
+        assertEquals(1.5.dp, reducedSpec.borderWidth)
+        assertTrue(reducedSpec.isReducedTransparency)
+    }
+
     private fun calculateContrastRatio(foreground: Color, background: Color): Double {
         val l1 = relativeLuminance(foreground)
         val l2 = relativeLuminance(background)

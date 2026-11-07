@@ -11,6 +11,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.ThemeMode
+import com.muhammadridha.fjalar.ui.accessibility.isReduceTransparencyActive
 
 val LocalLiquidGlassColors = staticCompositionLocalOf { LightLiquidGlassColors }
 val LocalThemeMode = staticCompositionLocalOf { ThemeMode.SYSTEM }
@@ -56,7 +57,7 @@ object LiquidGlassTheme {
 fun LiquidGlassTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     locale: AppLocale = AppLocale.EN,
-    reducedTransparency: Boolean = false,
+    reducedTransparency: Boolean = isReduceTransparencyActive(),
     content: @Composable () -> Unit,
 ) {
     val systemInDark = isSystemInDarkTheme()

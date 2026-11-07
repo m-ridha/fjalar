@@ -1,6 +1,7 @@
 package com.muhammadridha.fjalar.fakes
 
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
+import com.muhammadridha.fjalar.domain.ports.outbound.AccessibilityPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
@@ -86,3 +87,22 @@ class FakeAlarmScheduler : AlarmSchedulerPort {
 class FakeClock(var now: Instant) : Clock {
     override fun now(): Instant = now
 }
+
+class FakeAccessibilityAdapter(
+    initialActive: Boolean = false,
+) : AccessibilityPort {
+    private val _flow = MutableStateFlow(initialActive)
+
+    override var isReduceTransparencyActive: Boolean
+        get() = _flow.value
+        set(value) {
+            _flow.value = value
+        }
+
+    override val reduceTransparencyFlow: Flow<Boolean> = _flow
+
+    fun setActive(active: Boolean) {
+        isReduceTransparencyActive = active
+    }
+}
+
