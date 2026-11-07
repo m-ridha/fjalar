@@ -236,7 +236,8 @@ class MapPickerViewModel(
 
     fun confirmSelection(onConfirmed: (GeoCoordinates) -> Unit = {}): GeoCoordinates? {
         val coordinates = _uiState.value.selection.coordinates ?: return null
-        val placeName = _uiState.value.selectedPlaceName?.takeIf { it.isNotBlank() } ?: "Location"
+        val placeName = _uiState.value.selectedPlaceName?.trim()?.takeIf { it.isNotBlank() }
+            ?: "${coordinates.latitude}, ${coordinates.longitude}"
         val category = _uiState.value.selectedPlaceCategory
         val id = selectedPlaceId?.takeIf { it.isNotBlank() }
             ?: "dest-${coordinates.latitude}-${coordinates.longitude}"

@@ -70,6 +70,7 @@ fun MapPickerScreen(
     modifier: Modifier = Modifier,
     recentDestinations: List<RecentDestination> = emptyList(),
     onSelectRecentDestination: (RecentDestination) -> Unit = {},
+    onConfirmDestination: ((GeoCoordinates, String?, PlaceCategory) -> Unit)? = null,
     locale: AppLocale = LiquidGlassTheme.locale,
     initialZoom: Double = 15.0,
     awaitInitialLocation: Boolean = false,
@@ -85,6 +86,8 @@ fun MapPickerScreen(
     var selection by remember(initialCoordinates, hasInitialSelection) {
         mutableStateOf(MapPickerSelection(initialCoordinates.takeIf { hasInitialSelection }))
     }
+    var selectedPlaceName by remember { mutableStateOf<String?>(null) }
+    var selectedPlaceCategory by remember { mutableStateOf(PlaceCategory.GENERAL) }
     var viewportRequestId by remember(initialCoordinates, hasInitialSelection) { mutableStateOf(0L) }
     // The next fix should still frame the map: initial framing, or a recenter before any fix.
     var awaitingFirstFix by remember(initialCoordinates, hasInitialSelection) {
@@ -126,14 +129,24 @@ fun MapPickerScreen(
             isDarkTheme = isDarkTheme,
             onMapClick = {
                 selection = selection.select(it)
+                selectedPlaceName = null
+                selectedPlaceCategory = PlaceCategory.GENERAL
                 cameraTarget = it
                 preserveZoom = true
                 viewportRequestId++
             },
-            onPinDrag = { selection = selection.select(it) },
+            onPinDrag = {
+                selection = selection.select(it)
+                selectedPlaceName = null
+                selectedPlaceCategory = PlaceCategory.GENERAL
+            },
             destinationEditingEnabled = true,
             onCameraCenterChanged = { center, isUserGesture ->
                 selection = selection.onCameraCenterChanged(center, isUserGesture)
+                if (isUserGesture) {
+                    selectedPlaceName = null
+                    selectedPlaceCategory = PlaceCategory.GENERAL
+                }
             },
             // Selection follows gestures without issuing a camera reset to initialZoom.
             viewportRequestId = viewportRequestId,
@@ -259,7 +272,12 @@ fun MapPickerScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
         ) {
             Button(
-                onClick = { selection.coordinates?.let(onConfirmCoordinates) },
+                onClick = {
+                    selection.coordinates?.let { coords ->
+                        onConfirmCoordinates(coords)
+                        onConfirmDestination?.invoke(coords, selectedPlaceName, selectedPlaceCategory)
+                    }
+                },
                 enabled = selection.coordinates != null && !isSearchVisible,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colors.primary,
@@ -288,6 +306,8 @@ fun MapPickerScreen(
                 recentDestinations = recentDestinations,
                 onRecentSelect = { destination ->
                     selection = selection.select(destination.coordinates)
+                    selectedPlaceName = destination.name
+                    selectedPlaceCategory = destination.category
                     cameraTarget = destination.coordinates
                     cameraZoom = 15.0
                     preserveZoom = false
@@ -297,6 +317,8 @@ fun MapPickerScreen(
                 },
                 onPlaceSelect = { place ->
                     selection = selection.select(place)
+                    selectedPlaceName = place.name
+                    selectedPlaceCategory = place.category
                     cameraTarget = place.coordinates
                     cameraZoom = 15.0
                     preserveZoom = false

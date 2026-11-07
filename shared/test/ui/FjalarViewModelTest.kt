@@ -1730,6 +1730,13 @@ class FjalarViewModelTest {
             assertEquals("Gambir Station", recents.first().name)
             assertEquals(targetCoords, recents.first().coordinates)
             assertEquals(PlaceCategory.TRAIN_STATION, recents.first().category)
+
+            val unlabeledCoords = GeoCoordinates(latitude = -6.2000, longitude = 106.8000)
+            viewModel.onConfirmDestination(coordinates = unlabeledCoords)
+            val updatedRecents = viewModel.uiState.value.recentDestinations
+            assertEquals(2, updatedRecents.size)
+            assertEquals("-6.2, 106.8", updatedRecents.first().name)
+            assertEquals("dest--6.2-106.8", updatedRecents.first().id)
         } finally {
             vmScope.cancel()
         }

@@ -601,10 +601,14 @@ class FjalarViewModel(
         coordinates: GeoCoordinates,
         label: String? = null,
         category: PlaceCategory = PlaceCategory.GENERAL,
+        destinationId: String? = null,
     ) {
-        val name = label ?: "Location"
+        val name = label?.trim()?.takeIf { it.isNotBlank() }
+            ?: "${coordinates.latitude}, ${coordinates.longitude}"
+        val id = destinationId?.takeIf { it.isNotBlank() }
+            ?: "dest-${coordinates.latitude}-${coordinates.longitude}"
         val recent = RecentDestination(
-            id = "recent-${coordinates.latitude}-${coordinates.longitude}",
+            id = id,
             name = name,
             coordinates = coordinates,
             timestamp = clock.now(),

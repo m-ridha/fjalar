@@ -304,7 +304,7 @@ class MapPickerViewModelTest {
             assertEquals(1, recorded.size)
             val recent = recorded.first()
             assertEquals("dest--6.1234-106.5678", recent.id)
-            assertEquals("Location", recent.name)
+            assertEquals("${customCoords.latitude}, ${customCoords.longitude}", recent.name)
             assertEquals(customCoords, recent.coordinates)
             assertEquals(fixedInstant, recent.timestamp)
             assertEquals(PlaceCategory.GENERAL, recent.category)

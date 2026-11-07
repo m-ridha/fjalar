@@ -400,8 +400,11 @@ fun FjalarApp(
                         onConfirmCoordinates = { coords ->
                             viewModel.onDismissSearch()
                             viewModel.onDraftCoordinatesChanged(coords)
-                            viewModel.onConfirmDestination(coords)
                             navController.popBackStack()
+                        },
+                        onConfirmDestination = { coords, name, category ->
+                            viewModel.onDraftCoordinatesChanged(coords, name)
+                            viewModel.onConfirmDestination(coords, name, category)
                         },
                         onBack = {
                             navController.popBackStack()
