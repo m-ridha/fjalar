@@ -27,7 +27,7 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
             state = ARMED_MONITORING,
             suppressedUntil = null,
             snoozedUntil = null,
-            mustExitBeforeTrigger = true,
+            mustExitBeforeTrigger = false,
         )
         ScheduleType.SCHEDULED -> withWindowState(
             alarm.copy(suppressedUntil = null, snoozedUntil = null),
@@ -52,7 +52,12 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
             )
         } else if (previous != null && previous.state == ARMED_MONITORING && edited.state == ARMED_MONITORING) {
             val destinationChanged = previous.coordinates != edited.coordinates || previous.radius != edited.radius
-            edited.copy(mustExitBeforeTrigger = if (destinationChanged) true else previous.mustExitBeforeTrigger)
+            val mustExit = if (edited.schedule.type == ScheduleType.SCHEDULED) {
+                if (destinationChanged) true else previous.mustExitBeforeTrigger
+            } else {
+                false
+            }
+            edited.copy(mustExitBeforeTrigger = mustExit)
         } else {
             edited
         }
@@ -126,7 +131,7 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
             }
             return alarm.copy(state = RINGING)
         }
-        if (distance > alarm.radius.meters + horizontalAccuracyMeters && alarm.mustExitBeforeTrigger) {
+        if (alarm.mustExitBeforeTrigger) {
             return alarm.copy(mustExitBeforeTrigger = false)
         }
         return alarm
@@ -173,10 +178,14 @@ class AlarmEvaluator(private val scheduleEvaluator: ScheduleEvaluator) {
     private fun withWindowState(alarm: LocationAlarm, now: Instant): LocationAlarm {
         val isActive = scheduleEvaluator.isActive(alarm.schedule, now)
         val state: AlarmState = if (isActive) ARMED_MONITORING else SCHEDULED_IDLE
-        val mustExit = if (alarm.state != ARMED_MONITORING && state == ARMED_MONITORING) {
-            true
-        } else if (state == ARMED_MONITORING) {
-            alarm.mustExitBeforeTrigger
+        val mustExit = if (alarm.schedule.type == ScheduleType.SCHEDULED) {
+            if (alarm.state != ARMED_MONITORING && state == ARMED_MONITORING) {
+                true
+            } else if (state == ARMED_MONITORING) {
+                alarm.mustExitBeforeTrigger
+            } else {
+                false
+            }
         } else {
             false
         }
