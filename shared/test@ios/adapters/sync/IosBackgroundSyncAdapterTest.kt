@@ -182,15 +182,21 @@ class IosBackgroundSyncAdapterTest {
     @Test
     fun handleTask_onExpiration_cancelsJobAndCompletesWithFailureExactlyOnce() = runTest {
         val fakeEngine = FakeIosBgTaskSchedulerEngine()
-        val fakeSyncPort = FakeSyncSchedulesPort()
+        val inFlightGate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val slowSyncPort = object : SyncSchedulesPort {
+            override suspend fun syncSchedules(): List<LocationAlarm> {
+                inFlightGate.await()
+                return emptyList()
+            }
+        }
         val adapter = IosBackgroundSyncAdapter(
-            syncSchedulesPortProvider = { fakeSyncPort },
+            syncSchedulesPortProvider = { slowSyncPort },
             engine = fakeEngine,
         )
         val fakeTask = FakeBgTask()
 
         val job = adapter.handleTask(fakeTask)
-        // Simulate system expiration trigger
+        // Simulate system expiration trigger while task is suspended in-flight
         fakeTask.expirationHandler?.invoke()
         job.join()
 

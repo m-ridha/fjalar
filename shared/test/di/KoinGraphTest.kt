@@ -31,6 +31,7 @@ internal fun fakePlatformModule() = module {
     single<AlarmRingerPort> { FakeAlarmRinger() }
     single<SearchPlacesPort> { HybridPlaceSearchAdapter() }
     single<BackgroundSyncPort> { FakeBackgroundSyncAdapter() }
+    single<GeofencePort> { FakeGeofenceAdapter() }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -60,6 +61,8 @@ class KoinGraphTest {
             koin.get<SystemTimeZone>().refresh(TimeZone.of("Asia/Tokyo"))
             assertEquals(TimeZone.of("Asia/Tokyo"), koin.get<ScheduleEvaluator>().timeZone)
             assertNotNull(koin.getOrNull<BackgroundSyncPort>())
+            assertNotNull(koin.getOrNull<GeofencePort>())
+            assertIs<FakeGeofenceAdapter>(koin.get<GeofencePort>())
             assertNotNull(koin.getOrNull<SynchronizeAlarmsUseCase>())
             assertSame(service, koin.get<AlarmService>())
             assertNotNull(koin.getOrNull<RecentDestinationsPort>())

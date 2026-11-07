@@ -1,6 +1,7 @@
 package com.muhammadridha.fjalar.di
 
 import com.muhammadridha.fjalar.adapters.accessibility.IosAccessibilityAdapter
+import com.muhammadridha.fjalar.adapters.geofence.IosRegionGeofenceAdapter
 import com.muhammadridha.fjalar.adapters.location.IosCLLocationAdapter
 import com.muhammadridha.fjalar.adapters.ringer.IosCriticalAudioRingerAdapter
 import com.muhammadridha.fjalar.adapters.scheduler.IosBackgroundSchedulerAdapter
@@ -12,6 +13,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.AccessibilityPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.BackgroundSyncPort
+import com.muhammadridha.fjalar.domain.ports.outbound.GeofencePort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
@@ -51,6 +53,7 @@ class IosKoinGraphTest {
             assertNotNull(koin.getOrNull<RecentDestinationsPort>())
             assertNotNull(koin.getOrNull<MapPickerViewModel>())
             assertIs<IosBackgroundSyncAdapter>(koin.get<BackgroundSyncPort>())
+            assertIs<IosRegionGeofenceAdapter>(koin.get<GeofencePort>())
             assertNotNull(koin.getOrNull<SynchronizeAlarmsUseCase>())
         } finally {
             app.close()
