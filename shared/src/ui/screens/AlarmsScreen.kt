@@ -227,9 +227,9 @@ fun AlarmsScreen(
         }
     }
 
-    if (alarmToDelete != null) {
+    alarmToDelete?.let { alarm ->
         DeleteAlarmConfirmationDialog(
-            alarm = alarmToDelete!!,
+            alarm = alarm,
             onConfirm = { id ->
                 alarmToDelete = null
                 onDeleteAlarm(id)
