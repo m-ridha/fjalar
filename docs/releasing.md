@@ -112,15 +112,16 @@ An automated packaging pipeline is provided via `scripts/build_release_ios.sh`:
 RELEASE_TAG="v0.3.0" BUILD_NUMBER=1 bash scripts/build_release_ios.sh
 ```
 
-This builds the release app via the Kotlin Multiplatform toolchain, constructs
-an `.xcarchive` bundle (`dist/fjalar-${RELEASE_TAG}.xcarchive`) with metadata
-matching the tag and build number, packages an unsigned `.ipa`
+This builds the physical device release app (`iosArm64` / `Release-iphoneos` by
+default) via the Kotlin Multiplatform toolchain, constructs an `.xcarchive`
+bundle (`dist/fjalar-${RELEASE_TAG}.xcarchive`) with metadata matching the tag
+and build number, packages an unsigned `.ipa`
 (`dist/fjalar-${RELEASE_TAG}-ios-unsigned.ipa`), and outputs the SHA-256 checksum
 (`dist/SHA256SUMS-ios.txt`).
 
 In GitHub Actions, the `verify` job on `macos-26` runs this packaging pipeline
 as an automated dry-run validation step and uploads the resulting unsigned archive
-artifacts for review.
+artifacts (`release-ios-unsigned`) to the workflow run for review.
 
 ### Installing and Signing on iOS
 
@@ -131,11 +132,15 @@ However, it can be signed and deployed using standard methods:
 1. **Local Xcode Deployment (Free Apple Account)**: Open `iosApp/module.xcodeproj` in
    Xcode, select your Personal Team under Signing & Capabilities, enable
    *Automatically manage signing*, and run on your connected device.
-2. **Ad-Hoc / Enterprise Resigning**: The generated `.ipa` can be resigned with
-   enterprise or ad-hoc provisioning profiles via `codesign` or `fastlane sigh resign`.
-3. **App Store Distribution**: Configure Apple Developer credentials and distribution
-   provisioning in GitHub Actions secrets to sign and submit directly via `xcrun altool`
-   or TestFlight.
+2. **Ad-Hoc / Enterprise Resigning**: Because `scripts/build_release_ios.sh`
+   targets `iosArm64` (`Release-iphoneos`) by default, the generated unsigned `.ipa`
+   contains a physical device binary that can be resigned with enterprise or ad-hoc
+   provisioning profiles via `codesign` or `fastlane sigh resign`.
+3. **App Store Distribution**: CI signing and App Store / TestFlight upload steps
+   are not yet wired into `.github/workflows/release-assets.yml`. When Apple Developer
+   credentials and distribution provisioning are available, a dedicated signing and
+   submission step (`xcodebuild -exportArchive` / `xcrun altool` or TestFlight) must
+   be added to the workflow alongside the corresponding repository secrets.
 
 ## References and fit for this repository
 

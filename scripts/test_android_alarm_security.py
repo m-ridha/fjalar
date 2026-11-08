@@ -8,7 +8,10 @@ ANDROID = "{http://schemas.android.com/apk/res/android}"
 
 
 class AndroidAlarmSecurityTests(unittest.TestCase):
+    """Verify Android manifest and activity security invariants for locked-device alarms."""
+
     def setUp(self):
+        """Parse AndroidManifest.xml and index activity declarations."""
         self.application = ET.parse(ROOT / "androidApp/src/AndroidManifest.xml").getroot().find("application")
         self.activities = {
             activity.attrib[ANDROID + "name"]: activity
@@ -16,6 +19,7 @@ class AndroidAlarmSecurityTests(unittest.TestCase):
         }
 
     def test_only_restricted_activity_can_show_over_keyguard(self):
+        """Verify only AlarmActivity declares showWhenLocked in AndroidManifest.xml."""
         privileged = []
         for name, activity in self.activities.items():
             if activity.attrib.get(ANDROID + "showWhenLocked") == "true":
@@ -26,6 +30,7 @@ class AndroidAlarmSecurityTests(unittest.TestCase):
             self.assertNotIn(unsafe_api, main)
 
     def test_alarm_task_is_private_isolated_and_absent_from_recents(self):
+        """Verify AlarmActivity is non-exported, excluded from recents, and uses singleTask."""
         alarm = self.activities[".AlarmActivity"]
         self.assertEqual("false", alarm.attrib[ANDROID + "exported"])
         self.assertEqual("true", alarm.attrib[ANDROID + "excludeFromRecents"])
@@ -37,6 +42,7 @@ class AndroidAlarmSecurityTests(unittest.TestCase):
         self.assertEqual([], alarm.findall("intent-filter"))
 
     def test_notification_has_no_route_to_private_main_activity(self):
+        """Verify alarm notifications target AlarmActivity with immutable PendingIntents."""
         ringer = (ROOT / "shared/src@android/adapters/ringer/AndroidSystemAlarmRingerAdapter.kt").read_text()
         self.assertIn('DEFAULT_ACTIVITY_CLASS_NAME = "com.muhammadridha.fjalar.AlarmActivity"', ringer)
         self.assertNotIn("getLaunchIntentForPackage", ringer)
@@ -45,6 +51,7 @@ class AndroidAlarmSecurityTests(unittest.TestCase):
         self.assertIn(".setVisibility(Notification.VISIBILITY_PRIVATE)", ringer)
 
     def test_restricted_activity_has_no_normal_navigation_or_unlock_bypass(self):
+        """Verify AlarmActivity cannot navigate to MainActivity or dismiss keyguard."""
         activity = (ROOT / "androidApp/src/AlarmActivity.kt").read_text()
         for forbidden in ("MainActivity", "FjalarViewModel", "NavController", "startActivity(", "requestDismissKeyguard", "FLAG_DISMISS_KEYGUARD"):
             self.assertNotIn(forbidden, activity)
@@ -56,6 +63,7 @@ class AndroidAlarmSecurityTests(unittest.TestCase):
         self.assertIn("intent.action != ACTION_SHOW_ALARM", activity)
 
     def test_locked_device_window_flags_and_lifecycle_on_dismiss(self):
+        """Verify locked-device window flags on AlarmActivity and absence on MainActivity."""
         activity = (ROOT / "androidApp/src/AlarmActivity.kt").read_text()
         self.assertIn("setShowWhenLocked(true)", activity)
         self.assertIn("setTurnScreenOn(true)", activity)

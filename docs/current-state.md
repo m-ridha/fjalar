@@ -13,8 +13,8 @@ and release packaging:
 - **Bilingual transit (`en` & `id`)**: Full English and Bahasa Indonesia catalog parity across
   UI, day chips (`Mo..Su` / `Sn..Mg`), notifications, and station search autocomplete.
 - **Accessibility & Contrast**: Live observation of OS reduce-transparency settings on Android
-  (API 34+) and iOS (`UIAccessibility`), with fallback to 92% opaque tinted surfaces and >=15:1
-  WCAG AAA contrast. Semantic content descriptions and 48dp minimum touch targets.
+  (API 34+) and iOS (`UIAccessibility`), with fallback to 92% opaque tinted surfaces and >= 15:1
+  WCAG AAA primary-text contrast. Semantic content descriptions and 48dp minimum touch targets.
 - **iOS Background Refresh**: `BGAppRefreshTask` integration (`com.muhammadridha.fjalar.refresh`)
   with `fetch` mode to synchronize upcoming commute windows while suspended.
 - **Native Circular Geofencing**: `GeofencePort` with `CLCircularRegion` on iOS for low-power

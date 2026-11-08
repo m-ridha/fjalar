@@ -4,27 +4,35 @@ set -euo pipefail
 : "${RELEASE_TAG:?Missing release tag}"
 : "${BUILD_NUMBER:?Missing workflow run number}"
 
-TARGET_PLATFORM="${IOS_TARGET_PLATFORM:-iosSimulatorArm64}"
+TARGET_PLATFORM="${IOS_TARGET_PLATFORM:-iosArm64}"
+export TARGET_PLATFORM
 
 echo "==> Deriving release metadata for $RELEASE_TAG (build $BUILD_NUMBER)"
 metadata=$(python3 scripts/release_metadata.py "$RELEASE_TAG" "$BUILD_NUMBER")
-ios_version=$(python3 -c "import json; print(json.loads('''$metadata''')['ios_version'])")
-ios_build_number=$(python3 -c "import json; print(json.loads('''$metadata''')['ios_build_number'])")
+read -r ios_version ios_build_number < <(
+    printf '%s\n' "$metadata" | python3 -c "import json, sys; d = json.load(sys.stdin); print(d['ios_version'], d['ios_build_number'])"
+)
 
 echo "==> Building iOS Release App via Kotlin toolchain (platform: $TARGET_PLATFORM)"
 ./kotlin build -m iosApp -p "$TARGET_PLATFORM" -v release
 
-# Locate the built .app directory
+# Locate the built .app directory matching the target platform
 app_path=$(python3 - <<'PY'
+import os
 from pathlib import Path
 
-# Match built release app directories
-apps = list(Path("build/tasks").glob("_iosApp_buildIosApp*/bin/Release-*/Fjalar.app"))
-if not apps:
-    raise SystemExit("No built Fjalar.app found in build/tasks")
-# Pick the most recently modified app
-latest_app = max(apps, key=lambda p: p.stat().st_mtime)
-print(latest_app)
+target = os.environ["TARGET_PLATFORM"]
+if target == "iosArm64":
+    pattern = "_iosApp_buildIosAppIosArm64Release/bin/Release-iphoneos/Fjalar.app"
+elif target == "iosSimulatorArm64":
+    pattern = "_iosApp_buildIosAppIosSimulatorArm64Release/bin/Release-iphonesimulator/Fjalar.app"
+else:
+    pattern = f"_iosApp_buildIosApp*{target}*/bin/Release-*/Fjalar.app"
+
+apps = list(Path("build/tasks").glob(pattern))
+if len(apps) != 1:
+    raise SystemExit(f"Expected 1 built Fjalar.app for {target} matching {pattern}, found {len(apps)}")
+print(apps[0])
 PY
 )
 
