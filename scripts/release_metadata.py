@@ -23,6 +23,8 @@ def release_metadata(tag: str, build_number: int) -> dict[str, str]:
         "tag": tag,
         "android_version": tag[1:],
         "version_code": str(build_number),
+        "ios_version": match.group("version"),
+        "ios_build_number": str(build_number),
     }
 
 

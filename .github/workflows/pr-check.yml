@@ -97,6 +97,7 @@ jobs:
         run: |
           python3 scripts/test_release_metadata.py
           python3 scripts/test_upload_release_assets.py
+          python3 scripts/test_build_release_ios.py
 
       - name: Verify String Catalogs, Icons & Audio Assets
         run: |

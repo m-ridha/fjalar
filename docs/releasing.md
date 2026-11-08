@@ -104,36 +104,38 @@ This published-release trigger requires editable release assets. If GitHub
 immutable releases are enabled, use a future draft-build-then-publish flow instead;
 GitHub locks assets after an immutable release is published.
 
-## iOS release packaging is disabled for now
+## iOS release packaging
 
-iOS apps use **IPA**, not APK. Automatic Signing still requires an Apple account,
-a signing identity, and provisioning. Without that setup, an unsigned IPA can be
-packaged but cannot be installed as a normally signed iOS application. This
-workflow intentionally publishes **no iOS asset**, as requested, until Apple
-signing is available. The macOS verification job still runs the existing
-multiplatform tests and checks. It does not export or publish an IPA.
+An automated packaging pipeline is provided via `scripts/build_release_ios.sh`:
 
-Your free Apple Account can still be used locally: open `iosApp/module.xcodeproj`
-in Xcode, select your Personal Team under Signing & Capabilities, enable
-Automatically manage signing, and build/run on your own connected device.
-Personal Team provisioning expires after seven days, so the app needs rebuilding
-and reinstalling periodically. It is intended for personal device testing, not
-public release distribution. A GitHub-hosted runner is a separate machine and
-does not inherit the signed-in account or keychain from your local Xcode.
+```sh
+RELEASE_TAG="v0.3.0" BUILD_NUMBER=1 bash scripts/build_release_ios.sh
+```
 
-To enable iOS publication later:
+This builds the release app via the Kotlin Multiplatform toolchain, constructs
+an `.xcarchive` bundle (`dist/fjalar-${RELEASE_TAG}.xcarchive`) with metadata
+matching the tag and build number, packages an unsigned `.ipa`
+(`dist/fjalar-${RELEASE_TAG}-ios-unsigned.ipa`), and outputs the SHA-256 checksum
+(`dist/SHA256SUMS-ios.txt`).
 
-1. Set up Apple Developer signing and the registered application identifier. The
-   current Xcode project still uses a generated placeholder bundle identifier;
-   align it with `com.muhammadridha.fjalar` and the Apple registration first.
-2. Configure the team and CI signing credentials securely, using Automatic Signing
-   with provisioning updates rather than relying on a logged-in local Xcode account.
-3. Add a device Release archive/export job using `module.xcodeproj`, not a
-   simulator `.app`. Set the numeric marketing version from `X.Y.Z` and a valid,
-   increasing Apple build version. Keep suffixes in the asset filename.
-4. Choose the intended Apple distribution method. An IPA for registered test
-   devices is not a universally installable public download.
-5. Gate the upload on that job, then include its IPA and checksum in the release.
+In GitHub Actions, the `verify` job on `macos-26` runs this packaging pipeline
+as an automated dry-run validation step and uploads the resulting unsigned archive
+artifacts for review.
+
+### Installing and Signing on iOS
+
+Without an active Apple Developer certificate and provisioning profile, an
+unsigned IPA cannot be installed on un-jailbroken iOS devices as a signed release.
+However, it can be signed and deployed using standard methods:
+
+1. **Local Xcode Deployment (Free Apple Account)**: Open `iosApp/module.xcodeproj` in
+   Xcode, select your Personal Team under Signing & Capabilities, enable
+   *Automatically manage signing*, and run on your connected device.
+2. **Ad-Hoc / Enterprise Resigning**: The generated `.ipa` can be resigned with
+   enterprise or ad-hoc provisioning profiles via `codesign` or `fastlane sigh resign`.
+3. **App Store Distribution**: Configure Apple Developer credentials and distribution
+   provisioning in GitHub Actions secrets to sign and submit directly via `xcrun altool`
+   or TestFlight.
 
 ## References and fit for this repository
 

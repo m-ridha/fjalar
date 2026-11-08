@@ -55,6 +55,19 @@ class AndroidAlarmSecurityTests(unittest.TestCase):
         self.assertIn("FLAG_SECURE", activity)
         self.assertIn("intent.action != ACTION_SHOW_ALARM", activity)
 
+    def test_locked_device_window_flags_and_lifecycle_on_dismiss(self):
+        activity = (ROOT / "androidApp/src/AlarmActivity.kt").read_text()
+        self.assertIn("setShowWhenLocked(true)", activity)
+        self.assertIn("setTurnScreenOn(true)", activity)
+        self.assertIn("FLAG_SHOW_WHEN_LOCKED", activity)
+        self.assertIn("FLAG_TURN_SCREEN_ON", activity)
+        self.assertIn("FLAG_SECURE", activity)
+        self.assertIn("finishAndRemoveTask()", activity)
+        # Ensure keyguard window flags never leak to MainActivity
+        main_activity = (ROOT / "androidApp/src/MainActivity.kt").read_text()
+        for flag in ("setShowWhenLocked", "setTurnScreenOn", "FLAG_SHOW_WHEN_LOCKED", "FLAG_TURN_SCREEN_ON"):
+            self.assertNotIn(flag, main_activity)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -29,6 +29,7 @@ jobs:
         run: |
           python3 scripts/test_release_metadata.py
           python3 scripts/test_upload_release_assets.py
+          python3 scripts/test_build_release_ios.py
       - name: Validate tag and derive app version
         run: python3 scripts/release_metadata.py "$RELEASE_TAG" "$BUILD_NUMBER"
 
@@ -88,8 +89,21 @@ jobs:
         run: ./kotlin test
       - name: Check multiplatform source
         run: ./kotlin check
-      # iOS IPA packaging is intentionally disabled until an Apple signing identity
-      # and automatic provisioning credentials are available. See docs/releasing.md.
+      - name: Build and package iOS release archive (unsigned)
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
+          IOS_TARGET_PLATFORM: iosSimulatorArm64
+        run: bash scripts/build_release_ios.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-ios-unsigned
+          path: |
+            dist/*.ipa
+            dist/*.xcarchive
+            dist/SHA256SUMS-ios.txt
+          if-no-files-found: error
+          retention-days: 7
 
   publish:
     name: Attach assets to the published release
