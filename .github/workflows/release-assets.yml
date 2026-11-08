@@ -119,8 +119,9 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: release-android
+          pattern: release-*
           path: dist
+          merge-multiple: true
       - name: Generate checksums and upload assets
         env:
           GH_TOKEN: ${{ github.token }}
@@ -129,4 +130,4 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/upload_release_assets.py "$RELEASE_TAG"
-          echo "Release assets verified or uploaded for $RELEASE_TAG. Unsigned iOS archive and IPA are attached to the workflow run artifacts." >> "$GITHUB_STEP_SUMMARY"
+          echo "Release assets verified or uploaded for $RELEASE_TAG (signed Android APK and unsigned iOS IPA with SHA-256 checksums)." >> "$GITHUB_STEP_SUMMARY"
