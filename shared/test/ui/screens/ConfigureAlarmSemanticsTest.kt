@@ -78,4 +78,25 @@ class ConfigureAlarmSemanticsTest {
         assertEquals("dipilih", configureAlarmDayChipStateDescription(true, AppLocale.ID))
         assertEquals("tidak dipilih", configureAlarmDayChipStateDescription(false, AppLocale.ID))
     }
+
+    @Test
+    fun radiusPresetRows_splitSubKilometerAndKilometerPillsAcrossFiveColumnGrid() {
+        assertEquals(5, CONFIGURE_ALARM_PILL_GRID_COLUMNS)
+        assertEquals(2, CONFIGURE_ALARM_RADIUS_PRESET_ROWS.size)
+        assertEquals(
+            listOf(50, 100, 200, 300, 500),
+            CONFIGURE_ALARM_RADIUS_PRESET_ROWS[0].map { it.meters },
+        )
+        assertEquals(
+            listOf(1_000, 2_000, 3_000),
+            CONFIGURE_ALARM_RADIUS_PRESET_ROWS[1].map { it.meters },
+        )
+    }
+
+    @Test
+    fun dayChipRows_placeMondayThroughFridayInRowOneAndWeekendInRowTwo() {
+        assertEquals(2, CONFIGURE_ALARM_DAY_CHIP_ROWS.size)
+        assertEquals(listOf(0, 1, 2, 3, 4), CONFIGURE_ALARM_DAY_CHIP_ROWS[0])
+        assertEquals(listOf(5, 6), CONFIGURE_ALARM_DAY_CHIP_ROWS[1])
+    }
 }

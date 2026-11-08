@@ -58,10 +58,12 @@ do not save. An unchanged existing alarm exits without another repository write.
 Scheduled Start and End open a 24-hour picker with clock and keyboard modes.
 Compact or large-font layouts use numeric input. Cancel leaves the draft time
 unchanged. The radius slider spans
-50 m to 3 km, with 50 m, 100 m, 200 m, 300 m, 500 m, and 1 km presets. New alarms
+50 m to 3 km, with 50 m, 100 m, 200 m, 300 m, 500 m, 1 km, 2 km, and 3 km presets
+arranged in two center-aligned equal-width 5-column rows (sub-km in row 1; 1–3 km in row 2). New alarms
 default to 100 m. The domain retains its 10 km maximum for saved alarms; this
 branch adds no migration or clamping of existing values. Day chips use
-`Mo Tu We Th Fr Sa Su` and `Sn Sl Rb Km Jm Sb Mg`. Alarm-list Delete actions are
+`Mo Tu We Th Fr Sa Su` and `Sn Sl Rb Km Jm Sb Mg` across two center-aligned equal-width 5-column
+rows (`Mo–Fr` / `Sn–Jm` in row 1; `Sa–Su` / `Sb–Mg` in row 2). Alarm-list Delete actions are
 text-only and aligned to the trailing edge.
 
 Both maps use a blue-dot GPS recenter button with a white ring. The compass appears

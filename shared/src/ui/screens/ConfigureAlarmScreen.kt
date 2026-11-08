@@ -212,6 +212,18 @@ fun configureAlarmDayChipStateDescription(isSelected: Boolean, locale: AppLocale
     }
 }
 
+const val CONFIGURE_ALARM_PILL_GRID_COLUMNS = 5
+
+val CONFIGURE_ALARM_RADIUS_PRESET_ROWS: List<List<TriggerRadius>> = listOf(
+    TriggerRadius.PRESETS.filter { it.meters < 1_000 },
+    TriggerRadius.PRESETS.filter { it.meters >= 1_000 },
+)
+
+val CONFIGURE_ALARM_DAY_CHIP_ROWS: List<List<Int>> = listOf(
+    listOf(0, 1, 2, 3, 4),
+    listOf(5, 6),
+)
+
 private const val RADIUS_SLIDER_MAX_METERS = 3000
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -453,42 +465,55 @@ fun ConfigureAlarmScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Preset Pills
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                for (preset in TriggerRadius.PRESETS) {
-                    val isSelected = draft.radiusMeters == preset.meters
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .widthIn(min = 64.dp)
-                            .heightIn(min = 48.dp)
-                            .clip(CircleShape)
-                            .background(if (isSelected) colors.primary else colors.glassPill)
-                            .clickable(role = Role.RadioButton, enabled = !isOperationPending) {
-                                onDraftChange(draft.copy(radiusMeters = preset.meters))
-                            }
-                            .semantics {
-                                role = Role.RadioButton
-                                stateDescription = if (isSelected) {
-                                    FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_SELECTED, locale)
-                                } else {
-                                    FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_NOT_SELECTED, locale)
+            // Preset Pills (Row 1: sub-km presets; Row 2: km presets — equal 5-column pill widths, center aligned)
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val pillSpacing = 8.dp
+                val pillWidth = ((maxWidth - pillSpacing * (CONFIGURE_ALARM_PILL_GRID_COLUMNS - 1)) / CONFIGURE_ALARM_PILL_GRID_COLUMNS)
+                    .coerceAtLeast(48.dp)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(pillSpacing),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    for (rowPresets in CONFIGURE_ALARM_RADIUS_PRESET_ROWS) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(pillSpacing, Alignment.CenterHorizontally),
+                        ) {
+                            for (preset in rowPresets) {
+                                val isSelected = draft.radiusMeters == preset.meters
+                                Box(
+                                    modifier = Modifier
+                                        .width(pillWidth)
+                                        .heightIn(min = 48.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isSelected) colors.primary else colors.glassPill)
+                                        .clickable(role = Role.RadioButton, enabled = !isOperationPending) {
+                                            onDraftChange(draft.copy(radiusMeters = preset.meters))
+                                        }
+                                        .semantics {
+                                            role = Role.RadioButton
+                                            stateDescription = if (isSelected) {
+                                                FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_SELECTED, locale)
+                                            } else {
+                                                FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_NOT_SELECTED, locale)
+                                            }
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = formatDistance(preset.meters, locale),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            fontFeatureSettings = "tnum",
+                                        ),
+                                        color = if (isSelected) colors.onPrimary else colors.textPrimary,
+                                        textAlign = TextAlign.Center,
+                                    )
                                 }
                             }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = formatDistance(preset.meters, locale),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                fontFeatureSettings = "tnum",
-                            ),
-                            color = if (isSelected) colors.onPrimary else colors.textPrimary,
-                        )
+                        }
                     }
                 }
             }
@@ -620,49 +645,60 @@ fun ConfigureAlarmScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Day chips wrap on narrow panes and at larger text sizes.
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    val dayLabels = dayChipLabels(locale)
-                    for (i in 0..6) {
-                        val bit = 1 shl i
-                        val isDayActive = (draft.daysOfWeekMask and bit) != 0
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .widthIn(min = 48.dp)
-                                .heightIn(min = 48.dp)
-                                .clip(CircleShape)
-                                .background(if (isDayActive) colors.primary else colors.glassPill)
-                                .clickable(role = Role.Checkbox, enabled = !isOperationPending) {
-                                    val toggled = draft.daysOfWeekMask xor bit
-                                    if (toggled != 0) {
-                                        onDraftChange(draft.copy(daysOfWeekMask = toggled))
+                // Day chips: Row 1 (Mo..Fr) and Row 2 (Sa..Su) with equal 5-column pill widths, center aligned.
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val pillSpacing = 8.dp
+                    val pillWidth = ((maxWidth - pillSpacing * (CONFIGURE_ALARM_PILL_GRID_COLUMNS - 1)) / CONFIGURE_ALARM_PILL_GRID_COLUMNS)
+                        .coerceAtLeast(48.dp)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(pillSpacing),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        val dayLabels = dayChipLabels(locale)
+                        for (rowIndices in CONFIGURE_ALARM_DAY_CHIP_ROWS) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(pillSpacing, Alignment.CenterHorizontally),
+                            ) {
+                                for (i in rowIndices) {
+                                    val bit = 1 shl i
+                                    val isDayActive = (draft.daysOfWeekMask and bit) != 0
+                                    Box(
+                                        modifier = Modifier
+                                            .width(pillWidth)
+                                            .heightIn(min = 48.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isDayActive) colors.primary else colors.glassPill)
+                                            .clickable(role = Role.Checkbox, enabled = !isOperationPending) {
+                                                val toggled = draft.daysOfWeekMask xor bit
+                                                if (toggled != 0) {
+                                                    onDraftChange(draft.copy(daysOfWeekMask = toggled))
+                                                }
+                                            }
+                                            .semantics {
+                                                role = Role.Checkbox
+                                                contentDescription = FjalarStrings.get(CONFIGURE_ALARM_DAY_NAME_KEYS[i], locale)
+                                                stateDescription = if (isDayActive) {
+                                                    FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_SELECTED, locale)
+                                                } else {
+                                                    FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_NOT_SELECTED, locale)
+                                                }
+                                            }
+                                            .padding(vertical = 8.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(
+                                            text = dayLabels[i],
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = if (isDayActive) FontWeight.Bold else FontWeight.Medium,
+                                            ),
+                                            color = if (isDayActive) colors.onPrimary else colors.textPrimary,
+                                            textAlign = TextAlign.Center,
+                                        )
                                     }
                                 }
-                                .semantics {
-                                    role = Role.Checkbox
-                                    contentDescription = FjalarStrings.get(CONFIGURE_ALARM_DAY_NAME_KEYS[i], locale)
-                                    stateDescription = if (isDayActive) {
-                                        FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_SELECTED, locale)
-                                    } else {
-                                        FjalarStrings.get(FjalarStringKey.ACCESSIBLE_DAY_NOT_SELECTED, locale)
-                                    }
-                                }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = dayLabels[i],
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = if (isDayActive) FontWeight.Bold else FontWeight.Medium,
-                                ),
-                                color = if (isDayActive) colors.onPrimary else colors.textPrimary,
-                                textAlign = TextAlign.Center,
-                            )
+                            }
                         }
                     }
                 }

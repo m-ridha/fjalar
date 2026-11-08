@@ -20,7 +20,7 @@ class TriggerRadiusTest {
 
     @Test
     fun presetsOfferSmallerRadiusChoices() {
-        assertEquals(listOf(50, 100, 200, 300, 500, 1_000), TriggerRadius.PRESETS.map { it.meters })
+        assertEquals(listOf(50, 100, 200, 300, 500, 1_000, 2_000, 3_000), TriggerRadius.PRESETS.map { it.meters })
     }
 
     @Test

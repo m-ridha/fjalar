@@ -17,6 +17,6 @@ data class TriggerRadius(val meters: Int) {
         const val MIN_METERS = 50
         const val MAX_METERS = 10_000
         val DEFAULT = TriggerRadius(100)
-        val PRESETS: List<TriggerRadius> = listOf(50, 100, 200, 300, 500, 1_000).map(::TriggerRadius)
+        val PRESETS: List<TriggerRadius> = listOf(50, 100, 200, 300, 500, 1_000, 2_000, 3_000).map(::TriggerRadius)
     }
 }
