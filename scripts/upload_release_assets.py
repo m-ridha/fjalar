@@ -25,6 +25,14 @@ def upload_assets(tag: str, directory: Path) -> None:
     checksum = directory / "SHA256SUMS.txt"
     checksum.write_text(f"{sha256(apk)}  {apk.name}\n")
     files = [apk, checksum]
+
+    ipa = directory / f"fjalar-{tag}-ios-unsigned.ipa"
+    if ipa.is_file():
+        ios_checksum = directory / "SHA256SUMS-ios.txt"
+        if not ios_checksum.is_file():
+            ios_checksum.write_text(f"{sha256(ipa)}  {ipa.name}\n")
+        files.extend([ipa, ios_checksum])
+
     result = subprocess.check_output(
         ["gh", "release", "view", tag, "--json", "assets"], text=True
     )

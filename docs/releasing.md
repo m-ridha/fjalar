@@ -26,6 +26,8 @@ workflow attaches these files to the existing release:
 
 - `fjalar-vX.Y.Z[-suffix]-android.apk`: aligned, release-signed Android APK.
 - `SHA256SUMS.txt`: SHA-256 checksum of the APK.
+- `fjalar-vX.Y.Z[-suffix]-ios-unsigned.ipa`: unsigned physical-device iOS IPA (`iosArm64` / `Release-iphoneos`).
+- `SHA256SUMS-ios.txt`: SHA-256 checksum of the unsigned iOS IPA.
 
 The exact commit associated with the release event is checked out for validation,
 building, and tests. Android uses the tag without `v` as `versionName` and this
@@ -81,8 +83,8 @@ an exit trap, and excluded from uploaded artifacts. `zipalign` runs before
    it. A pre-release works too.
 4. Check **Actions → Build Release Assets**. The release exists immediately. The
    assets appear after the workflow succeeds.
-5. Download the APK and checksum file. On Linux use `sha256sum -c SHA256SUMS.txt`;
-   on macOS use `shasum -a 256 -c SHA256SUMS.txt`.
+5. Download the APK/IPA and their checksum files. On Linux use `sha256sum -c SHA256SUMS.txt`
+   (or `SHA256SUMS-ios.txt`); on macOS use `shasum -a 256 -c SHA256SUMS.txt` (or `SHA256SUMS-ios.txt`).
 
 If a job fails, correct its setup and re-run the failed jobs. The same workflow
 run retains its version code. Successful build artifacts are retained for seven
@@ -120,8 +122,10 @@ and build number, packages an unsigned `.ipa`
 (`dist/SHA256SUMS-ios.txt`).
 
 In GitHub Actions, the `verify` job on `macos-26` runs this packaging pipeline
-as an automated dry-run validation step and uploads the resulting unsigned archive
-artifacts (`release-ios-unsigned`) to the workflow run for review.
+and uploads the resulting unsigned archive artifacts (`release-ios-unsigned`),
+after which the `publish` job attaches `fjalar-${RELEASE_TAG}-ios-unsigned.ipa`
+and `SHA256SUMS-ios.txt` directly to the published GitHub Release alongside the
+signed Android APK.
 
 ### Installing and Signing on iOS
 
