@@ -1,8 +1,29 @@
 # Current project state
 
-Source audit: 2026-11-07, based on main through PR #33. This
-records implemented behavior. Notion requirements and historical Stitch mockups may
-include planned behavior.
+Source audit: 2026-11-08, based on main through PR #39 (v0.3.0 release candidate). This
+records implemented behavior across Phases 1 through 10. Notion requirements and historical
+Stitch mockups may include planned future enhancements.
+
+## Release readiness (v0.3.0)
+
+Fjalar v0.3.0 completes all planned milestones across core domain logic, Liquid Glass UI,
+bilingual transit localization, accessibility, background synchronization, native geofencing,
+and release packaging:
+
+- **Bilingual transit (`en` & `id`)**: Full English and Bahasa Indonesia catalog parity across
+  UI, day chips (`Mo..Su` / `Sn..Mg`), notifications, and station search autocomplete.
+- **Accessibility & Contrast**: Live observation of OS reduce-transparency settings on Android
+  (API 34+) and iOS (`UIAccessibility`), with fallback to 92% opaque tinted surfaces and >= 15:1
+  WCAG AAA primary-text contrast. Semantic content descriptions and 48dp minimum touch targets.
+- **iOS Background Refresh**: `BGAppRefreshTask` integration (`com.muhammadridha.fjalar.refresh`)
+  with `fetch` mode to synchronize upcoming commute windows while suspended.
+- **Native Circular Geofencing**: `GeofencePort` with `CLCircularRegion` on iOS for low-power
+  baseband transition detection, complementing adaptive distance-tiered GPS tracking.
+- **Automated Multiplatform Packaging**: Headless build and packaging scripts for signed
+  Android APKs (`scripts/build_release_android.sh`) and iOS `.xcarchive` / unsigned `.ipa`
+  packages (`scripts/build_release_ios.sh`).
+- **Security & Keyguard Isolation**: Non-exported `AlarmActivity` isolated with `FLAG_SECURE`,
+  `setShowWhenLocked(true)`, and immediate `finishAndRemoveTask()` termination upon dismissal.
 
 ## Screens and controls
 

@@ -345,4 +345,63 @@ class AlarmStateTransitionTest {
         service.saveAlarm(manggaraiAlarm()).getOrThrow()
         assertEquals(listOf("manggarai"), service.observeAlarms().first().map { it.id })
     }
+
+    @Test
+    fun lockedDeviceRingingCycle_scheduledAlarmTransitionsToCompletedAndStopsRingerWithoutReTrigger() = runTest {
+        // Commuter window: 07:00 - 09:30
+        clock.now = jakarta(2026, 10, 26, 7, 30) // Monday 07:30
+        val alarm = manggaraiAlarm()
+        service.saveAlarm(alarm).getOrThrow()
+        service.toggleAlarm("manggarai", enabled = true).getOrThrow()
+
+        // 1. Initial departure fix confirms outside radius -> clears departure guard
+        service.handleLocationUpdate(SUDIRMAN, 10f)
+        assertEquals(AlarmState.ARMED_MONITORING, state())
+        assertTrue(ringer.ringingIds.isEmpty())
+
+        // 2. Approaching destination: fix inside radius -> transitions to RINGING
+        service.handleLocationUpdate(MANGGARAI, 10f)
+        assertEquals(AlarmState.RINGING, state())
+        assertEquals(setOf("manggarai"), ringer.ringingIds)
+        assertFalse(tracker.isTracking) // GPS polling stops during active alarm
+
+        // 3. User dismisses alarm on locked screen
+        service.dismissAlarm("manggarai").getOrThrow()
+
+        // 4. State transitions to COMPLETED_FOR_WINDOW, ringer terminated, GPS stopped
+        assertEquals(AlarmState.COMPLETED_FOR_WINDOW, state())
+        assertTrue(ringer.ringingIds.isEmpty())
+        assertFalse(tracker.isTracking)
+
+        // 5. Invariant check: repeated fixes inside the same active window do NOT re-trigger
+        service.handleLocationUpdate(MANGGARAI, 10f)
+        assertEquals(AlarmState.COMPLETED_FOR_WINDOW, state())
+        assertTrue(ringer.ringingIds.isEmpty())
+
+        // 6. Commute window ends (09:30) -> syncSchedules transitions back to SCHEDULED_IDLE
+        clock.now = jakarta(2026, 10, 26, 9, 31)
+        service.syncSchedules()
+        assertEquals(AlarmState.SCHEDULED_IDLE, state())
+        assertTrue(ringer.ringingIds.isEmpty())
+    }
+
+    @Test
+    fun lockedDeviceRingingCycle_oneTimeAlarmTransitionsToDisabledAndStopsRinger() = runTest {
+        clock.now = jakarta(2026, 10, 26, 8)
+        val oneTime = manggaraiAlarm(schedule = AlarmSchedule.ONE_TIME)
+        service.saveAlarm(oneTime).getOrThrow()
+        service.toggleAlarm("manggarai", enabled = true).getOrThrow()
+        assertEquals(AlarmState.ARMED_MONITORING, state())
+
+        // Fix inside radius triggers RINGING
+        service.handleLocationUpdate(MANGGARAI, 10f)
+        assertEquals(AlarmState.RINGING, state())
+        assertEquals(setOf("manggarai"), ringer.ringingIds)
+
+        // Dismiss one-time alarm -> transitions directly to DISABLED, ringer stops
+        service.dismissAlarm("manggarai").getOrThrow()
+        assertEquals(AlarmState.DISABLED, state())
+        assertTrue(ringer.ringingIds.isEmpty())
+        assertFalse(tracker.isTracking)
+    }
 }
