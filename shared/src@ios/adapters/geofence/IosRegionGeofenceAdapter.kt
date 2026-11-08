@@ -4,6 +4,7 @@ import com.muhammadridha.fjalar.domain.model.GeofenceRegion
 import com.muhammadridha.fjalar.domain.model.GeofenceTransitionEvent
 import com.muhammadridha.fjalar.domain.model.GeofenceTransitionType
 import com.muhammadridha.fjalar.domain.ports.outbound.GeofencePort
+import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCSignatureOverride
 import kotlinx.cinterop.cValue
@@ -77,6 +78,7 @@ class DefaultIosGeofenceEngine(
         return manager.monitoredRegions.filterIsInstance<CLRegion>().map { it.identifier }.toSet()
     }
 
+    @OptIn(BetaInteropApi::class)
     override fun isMonitoringAvailable(): Boolean {
         return CLLocationManager.isMonitoringAvailableForClass(CLCircularRegion)
     }
