@@ -89,18 +89,22 @@ an exit trap, and excluded from uploaded artifacts. `zipalign` runs before
 If a job fails, correct its setup and re-run the failed jobs. The same workflow
 run retains its version code. Successful build artifacts are retained for seven
 days. If they expire, re-run all jobs. Before uploading anything, the workflow
-downloads any existing matching APK/checksum assets and compares their SHA-256
-hashes with the local files. Identical assets are preserved. Only missing files
-are uploaded, allowing a partial upload to finish safely. A differing asset stops
-the job without replacing or deleting anything. A rebuild may produce different
-bytes, so prefer retrying the upload job with its original build artifacts.
+downloads any existing matching release assets (`fjalar-<tag>-android.apk`,
+`SHA256SUMS.txt`, and when present in `dist/`, `fjalar-<tag>-ios-unsigned.ipa`
+and `SHA256SUMS-ios.txt`) via `scripts/upload_release_assets.py` and compares
+their SHA-256 hashes with the local files. Identical assets are preserved. Only
+missing files are uploaded, allowing a partial upload to finish safely. A
+differing asset stops the job without replacing or deleting anything. A rebuild
+may produce different bytes, so prefer retrying the upload job with its original
+build artifacts.
 
 For changed content, publish a new version/tag whenever possible. If an existing
-asset must be replaced, an administrator must explicitly back up the old APK and
-checksum, upload and verify the candidate pair under distinct names first, and
-then deliberately replace the canonical pair. Keep the backup/candidate available
-until the replacement is verified. The automated workflow never performs this
-destructive replacement procedure and never uses `--clobber`.
+asset must be replaced, an administrator must explicitly back up the old release
+assets and checksums, upload and verify the candidate files under distinct names
+first, and then deliberately replace the canonical files. Keep the
+backup/candidate available until the replacement is verified. The automated
+workflow never performs this destructive replacement procedure and never uses
+`--clobber`.
 
 This published-release trigger requires editable release assets. If GitHub
 immutable releases are enabled, use a future draft-build-then-publish flow instead;
@@ -119,7 +123,11 @@ default) via the Kotlin Multiplatform toolchain, constructs an `.xcarchive`
 bundle (`dist/fjalar-${RELEASE_TAG}.xcarchive`) with metadata matching the tag
 and build number, packages an unsigned `.ipa`
 (`dist/fjalar-${RELEASE_TAG}-ios-unsigned.ipa`), and outputs the SHA-256 checksum
-(`dist/SHA256SUMS-ios.txt`).
+(`dist/SHA256SUMS-ios.txt`). `scripts/build_release_ios.sh` stamps
+`CFBundleShortVersionString` and `CFBundleVersion` only in the outer
+`.xcarchive/Info.plist`; the embedded `Fjalar.app/Info.plist` inside the
+`.xcarchive` and `.ipa` keeps Xcode's static `MARKETING_VERSION = 1.0` and
+`CURRENT_PROJECT_VERSION = 1` (`iosApp/module.xcodeproj/project.pbxproj`).
 
 In GitHub Actions, the `verify` job on `macos-26` runs this packaging pipeline
 and uploads the resulting unsigned archive artifacts (`release-ios-unsigned`),

@@ -21,10 +21,17 @@ See [Current project state](docs/current-state.md) for implemented behavior and 
 Preserve module `com.muhammadridha.fjalar`, Kotlin 2.x, Compose Multiplatform, and JetBrains Amper project structure (`project.yaml`, `module.yaml`). Prerequisites: JDK 17+, Android SDK, macOS Xcode 26.4+ (for iOS targets), and Python 3.10+ with Pillow (for icon generation and verification). Do not silently add third-party dependencies or replace Amper with custom Gradle without task authorization.
 
 ```sh
-./kotlin test           # Run all unit tests across commonTest and platform tests
-./kotlin check          # Run code analysis and compilation checks
-./kotlin run androidApp # Run Android application debug build
-python3 scripts/test_generated_icons.py # Verify icon assets and safe-zone constraints
+./kotlin test                               # Run all unit tests across commonTest and platform tests
+./kotlin check                              # Run code analysis and compilation checks
+./kotlin run androidApp                     # Run Android application debug build
+python3 scripts/test_string_catalogs.py     # Verify Compose and runtime localization catalog parity
+python3 scripts/test_generated_icons.py     # Verify icon assets and safe-zone constraints
+python3 scripts/test_generated_audio.py     # Verify generated/bundled alarm.wav assets
+python3 scripts/test_android_alarm_security.py    # Verify AlarmActivity keyguard & task isolation
+python3 scripts/test_workflow_command_safety.py   # Verify CI workflow command & Xcode SDK safety
+python3 scripts/test_release_metadata.py          # Verify release tag parsing & version generation
+python3 scripts/test_upload_release_assets.py     # Verify APK/IPA release asset upload logic
+python3 scripts/test_build_release_ios.py         # Verify iOS archive & unsigned IPA packaging
 ```
 
 Documentation-only changes need path/link checks, consistency review, and `git status -s`, not runtime tests. Report exact fresh commands/results. Historical acceptance is not a fresh run.
@@ -37,13 +44,13 @@ Follow strict **Hexagonal Architecture (Ports and Adapters)** (reference: Alista
 
 1. **Dependencies point strictly inward:**
    - **Core Domain (`shared/src/domain/`):** Pure Kotlin. Absolutely **zero platform imports** (no Android, UIKit, MapLibre, SQLDelight, or network/hardware SDKs).
-   - Domain contains only Entities, Value Objects (`GeoCoordinates`, `TriggerRadius`, `AlarmSchedule`, `SearchResultPlace`, `PlaceCategory`), and pure domain services (`AlarmEvaluator`, `ScheduleEvaluator`, `HaversineCalculator`, `DistanceCalculator`, `AlarmService`).
+   - Domain contains only Entities & Value Objects (`LocationAlarm`, `AlarmSoundConfig`, `AlarmState`, `ScheduleType`, `TimeWindow`, `ThemeMode`, `AppLocale`, `GeoCoordinates`, `TriggerRadius`, `AlarmSchedule`, `SearchResultPlace`, `PlaceCategory`, `LocationFix`, `LocationAvailability`, `TrackingTier`, `RecentDestination`, `GeofenceRegion`, `GeofenceTransitionType`, `GeofenceTransitionEvent`), pure domain services (`AlarmEvaluator`, `ScheduleEvaluator`, `HaversineCalculator`, `DistanceCalculator`, `LocationTrackingPolicy`, `AlarmService`), and domain use cases (`domain/usecase/SynchronizeAlarmsUseCase.kt`).
 2. **Ports define all external interactions:**
    - **Inbound Ports (`domain/ports/inbound/`):** Explicit use cases driven by UI and system receivers (`ObserveAlarmsPort`, `SaveAlarmPort`, `ToggleAlarmPort`, `HandleLocationUpdatePort`, `DismissAlarmPort`, `SnoozeAlarmPort`, `SkipTodayPort`, `SyncSchedulesPort`, `DeleteAlarmPort`).
-   - **Outbound Ports (`domain/ports/outbound/`):** SPI contracts declared by the domain for external capabilities (`LocationTrackerPort`, `AlarmSchedulerPort`, `AlarmRingerPort`, `MapRendererPort`, `SearchPlacesPort`, `AlarmRepositoryPort`, `PreferencesPort`).
+   - **Outbound Ports (`domain/ports/outbound/`):** All 11 SPI contracts declared by the domain (`LocationTrackerPort`, `AlarmSchedulerPort`, `AlarmRingerPort`, `MapRendererPort`, `SearchPlacesPort`, `AlarmRepositoryPort`, `PreferencesPort`, `AccessibilityPort`, `BackgroundSyncPort`, `GeofencePort`, `RecentDestinationsPort`).
    - Do not create interfaces for every internal concrete class. Use ports at architectural boundaries.
 3. **Pluggable & Interchangeable Adapters (`adapters/`):**
-   - Platform mechanisms (OpenStreetMap/MapLibre, Apple MapKit, Android `LocationManager`, iOS `CLLocationManager`, Android `RingtoneManager`, HybridPlaceSearch, SharedPreferences/NSUserDefaults) live solely in adapters.
+   - Platform mechanisms (OpenStreetMap/MapLibre, Apple MapKit, Android `LocationManager`, iOS `CLLocationManager`, `RingtoneManager`/bundled `alarm.wav`, `HybridPlaceSearchAdapter`, `SharedPreferences`/`NSUserDefaults`, `AndroidAccessibilityAdapter`/`IosAccessibilityAdapter`, `AndroidBackgroundSyncAdapter`/`IosBackgroundSyncAdapter`, `AndroidGeofenceAdapter`/`IosRegionGeofenceAdapter`, `PersistentRecentDestinationsAdapter`) live solely in adapters. Note `GeofencePort` and `SynchronizeAlarmsUseCase` are registered in Koin without production callers yet.
    - Any adapter must be swappable without modifying domain entities, state machines, or unit tests.
 4. **Defensive Domain Validation:**
    - Validate coordinate bounds (`-90..90`, `-180..180`), radius limits (`50m..10,000m`), and minute ranges (`0..1439`) before dispatching to ports or persistence.
@@ -61,8 +68,8 @@ Follow strict **Hexagonal Architecture (Ports and Adapters)** (reference: Alista
 - Keep domain and ordinary application classes constructor-injected and Koin-free. Resolve dependencies only at framework composition boundaries. All inbound alarm ports must share one `AlarmService` and mutation mutex.
 - Do not restore manual production containers or silently fall back to fake adapters/storage. Tests use isolated Koin applications or explicit constructor-injected fakes.
 - Preserve Amper. The current classic DSL uses runtime graph tests. Do not claim compiler-plugin verification without supported integration and actual build evidence.
-- `MainActivity` must never show ordinary navigation over the keyguard. Only the non-exported restricted `AlarmActivity` may show while locked, with generic alarm copy and dismiss/snooze actions. Keep it in its separate task and finish it when ringing ends. Follow [Security](docs/security.md) for regression and device checks.
-- Treat event text printed by CI as untrusted runner-command input. Use a fresh unpredictable stop/resume token around such output, keep values in environment variables, and run `python3 scripts/test_workflow_command_safety.py` after workflow changes.
+- `MainActivity` must never show ordinary navigation over the keyguard. Only the non-exported restricted `AlarmActivity` (`FLAG_SECURE`, separate task) may show while locked, with generic alarm copy and dismiss/snooze actions. Keep it in its separate task and finish it when ringing ends. Follow [Security](docs/security.md) for regression and device checks.
+- Treat event text printed by CI as untrusted runner-command input. Use a fresh unpredictable stop/resume token around such output, keep values in environment variables, and run `python3 scripts/test_workflow_command_safety.py` after workflow changes. Static security analysis also runs via `.github/workflows/codeql.yml`.
 
 ---
 
@@ -73,17 +80,17 @@ Follow the [Product and UI Design Specification](https://app.notion.com/p/4030ee
 1. **Materiality & Tokens:**
    - Map is the living canvas filling 100% of the viewport edge-to-edge.
    - Use layered translucent frosted-glass surfaces with `1 dp` specular top/left rim highlights.
-   - Official tokens:
-     - **Light Mode (`Daylight Glass`):** Canvas `#FAF9FE` / `#FFFFFF`, Primary `#007AFF`, Secondary `#34C759`, Text `#1A1B1F`.
-     - **Dark Mode (`Nocturnal Obsidian Glass`):** Canvas `#0C0E14` / `#111319`, Primary `#00D2FF`, Secondary `#00E676`, Text `#FFFFFF`.
+   - Official tokens (`shared/src/ui/theme/LiquidGlassTokens.kt`):
+     - **Light Mode (`Daylight Glass`):** Canvas `#FAF9FE`, Primary `#007AFF`, Secondary `#34C759`, Text `#1A1B1F`.
+     - **Dark Mode (`Nocturnal Obsidian Glass`):** Canvas `#0C0E14`, glass surfaces `#14161E`, Primary `#00D2FF`, Secondary `#00E676`, Text `#FFFFFF`.
 2. **Accessibility & Reduce Transparency Fallback:**
-   - `Modifier.glassSurface` currently draws tinted backgrounds and gradient borders, without Gaussian backdrop blur. When its reduced-transparency flag is enabled, it selects 92% opaque tinted surfaces. Automatic OS accessibility-setting observation is not wired:
+   - `Modifier.glassSurface` currently draws tinted backgrounds and gradient borders, without Gaussian backdrop blur. Live OS reduce-transparency / high-contrast observation is wired via `AccessibilityPort`, `AndroidAccessibilityAdapter`, `IosAccessibilityAdapter`, and `expect/actual isReduceTransparencyActive()` (`shared/src/ui/accessibility/ReduceTransparency.kt`, consumed in `App.kt`, `FjalarApp.kt`, and `LiquidGlassTheme.kt`) to switch to 92% opaque tinted surfaces:
      - `ReducedTransparencyLightLiquidGlassColors`: `#F4F3F8` @ 92% with 1.5 dp high-contrast border.
      - `ReducedTransparencyDarkLiquidGlassColors`: `#191B22` @ 92% with 1.5 dp high-contrast border.
    - Target `>= 4.5:1` WCAG AA contrast over surfaces. Token tests assert that threshold against the fallback colors; measured primary-text ratios exceed 15:1, but they do not prove contrast over every live map composition.
 3. **Bilingual Layout & Text Expansion (`en` & `id`):**
    - Keep shared UI and iOS notification text in the shared English and Indonesian catalog. Keep Android notification text in native string resources and resolve it using the saved app language. Launcher names and OS permission prompts follow system localization. Display names are *Wake Me at* (EN) and *Bangunkan Saya di* (ID).
-   - Bahasa Indonesia strings are `15%–25%` longer (e.g. *Geser untuk Matikan Alarm*, *Alarm Tersimpan & Terjadwal*, *Lewati Hari Ini*). UI pills, cards, and bottom sheets must use adaptive auto-wrapping and flexible widths without text clipping at `320 dp–390 dp`.
+   - Bahasa Indonesia strings are `15%–25%` longer (e.g. *Geser untuk mematikan alarm*, *Alarm tersimpan*, *Lewati alarm berikutnya*; *Lewati Hari Ini* is used on Android's ongoing notification action). UI pills, cards, and bottom sheets must use adaptive auto-wrapping and flexible widths without text clipping at `320 dp–390 dp`.
    - Day chips must display `Mo Tu We Th Fr Sa Su` in English and `Sn Sl Rb Km Jm Sb Mg` in Bahasa Indonesia to avoid ambiguous single-letter duplicates (*Senin, Selasa, Sabtu*).
 4. **Ergonomics & Tabular Numerals:**
    - Use tabular numbers (`tnum`) for all distance readouts (`420m`), telemetry speeds (`34 km/h`), and time windows (`07:00 – 09:30`).
@@ -118,25 +125,25 @@ Read and strictly preserve these invariant behaviors:
 8. **iOS Background Execution Boundary:**
    - On Android, `AlarmManager.setExactAndAllowWhileIdle()` triggers a broadcast receiver with a `WakeLock` to invoke `syncSchedules()`.
    - On iOS, local notifications scheduled via `UNUserNotificationCenter` are strictly user-facing alerts. They do not afford background code execution to transition an alarm from `SCHEDULED_IDLE` to `ARMED_MONITORING` while the app is suspended without user interaction.
-   - iOS synchronizes schedules when the app executes again. Background refresh via `BGAppRefreshTask` is a future option. It requires the `fetch` background mode, a permitted task identifier in Info.plist, and task registration and submission. Delivery is best-effort.
+   - iOS synchronizes schedules when the app executes again. `iosApp/src/Info.plist` already declares the `fetch` background mode and `BGTaskSchedulerPermittedIdentifiers` (`com.muhammadridha.fjalar.refresh`), `BackgroundSyncPort` / `IosBackgroundSyncAdapter` are implemented, and `IosModule.kt` calls `registerBackgroundSyncTask()` at launch. However, initial `BGAppRefreshTaskRequest` submission (`scheduleBackgroundSync()` / `SynchronizeAlarmsUseCase`) is not yet wired to a production caller, and OS background delivery remains best-effort.
 
 ---
 
 ## Tests & Asset Validation
 
 1. **Test pure domain logic in `commonTest`:**
-   - Test `HaversineCalculator`, `ScheduleEvaluator`, `AlarmEvaluator`, and `HybridPlaceSearchAdapter` thoroughly using pure Kotlin without mocks or platform SDKs.
+   - Test `HaversineCalculator`, `ScheduleEvaluator`, `AlarmEvaluator`, `LocationTrackingPolicy`, `GeofenceRegion`, `SynchronizeAlarmsUseCase`, and `HybridPlaceSearchAdapter` thoroughly using pure Kotlin without mocks or platform SDKs.
    - Cover boundary conditions: midnight-crossing windows (e.g., `23:00–02:00`), leap years, weekend/weekday bitmasks, holiday skip logic, and GPS accuracy jitter.
 2. **Use Mock Adapters / Test Fakes:**
-   - Use `InMemoryAlarmRepository`, `FakeLocationTracker`, `FakeAlarmRinger`, `FakeAlarmScheduler`, and `FakeSearchPlacesAdapter` for use case testing.
+   - Use shared fakes in `shared/test/fakes/FakeAdapters.kt` (`InMemoryAlarmRepository`, `FakeLocationTracker`, `FakeAlarmRinger`, `FakeAlarmScheduler`, `FakeClock`, `FakeAccessibilityAdapter`, `FakeRecentDestinationsAdapter`, `FakeBackgroundSyncAdapter`, `FakeGeofenceAdapter`), `InMemoryKeyValueStorage` (`shared/src/adapters/storage/KeyValueStorage.kt`), and `HybridPlaceSearchAdapter()` or local `FakeSearchPlacesPort` (`FjalarViewModelTest.kt`, `MapPickerViewModelTest.kt`) for use case and ViewModel testing.
    - Use fixed clocks / timestamps and deterministic coordinates to eliminate flaky test timing.
-3. **App Icon Asset Generation & Verification:**
-   - All mobile launcher icons must be generated from `assets/icons/icon_master_*.png` via `python3 scripts/generate_app_icons.py`.
-   - Verify compliance using `python3 scripts/test_generated_icons.py`:
+3. **App Icon & Audio Asset Generation & Verification:**
+   - All mobile launcher icons must be generated from `assets/icons/icon_master_*.png` via `python3 scripts/generate_app_icons.py` and verified with `python3 scripts/test_generated_icons.py`:
      - Android adaptive foreground and monochrome layers must reside strictly inside the inner 66 dp (264 px / radius 132 px at xxxhdpi) safe center circle.
      - iOS 18 Asset Catalog must register Universal Light, Dark (`luminosity = dark`), and Tinted appearances in `Contents.json`.
+   - Bundled fallback alarm audio (`alarm.wav`) is generated via `python3 scripts/generate_alarm_sound.py` into `assets/audio/alarm.wav`, `iosApp/src/alarm.wav`, and `androidApp/res/raw/alarm.wav`, and verified via `python3 scripts/test_generated_audio.py`.
 4. **Catalog Parity:**
-   - Maintain automated tests asserting identical string keys and argument placeholders across `en` and `id` catalogs.
+   - Maintain automated tests asserting identical string keys and argument placeholders across `en` and `id` catalogs (`python3 scripts/test_string_catalogs.py` and `CatalogParityTest.kt`).
 
 ---
 

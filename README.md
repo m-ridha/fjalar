@@ -36,11 +36,11 @@ Contributor and agent development guidelines, architecture contracts, UI design 
 - **Curated Transit & Station Search:** Instant, privacy-preserving station autocomplete across Greater Jakarta (113 stations across KRL Commuter Line, MRT Jakarta, LRT, and airport terminals) with online geocoding fallback (OSM Photon on Android, Apple CLGeocoder on iOS).
 - **Hexagonal Architecture (Ports & Adapters):** Core domain logic is 100% pure Kotlin with zero platform SDK imports. Map providers, location trackers, audio ringers, place search, and persistence can be swapped without touching domain code.
 - **iPhone-Inspired Liquid Glass UI:** Translucent tinted surfaces with specular borders floating over full-bleed maps, with instant **Light (`Daylight Glass`)** and **Dark (`Nocturnal Obsidian Glass`)** mode switching.
-- **Accessibility & Dynamic Reduce Transparency:** Translucent glass surfaces automatically adapt when OS reduce-transparency / high-contrast settings are enabled (observed on Android 14+ / API 34+ and iOS `UIAccessibility`), switching to 92% opaque tinted surfaces (`#F4F3F8` Light / `#191B22` Dark) with 1.5 dp rim borders and >= 15:1 WCAG AAA primary-text contrast.
-- **Native Circular Geofencing & Power Optimization:** Outbound `GeofencePort` uses native hardware circular geofencing on iOS (`IosRegionGeofenceAdapter` via CoreLocation `CLCircularRegion`), while Android uses distance-tiered adaptive location polling by default (`AndroidGeofenceAdapter`'s default engine reports `isAvailable() == false` until a platform OS geofence client is wired).
-- **Automated Multiplatform Release Packaging (v0.3.0):** Reproducible CI scripts build and verify signed Android APKs (`scripts/build_release_android.sh`) and unsigned iOS `.xcarchive` / `.ipa` bundles (`scripts/build_release_ios.sh`) with SHA-256 checksums.
+- **Accessibility & Dynamic Reduce Transparency:** Translucent glass surfaces automatically adapt when OS reduce-transparency / high-contrast settings are enabled (observed via Android `Settings.Secure` / API 36+ `AccessibilityManager` and iOS `UIAccessibility`), switching to 92% opaque tinted surfaces (`#F4F3F8` Light / `#191B22` Dark) with 1.5 dp rim borders and >= 15:1 WCAG AAA primary-text contrast.
+- **Native Circular Geofencing & Distance-Tiered Polling:** Outbound `GeofencePort` is implemented, unit-tested, and bound in Koin (`IosRegionGeofenceAdapter` via CoreLocation `CLCircularRegion` and `AndroidGeofenceAdapter`, whose default engine reports `isAvailable() == false`), though production `AlarmService` does not yet invoke `GeofencePort`; active tracking currently uses distance-tiered adaptive location polling (`TrackingTier` / `LocationTrackingPolicy`) on both platforms.
+- **Automated Multiplatform Release Packaging (v0.3.0):** Reproducible CI scripts build and verify signed Android APKs (`scripts/build_release_android.sh`) and unsigned physical-device iOS `.xcarchive` / `.ipa` bundles (`scripts/build_release_ios.sh`) with SHA-256 checksums, attaching APK, unsigned IPA, and both checksum files to published GitHub Releases (`scripts/upload_release_assets.py`).
 - **Bilingual Localization (`English` & `Bahasa Indonesia`):** Shared UI and app-owned notification text use the saved app language, with `Mo–Su` and `Sn–Mg` day chips. Launcher names (*"Wake Me at"* / *"Bangunkan Saya di"*) and platform permission prompts use system localization.
-- **Sleepy-Eyes Dismissal Safety:** Android presents a restricted alarm screen over the keyguard with high-contrast pulsing alerts and a tactile **Slide to Stop Alarm** (`Geser untuk Matikan Alarm`) track, preventing accidental pocket touches or sleepy dismissals.
+- **Sleepy-Eyes Dismissal Safety:** Android presents a restricted `AlarmActivity` (`FLAG_SECURE`, separate non-exported task) over the keyguard with high-contrast pulsing alerts and a tactile **Slide to Stop Alarm** (`Geser untuk mematikan alarm`) track, preventing accidental pocket touches or sleepy dismissals.
 - **Automated App Icon Pipeline:** Single reproducible command (`python3 scripts/generate_app_icons.py`) exports all Android adaptive densities (strictly preserving the 66 dp safe circle), Material You monochrome layer, Google Play 512×512 master, and iOS 18 Asset Catalog (`AppIcon.appiconset` with Light, Dark, and Tinted appearances).
 - **On-Device Alarms & Privacy:** No accounts, no sign-in, and no telemetry. Alarm records and distance calculations stay on your device. Online map requests can reveal the viewed area to the map provider. Eligible place searches can send the typed query to the geocoder when fewer than five offline stations match.
 - **Free & Open Cartography:** Android uses **MapLibre** to render CARTO styles with OpenStreetMap-derived data. iOS uses native **Apple MapKit**.
@@ -54,7 +54,7 @@ Fjalar is designed around **Hexagonal Architecture** (reference: Alistair Cockbu
 ```mermaid
 flowchart TD
     subgraph DrivingAdapters["Driving (Inbound) Adapters"]
-        UI["Compose Multiplatform UI\n(Liquid Glass Sheets, Floating HUD, Slider, Station Search)"]
+        UI["Compose Multiplatform UI\n(Dedicated Screens, Floating HUD, Slider, Search Sheet)"]
         BootRecv["OS Boot & Timezone Receivers"]
     end
 
@@ -71,10 +71,10 @@ flowchart TD
     end
 
     subgraph DomainCore["Core Domain (Pure Kotlin — shared/src/domain)"]
-        Entities["Entities & Value Objects:\nLocationAlarm, AlarmSchedule,\nGeoCoordinates, TriggerRadius,\nSearchResultPlace, PlaceCategory"]
+        Entities["Entities & Value Objects:\nLocationAlarm, AlarmSchedule, GeoCoordinates,\nTriggerRadius, SearchResultPlace, PlaceCategory,\nLocationFix, TrackingTier, RecentDestination, GeofenceRegion"]
         StateMachine["AlarmState Lifecycle:\nDISABLED, SCHEDULED_IDLE,\nARMED_MONITORING, RINGING,\nCOMPLETED_FOR_WINDOW, SNOOZED"]
-        Evaluators["AlarmEvaluator & ScheduleEvaluator"]
-        GeoMath["HaversineCalculator & Accuracy Filter"]
+        Evaluators["AlarmEvaluator, ScheduleEvaluator,\nLocationTrackingPolicy & SynchronizeAlarmsUseCase"]
+        GeoMath["HaversineCalculator, DistanceCalculator & Accuracy Filter"]
     end
 
     subgraph OutboundPorts["Outbound Ports (Driven SPIs)"]
@@ -85,6 +85,10 @@ flowchart TD
         P_Search["SearchPlacesPort"]
         P_Repo["AlarmRepositoryPort"]
         P_Pref["PreferencesPort"]
+        P_A11y["AccessibilityPort"]
+        P_Sync["BackgroundSyncPort"]
+        P_Geo["GeofencePort"]
+        P_Recent["RecentDestinationsPort"]
     end
 
     subgraph DrivenAdapters["Driven (Outbound) Adapters"]
@@ -95,6 +99,10 @@ flowchart TD
         A_Search["HybridPlaceSearchAdapter\n(TransitCatalog + Photon/CLGeocoder)"]
         A_Repo["PersistentAlarmRepository\n(JSON in platform key-value storage)"]
         A_Pref["PersistentPreferencesAdapter\n(SharedPreferences / NSUserDefaults)"]
+        A_A11y["AndroidAccessibilityAdapter\nIosAccessibilityAdapter"]
+        A_Sync["AndroidBackgroundSyncAdapter\nIosBackgroundSyncAdapter"]
+        A_Geo["AndroidGeofenceAdapter\nIosRegionGeofenceAdapter"]
+        A_Recent["PersistentRecentDestinationsAdapter\n(LRU JSON in platform key-value storage)"]
     end
 
     DrivingAdapters --> InboundPorts
@@ -107,38 +115,45 @@ flowchart TD
 
 ```sh
 fjalar/
-├── .github/                     # PR template & CI workflows
+├── .github/                     # PR template & CI workflows (pr-check, release-assets, codeql)
 ├── androidApp/                  # Android application shell (Amper module)
-│   ├── src/                     # MainActivity & Android manifest
-│   └── res/                     # Adaptive launcher mipmaps, drawables, & resources
+│   ├── src/                     # MainActivity, AlarmActivity, RestrictedAlarmViewModel, FjalarApplication,
+│   │                            # FjalarLocationService, receivers, FoldAwareControls, LocationPermissions, di/, AndroidManifest.xml
+│   └── res/                     # Adaptive launcher mipmaps, drawables, raw/alarm.wav, & values strings
 ├── iosApp/                      # iOS application shell (Amper module & Xcode wrapper)
-│   ├── src/                     # iOS entry point, localized InfoPlist.strings, & Assets.xcassets
+│   ├── src/                     # iosApp.swift, ViewController.kt, ControlSafeArea.swift, alarm.wav,
+│   │                            # Info.plist, localized InfoPlist.strings, & Assets.xcassets
 │   └── module.xcodeproj         # Xcode project wrapper
 ├── shared/                      # Kotlin Multiplatform shared library
 │   ├── src/
 │   │   ├── domain/              # PURE KOTLIN CORE (Zero platform dependencies)
-│   │   │   ├── model/           # GeoCoordinates, TriggerRadius, AlarmSchedule, LocationAlarm, SearchResultPlace
+│   │   │   ├── model/           # Geo, GeofenceRegion, LocationAlarm, AlarmSchedule, LocationFix, RecentDestination, SearchResultPlace, TrackingTier
 │   │   │   ├── ports/inbound/   # Use cases: Observe, Save, Toggle, HandleLocation, Dismiss, Snooze, Skip, SyncSchedules, Delete
-│   │   │   ├── ports/outbound/  # SPIs: LocationTracker, AlarmScheduler, AlarmRinger, Map, Search, Repo, Preferences
-│   │   │   └── service/         # AlarmEvaluator, ScheduleEvaluator, HaversineCalculator, AlarmService
+│   │   │   ├── ports/outbound/  # 11 SPIs: Accessibility, Repository, Ringer, Scheduler, Sync, Geofence, Location, Map, Preferences, Recents, Search
+│   │   │   ├── service/         # AlarmEvaluator, ScheduleEvaluator, DistanceCalculator, HaversineCalculator, LocationTrackingPolicy, AlarmService
+│   │   │   └── usecase/         # SynchronizeAlarmsUseCase
 │   │   ├── di/                  # Koin modules and application bootstrap
 │   │   ├── localization/        # Shared English & Indonesian string catalog (FjalarStrings.kt)
-│   │   ├── ui/                  # Compose Multiplatform UI (FjalarApp, sheets, HUD, LiquidGlassTheme)
-│   │   └── adapters/            # Platform implementations (location, ringer, scheduler, map, search, repo)
-│   ├── src@android/             # Android-specific adapters (LocationManager, AlarmManager, MapLibre, Photon)
-│   ├── src@ios/                 # iOS-specific adapters (CLLocation, IosBackgroundSchedulerAdapter, MapKit, CLGeocoder)
+│   │   ├── ui/                  # Compose Multiplatform UI (FjalarApp, screens/, navigation/, components/, accessibility/, alarm/, theme/)
+│   │   └── adapters/            # Shared implementations (location streams, map helper, hybrid search, JSON storage/preferences/recents)
+│   ├── src@android/             # Android-specific adapters (Accessibility, Geofence, LocationManager, AlarmManager, MapLibre, Photon, Ringer, Sync)
+│   ├── src@ios/                 # iOS-specific adapters (Accessibility, CLCircularRegion, CLLocation, IosBackgroundSchedulerAdapter, MapKit, CLGeocoder, Sync)
 │   ├── composeResources/        # Multiplatform strings (values, values-in, values-id) & drawables
 │   ├── test/                    # Shared tests and fakes
 │   ├── test@android/            # Android-specific tests
 │   └── test@ios/                # iOS-specific tests
 ├── scripts/                     # Asset, release, and verification scripts
 │   ├── generate_app_icons.py    # Generates all Android adaptive/legacy icons & iOS 18 asset catalog
+│   ├── generate_alarm_sound.py  # Generates bundled alarm.wav audio across assets, Android raw, and iOS bundle
 │   ├── test_generated_icons.py  # Unit tests for icon dimensions, bit depths, and safe-zone constraints
 │   ├── build_release_android.sh # Builds, aligns, signs, and verifies the release APK
+│   ├── build_release_ios.sh     # Builds and packages iosArm64 .xcarchive, unsigned .ipa, and SHA256SUMS-ios.txt
 │   ├── release_metadata.py      # Validates release tags and derives app versions
-│   ├── upload_release_assets.py # Uploads missing assets after checksum comparison
-│   └── test_*.py                # Release, security, catalog, and workflow regression tests (plus test_control_safe_area.swift)
-├── assets/icons/                # 1024x1024 master 2D flat vector icons (Light & Dark)
+│   ├── upload_release_assets.py # Uploads missing APK/IPA/checksum assets after SHA-256 verification
+│   └── test_*.py                # Release, audio, security, catalog, and workflow regression tests (plus test_control_safe_area.swift)
+├── assets/                      # Approved brand assets
+│   ├── audio/                   # Master alarm.wav waveform
+│   └── icons/                   # 1024x1024 master icons (Light & Dark PNG + JPG exports)
 ├── project.yaml                 # JetBrains Amper project definition
 └── libs.versions.toml           # Version catalog (Kotlin 2.x, Compose, Coroutines, DateTime)
 ```
@@ -155,7 +170,7 @@ All contributors and automated agents must preserve these core invariants:
 4. **Zero Ads on Ringing Screen:** Advertisements must never appear before, during, or obstructing the dismissal of an active wake-up alarm. (v1 is 100% ad-free).
 5. **Once-Per-Window Completion Guard:** Dismissed alarms mark their window completed (`COMPLETED_FOR_WINDOW`), preventing false re-triggering while the commuter remains at their destination.
 6. **Accuracy Filter:** Rejects coarse GPS fixes where `horizontalAccuracy > radius * 0.8` to prevent false jumps from triggering alarms.
-7. **Snooze and iOS execution:** Snooze persists a two-minute deadline. On iOS, its local notification is user-facing and suspended state reconciliation happens on the next execution on a best-effort basis. Scheduled background refresh is also best-effort.
+7. **Snooze and iOS execution:** Snooze persists a two-minute deadline. On iOS, its local notification is user-facing and suspended state reconciliation happens on the next execution on a best-effort basis. `IosBackgroundSyncAdapter` registers the `BGAppRefreshTask` handler at launch, while initial request submission is not yet wired at runtime and OS background refresh remains best-effort.
 
 ---
 
@@ -210,7 +225,7 @@ for Android signing secrets, publication steps, and the current iOS signing limi
 ## Testing Standards
 
 - **Core domain is verified in `commonTest`:** Pure Kotlin unit tests run fast without Android emulators or iOS simulators.
-- **Test Doubles:** Use the provided in-memory fakes (`InMemoryAlarmRepository`, `FakeLocationTracker`, `FakeAlarmRinger`, `FakeAlarmScheduler`) and the `SearchPlacesPort` fake in `shared/test/ui/FjalarViewModelTest.kt` rather than mocking frameworks.
+- **Test Doubles:** Use the shared in-memory fakes in `shared/test/fakes/FakeAdapters.kt` (`InMemoryAlarmRepository`, `FakeLocationTracker`, `FakeAlarmRinger`, `FakeAlarmScheduler`, `FakeClock`, `FakeAccessibilityAdapter`, `FakeRecentDestinationsAdapter`, `FakeBackgroundSyncAdapter`, `FakeGeofenceAdapter`), `InMemoryKeyValueStorage` (`shared/src/adapters/storage/KeyValueStorage.kt`), and the local `FakeSearchPlacesPort` doubles in `FjalarViewModelTest.kt` and `MapPickerViewModelTest.kt` rather than mocking frameworks.
 - **Boundary Verification:** Tests explicitly cover midnight-crossing commute windows (`23:00–02:00`), leap years, accuracy jitter, and ringer failure rollbacks.
 
 ---
