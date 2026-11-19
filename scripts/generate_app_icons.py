@@ -82,10 +82,22 @@ def generate_android_adaptive_foreground(emblem: Image.Image) -> tuple[Image.Ima
 
     cropped = emblem.crop(bbox)
     cw, ch = cropped.size
+    cropped_pixels = cropped.load()
+    mid_x = cw / 2.0
+    mid_y = ch / 2.0
+    max_radial_dist = 0.0
+    for cy in range(ch):
+        for cx in range(cw):
+            if cropped_pixels[cx, cy][3] > 0:
+                radial_dist = math.hypot(cx - mid_x, cy - mid_y)
+                if radial_dist > max_radial_dist:
+                    max_radial_dist = radial_dist
 
-    # Fit within 258px target size to guarantee all non-transparent pixels stay within radius 132
-    target_size = 258
-    scale = float(target_size) / float(max(cw, ch))
+    # Fit within target_size (258px) and target_radius (128.0px, leaving margin for Lanczos
+    # anti-aliasing and integer centering) so all non-transparent pixels stay <= 132.0px radius.
+    target_size = 258.0
+    target_radius = 128.0
+    scale = min(target_size / float(max(cw, ch)), target_radius / max(max_radial_dist, 1.0))
     nw = int(round(cw * scale))
     nh = int(round(ch * scale))
 
