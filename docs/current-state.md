@@ -238,21 +238,26 @@ assertions were corrected and the full test rerun passed. String catalog parity
 and whitespace checks also passed. The task report retains exact commands, logs,
 and exit codes.
 
-| Device and view | Recorded observations (PR #22 and PR #33 builds) |
+| Device and view | Recorded observations (PR #22, PR #33, and `5c87d42` builds) |
 | --- | --- |
 | Android API 37, 1080 × 2400 | Existing destination pin and radius ring stayed visible after map tap, long press, and nearby pan. Main-map search moved the camera with no search marker. New editor began with no destination; picker search cancellation preserved that absence. Picker pan enabled confirmation; an earlier map-tap attempt was inconclusive because its coordinate and settlement state were not recorded. Android system Back saved a valid draft, discarded an invalid draft with a visible reason, and first hid the open keyboard. A destination-selected blank-name draft and an existing edit with equal start/end times discarded with visible reasons; the existing record retained its original schedule. The slider reached 50 m and 3 km on screen. |
 | Android API 37, 320 dp portrait at 1.3 font scale | English Light editor showed destination action, radius presets, and mode text inside the screenshot. The form remained scrollable. |
 | Android API 37, landscape at 1.3 font scale | Scrolling exposed the destination action and radius controls. The original size, font scale, and rotation settings were restored. |
+| Android API 37 Emulator (`Medium_Phone_API_37.0`, `5c87d42` debug APK) | External `adb shell am start -n com.muhammadridha.fjalar/.AlarmActivity` rejected with `SecurityException` (`not exported`). Live `uiautomator dump` verified `>= 48 dp` (`126 px` at `420 dpi`) touch targets and semantic `content-desc` labels across `SearchPlacesSheet`, `FrostedBottomNavigationBar`, `ConfigureAlarmScreen` (5-column radius/day rows), `MapPickerScreen`, and armed `MainActivity` HUD. With temporary PIN `1234` locked (`showing=true, inputRestricted=true`) and `USE_FULL_SCREEN_INTENT` granted via `appops`, simulated GPS entering the 500 m radius launched `AlarmActivity` in isolated task `t40` (`occluded=true`) with `FLAG_SECURE` (`SECURE`) and `VISIBILITY_PRIVATE` notification + generic `publicVersion`. `Recents` kept keyguard locked/occluded; rotation (`ROTATION_90` → `ROTATION_0`) kept `AlarmActivity` over keyguard. `Snooze (+2 min)` scheduled exact `RTC_WAKEUP` (`window=0`) in `AlarmManager`; re-locking with PIN `1234` and waiting 2 minutes automatically re-launched `AlarmActivity` (`t42`, `FLAG_SECURE`) over keyguard; single-tap on the Slide-to-Stop thumb did not dismiss. Temporary PIN was cleared afterward. |
 | iPhone 17, iOS 27.0 | Fresh app showed Indonesian Dark and English Light maps/editors. Browse search moved the camera without selecting a destination. Picker search candidate canceled without draft change and confirmed into the draft. Toolbar Back created a valid alarm, returned from an unchanged editor, saved a changed radius, and showed the invalid-draft reason. A destination-selected blank-name draft and an existing edit with equal start/end times discarded with visible reasons; the existing list retained its original 07:00–09:30 window and 200 m radius. The 50 m preset and intermediate slider values changed on screen; exact slider maximum was not reached through the available coordinate input. |
+| iPhone 17 Simulator, iOS 27.0 (`5c87d42` Debug `.app`) | Confirmed `CFBundleIdentifier = com.muhammadridha.fjalar`, `UIBackgroundModes = [location, audio, fetch]`, `BGTaskSchedulerPermittedIdentifiers = [com.muhammadridha.fjalar.refresh]`, Dark Mode HUD rendering, notification prompt, and clean background (`com.apple.Preferences`) → foreground lifecycle on the same process without crashes. |
 | iPhone Duo, iOS 27.2 | Fresh app launched and rendered its primary display behind a first-run notification prompt. The second display capture was black; interactive layout checks were not completed. |
 | Android API 34 (Cloud Device, 720 × 1616) | Verified PR #33 debug APK via Ramus: foreground location and notification permissions accepted; background location rationale dismissed. MapLibre canvas edge-to-edge; Light mode and Dark mode tokens toggled cleanly. Real-time language switch between English and Bahasa Indonesia verified across HUD, navigation, and day chips (`Sn Sl Rb Km Jm Sb Mg`). Offline station search and Metro/MRT category filtering loaded without network requests. MapPicker pin placement confirmed destination; alarm created with 200m preset and custom label; alarm card rendered with active badge; skip today transitioned to `COMPLETED_FOR_WINDOW` once-per-window state; alarm delete confirmation dialog cancelled and confirmed cleanly with safe empty-state return. |
 
 These observations do not establish map-bearing rotation or reproduce the earlier
-missing-pin report. Device injection of persistence failure, an iOS soft keyboard,
-foldable postures, screen-reader speech, a full locked-device ringing cycle,
-older Android versions, and suspended iOS schedule activation were not tested.
-The failure and ringing exit semantics have deterministic source-level tests,
-which are separate from native-device evidence.
+missing-pin report. Still unverified on Android: completing the locked-screen
+Slide-to-Stop swipe gesture, physical TalkBack speech audio, foldable postures,
+map-bearing rotation, device injection of persistence failure, and older Android
+APIs (API 26–33). Still unverified on iOS: physical iPhone `CLCircularRegion`
+background wakeups, real OS `BGAppRefreshTask` heuristics, soft-keyboard insets
+inside forms, and VoiceOver speech audio. The failure and ringing exit semantics
+have deterministic source-level tests, which are separate from native-device
+evidence.
 
 The later wording and notification-language changes have not been verified on
 devices with different app and OS languages. The PR #22 device observations above

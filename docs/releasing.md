@@ -124,10 +124,10 @@ bundle (`dist/fjalar-${RELEASE_TAG}.xcarchive`) with metadata matching the tag
 and build number, packages an unsigned `.ipa`
 (`dist/fjalar-${RELEASE_TAG}-ios-unsigned.ipa`), and outputs the SHA-256 checksum
 (`dist/SHA256SUMS-ios.txt`). `scripts/build_release_ios.sh` stamps
-`CFBundleShortVersionString` and `CFBundleVersion` only in the outer
-`.xcarchive/Info.plist`; the embedded `Fjalar.app/Info.plist` inside the
-`.xcarchive` and `.ipa` keeps Xcode's static `MARKETING_VERSION = 1.0` and
-`CURRENT_PROJECT_VERSION = 1` (`iosApp/module.xcodeproj/project.pbxproj`).
+`CFBundleShortVersionString` and `CFBundleVersion` into both the outer
+`.xcarchive/Info.plist` and the copied embedded `Fjalar.app/Info.plist` inside
+`.xcarchive/Products/Applications/Fjalar.app` and `Payload/Fjalar.app` (inside
+the `.ipa`), without mutating the intermediate `build/tasks/` output.
 
 In GitHub Actions, the `verify` job on `macos-26` runs this packaging pipeline
 and uploads the resulting unsigned archive artifacts (`release-ios-unsigned`),

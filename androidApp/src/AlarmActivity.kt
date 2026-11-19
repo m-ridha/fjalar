@@ -62,7 +62,9 @@ class AlarmActivity : ComponentActivity() {
                     finishAndRemoveTask()
                 }
             }
-            BackHandler(enabled = state.isOperationPending) { /* Finish platform cleanup before leaving. */ }
+            BackHandler(enabled = state.isLoading || state.alarm != null || state.isOperationPending) {
+                // Keep the restricted alarm screen active over the keyguard until explicitly dismissed or snoozed.
+            }
             val theme by preferences.observeThemeMode().collectAsState(ThemeMode.SYSTEM)
             val locale by preferences.observeLocale().collectAsState(AppLocale.EN)
             LiquidGlassTheme(themeMode = theme, locale = locale) {
