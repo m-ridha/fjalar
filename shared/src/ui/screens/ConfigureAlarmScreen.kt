@@ -265,7 +265,7 @@ fun ConfigureAlarmScreen(
                 modifier = Modifier
                     .heightIn(min = 48.dp)
                     .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                    .clickable(role = Role.Button, onClick = onBack)
+                    .clickable(enabled = !isOperationPending, role = Role.Button, onClick = onBack)
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -301,13 +301,6 @@ fun ConfigureAlarmScreen(
                 )
             }
         }
-
-        Text(
-            text = FjalarStrings.get(FjalarStringKey.EDITOR_BACK_SAVES_CHANGES, locale),
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.textSecondary,
-        )
 
         // Scrollable Body
         Column(

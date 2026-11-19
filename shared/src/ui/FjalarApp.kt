@@ -15,11 +15,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -33,6 +41,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import com.muhammadridha.fjalar.ui.accessibility.isReduceTransparencyActive
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -311,14 +321,28 @@ fun FjalarApp(
                         }
                     }
 
+                    var showDiscardDialog by remember(backStackEntry) { mutableStateOf(false) }
                     val isCurrentEditor = { navController.currentBackStackEntry == backStackEntry }
                     val handleBack: () -> Unit = {
-                        exitEditorIfCurrent(viewModel, isCurrentEditor) {
-                            navController.popBackStack()
-                        }
+                        handleEditorBackIfCurrent(
+                            viewModel = viewModel,
+                            isCurrentEditor = isCurrentEditor,
+                            requestDiscardConfirmation = { showDiscardDialog = true },
+                            popEditor = { navController.popBackStack() },
+                        )
+                    }
+                    val handleSave: () -> Unit = {
+                        saveEditorIfCurrent(
+                            viewModel = viewModel,
+                            isCurrentEditor = isCurrentEditor,
+                            popEditor = { navController.popBackStack() },
+                        )
                     }
 
-                    SearchBackHandler(enabled = navBackStackEntry == backStackEntry, onBack = handleBack)
+                    SearchBackHandler(
+                        enabled = navBackStackEntry == backStackEntry && !showDiscardDialog,
+                        onBack = handleBack,
+                    )
 
                     ConfigureAlarmScreen(
                         draft = draft,
@@ -327,13 +351,7 @@ fun FjalarApp(
                         hasOperationFailure = uiState.hasOperationFailure,
                         onDraftChange = viewModel::onUpdateDraft,
                         onBack = handleBack,
-                        onSave = {
-                            if (isCurrentEditor()) {
-                                viewModel.onExitAlarmEditor(discardInvalid = false) {
-                                    if (isCurrentEditor()) navController.popBackStack()
-                                }
-                            }
-                        },
+                        onSave = handleSave,
                         onNavigateToPicker = { coords ->
                             if (!viewModel.uiState.value.isOperationPending) {
                                 navController.navigate(
@@ -354,6 +372,71 @@ fun FjalarApp(
                         },
                         locale = uiState.appLocale,
                     )
+
+                    if (showDiscardDialog) {
+                        val colors = LiquidGlassTheme.colors
+                        AlertDialog(
+                            onDismissRequest = { showDiscardDialog = false },
+                            containerColor = colors.glassModal,
+                            titleContentColor = colors.textPrimary,
+                            textContentColor = colors.textSecondary,
+                            shape = RoundedCornerShape(24.dp),
+                            title = {
+                                Text(
+                                    text = FjalarStrings.get(FjalarStringKey.EDITOR_DISCARD_TITLE, uiState.appLocale),
+                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                    color = colors.textPrimary,
+                                )
+                            },
+                            text = {
+                                Text(
+                                    text = FjalarStrings.get(FjalarStringKey.EDITOR_DISCARD_MESSAGE, uiState.appLocale),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = colors.textSecondary,
+                                )
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = { showDiscardDialog = false },
+                                    modifier = Modifier.heightIn(min = 48.dp),
+                                ) {
+                                    Text(
+                                        text = FjalarStrings.get(
+                                            FjalarStringKey.EDITOR_DISCARD_KEEP_EDITING,
+                                            uiState.appLocale,
+                                        ),
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                        color = colors.textSecondary,
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        showDiscardDialog = false
+                                        viewModel.onDiscardAlarmEditor {
+                                            if (isCurrentEditor()) navController.popBackStack()
+                                        }
+                                    },
+                                    modifier = Modifier.heightIn(min = 48.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = colors.danger,
+                                        contentColor = Color.White,
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                ) {
+                                    Text(
+                                        text = FjalarStrings.get(
+                                            FjalarStringKey.EDITOR_DISCARD_CONFIRM,
+                                            uiState.appLocale,
+                                        ),
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                        color = Color.White,
+                                    )
+                                }
+                            },
+                        )
+                    }
                 }
 
                 // Screen 4: Map Location Picker Full-Screen Modal
@@ -486,16 +569,46 @@ fun FjalarApp(
 }
 
 /** Ignore stale callbacks both before a save starts and after its asynchronous completion. */
-internal fun exitEditorIfCurrent(
+internal fun saveEditorIfCurrent(
     viewModel: FjalarViewModel,
     isCurrentEditor: () -> Boolean,
     popEditor: () -> Unit,
 ) {
     if (!isCurrentEditor()) return
-    viewModel.onExitAlarmEditor {
+    viewModel.onSaveAlarmEditor {
         if (isCurrentEditor()) popEditor()
     }
 }
+
+/**
+ * Handle toolbar and system Back from Configure Alarm:
+ * - Ignore while stale or while a save/delete operation is pending.
+ * - If there are unsaved changes, prompt with [requestDiscardConfirmation].
+ * - Otherwise clear editor state and pop immediately without a popup.
+ */
+internal fun handleEditorBackIfCurrent(
+    viewModel: FjalarViewModel,
+    isCurrentEditor: () -> Boolean,
+    requestDiscardConfirmation: () -> Unit,
+    popEditor: () -> Unit,
+) {
+    if (!isCurrentEditor()) return
+    if (viewModel.uiState.value.isOperationPending) return
+    if (viewModel.hasUnsavedEditorChanges()) {
+        requestDiscardConfirmation()
+    } else {
+        viewModel.onDiscardAlarmEditor {
+            if (isCurrentEditor()) popEditor()
+        }
+    }
+}
+
+/** Ignore stale callbacks both before a save starts and after its asynchronous completion. */
+internal fun exitEditorIfCurrent(
+    viewModel: FjalarViewModel,
+    isCurrentEditor: () -> Boolean,
+    popEditor: () -> Unit,
+) = saveEditorIfCurrent(viewModel, isCurrentEditor, popEditor)
 
 internal fun editorNoticeStringKey(notice: AlarmEditorNotice): FjalarStringKey = when (notice) {
     AlarmEditorNotice.NO_DESTINATION -> FjalarStringKey.EDITOR_NOT_SAVED_NO_DESTINATION

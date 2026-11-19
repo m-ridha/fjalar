@@ -384,12 +384,36 @@ class ConfigureAlarmScreenTest {
         assertEquals("Delete Alarm", enDelete)
         assertEquals("Hapus alarm", idDelete)
         assertEquals(
-            "Changes are saved when you go back if all fields are valid.",
-            FjalarStrings.get(FjalarStringKey.EDITOR_BACK_SAVES_CHANGES, AppLocale.EN),
+            "Discard changes?",
+            FjalarStrings.get(FjalarStringKey.EDITOR_DISCARD_TITLE, AppLocale.EN),
         )
         assertEquals(
-            "Perubahan disimpan saat kembali jika semua isian valid.",
-            FjalarStrings.get(FjalarStringKey.EDITOR_BACK_SAVES_CHANGES, AppLocale.ID),
+            "Buang perubahan?",
+            FjalarStrings.get(FjalarStringKey.EDITOR_DISCARD_TITLE, AppLocale.ID),
+        )
+        assertEquals(
+            "Your unsaved changes will be lost.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_DISCARD_MESSAGE, AppLocale.EN),
+        )
+        assertEquals(
+            "Perubahan yang belum disimpan akan hilang.",
+            FjalarStrings.get(FjalarStringKey.EDITOR_DISCARD_MESSAGE, AppLocale.ID),
+        )
+        assertEquals(
+            "Keep editing",
+            FjalarStrings.get(FjalarStringKey.EDITOR_DISCARD_KEEP_EDITING, AppLocale.EN),
+        )
+        assertEquals(
+            "Lanjut mengedit",
+            FjalarStrings.get(FjalarStringKey.EDITOR_DISCARD_KEEP_EDITING, AppLocale.ID),
+        )
+        assertEquals(
+            "Discard",
+            FjalarStrings.get(FjalarStringKey.EDITOR_DISCARD_CONFIRM, AppLocale.EN),
+        )
+        assertEquals(
+            "Buang",
+            FjalarStrings.get(FjalarStringKey.EDITOR_DISCARD_CONFIRM, AppLocale.ID),
         )
         assertEquals(
             "This alarm no longer exists.",

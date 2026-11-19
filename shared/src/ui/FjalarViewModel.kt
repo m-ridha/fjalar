@@ -670,7 +670,23 @@ class FjalarViewModel(
         }
     }
 
-    /** Validate and persist editor changes. Back discards invalid input. */
+    fun hasUnsavedEditorChanges(): Boolean {
+        val draft = _uiState.value.activeDraft ?: return false
+        return draft != editorBaseline
+    }
+
+    fun onDiscardAlarmEditor(onExit: () -> Unit = {}) {
+        val current = _uiState.value
+        if (current.isOperationPending || pendingEditorRevision == draftRevision) return
+        discardEditor(null)
+        onExit()
+    }
+
+    fun onSaveAlarmEditor(onExit: () -> Unit) {
+        onExitAlarmEditor(discardInvalid = false, onExit = onExit)
+    }
+
+    /** Validate and persist editor changes. */
     fun onExitAlarmEditor(discardInvalid: Boolean = true, onExit: () -> Unit) {
         val current = _uiState.value
         val draft = current.activeDraft ?: return

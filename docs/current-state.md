@@ -65,12 +65,14 @@ map records settled user pans and zooms for that fallback. A recenter tapped bef
 the first fix stays pending and consumes the first arriving fix. The picker counts
 as a visible map for map-only location tracking.
 
-Configure Alarm has an enabled toggle, applied when saving. Save returns after
-success and keeps invalid drafts open with a reason. Toolbar Back and
-Android system Back save a valid new or changed draft. An invalid draft is
-discarded on return with a localized reason. A failed save keeps the editor and
-draft available for retry. Opening the picker, browsing search, and backgrounding
-do not save. An unchanged existing alarm exits without another repository write.
+Configure Alarm has an enabled toggle, applied when saving. Explicit `Save` validates
+in place, saves valid new or changed drafts, skips redundant repository writes for an
+unchanged existing alarm, keeps invalid drafts open with a localized reason, and retains
+the editor for retry if persistence fails. Toolbar Back and Android system Back never
+auto-save: when there are no unsaved changes they exit immediately, and when the draft
+has unsaved changes (including after picking coordinates or a failed save) they show a
+2-action confirmation dialog (`Keep editing` / `Discard`; `Lanjut mengedit` / `Buang`).
+Opening the picker, browsing search, and backgrounding do not save or trigger the dialog.
 
 Scheduled Start and End open a 24-hour picker with clock and keyboard modes.
 Compact or large-font layouts use numeric input. Cancel leaves the draft time

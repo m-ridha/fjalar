@@ -179,7 +179,7 @@ class EndToEndNavigationIntegrationTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun invalidExitShowsReasonAfterPopWhilePickerBackKeepsDraft() = runTest {
+    fun invalidSaveKeepsEditorOpenWithReasonWhilePickerBackKeepsDraft() = runTest {
         val vmScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
         val saves = FakeSaveAlarmPort()
         val viewModel = FjalarViewModel(
@@ -196,19 +196,19 @@ class EndToEndNavigationIntegrationTest {
             viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(label = "Needs a pin"))
             var currentRoute = "picker"
             var pops = 0
-            exitEditorIfCurrent(viewModel, { currentRoute == "configure" }) { pops++ }
+            saveEditorIfCurrent(viewModel, { currentRoute == "configure" }) { pops++ }
             assertEquals(0, pops)
             assertNotNull(viewModel.uiState.value.activeDraft)
             assertTrue(saves.savedAlarms.isEmpty())
 
             currentRoute = "configure"
-            exitEditorIfCurrent(viewModel, { currentRoute == "configure" }) {
+            saveEditorIfCurrent(viewModel, { currentRoute == "configure" }) {
                 currentRoute = "map"
                 pops++
             }
-            assertEquals("map", currentRoute)
-            assertEquals(1, pops)
-            assertNull(viewModel.uiState.value.activeDraft)
+            assertEquals("configure", currentRoute)
+            assertEquals(0, pops)
+            assertNotNull(viewModel.uiState.value.activeDraft)
             assertEquals(AlarmEditorNotice.NO_DESTINATION, viewModel.uiState.value.pendingEditorNotice)
             assertEquals(
                 "Choose a destination. Changes were not saved.",
@@ -219,8 +219,184 @@ class EndToEndNavigationIntegrationTest {
             )
             viewModel.onEditorNoticeShown()
             assertNull(viewModel.uiState.value.pendingEditorNotice)
-            exitEditorIfCurrent(viewModel, { currentRoute == "configure" }) { pops++ }
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun cleanBackExitsImmediatelyWithoutDialogOrSaveForNewAndExistingAlarms() = runTest {
+        val vmScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        val saves = FakeSaveAlarmPort()
+        val viewModel = FjalarViewModel(
+            observeAlarmsPort = FakeObserveAlarmsPort(listOf(sampleAlarm())),
+            saveAlarmPort = saves,
+            toggleAlarmPort = FakeToggleAlarmPort(),
+            dismissAlarmPort = FakeDismissAlarmPort(),
+            skipTodayPort = FakeSkipTodayPort(),
+            preferencesPort = PersistentPreferencesAdapter(InMemoryKeyValueStorage()),
+            coroutineScope = vmScope,
+        )
+        try {
+            // Untouched new alarm
+            viewModel.onStartConfiguringAlarm(null)
+            var confirmRequests = 0
+            var pops = 0
+            handleEditorBackIfCurrent(
+                viewModel = viewModel,
+                isCurrentEditor = { true },
+                requestDiscardConfirmation = { confirmRequests++ },
+                popEditor = { pops++ },
+            )
+            assertEquals(0, confirmRequests)
             assertEquals(1, pops)
+            assertNull(viewModel.uiState.value.activeDraft)
+            assertTrue(saves.savedAlarms.isEmpty())
+
+            // Untouched existing alarm
+            viewModel.onStartConfiguringAlarm("alarm-manggarai")
+            handleEditorBackIfCurrent(
+                viewModel = viewModel,
+                isCurrentEditor = { true },
+                requestDiscardConfirmation = { confirmRequests++ },
+                popEditor = { pops++ },
+            )
+            assertEquals(0, confirmRequests)
+            assertEquals(2, pops)
+            assertNull(viewModel.uiState.value.activeDraft)
+            assertTrue(saves.savedAlarms.isEmpty())
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun dirtyBackRequestsDiscardConfirmationAndNeverAutoSaves() = runTest {
+        val vmScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        val saves = FakeSaveAlarmPort()
+        val viewModel = FjalarViewModel(
+            observeAlarmsPort = FakeObserveAlarmsPort(listOf(sampleAlarm())),
+            saveAlarmPort = saves,
+            toggleAlarmPort = FakeToggleAlarmPort(),
+            dismissAlarmPort = FakeDismissAlarmPort(),
+            skipTodayPort = FakeSkipTodayPort(),
+            preferencesPort = PersistentPreferencesAdapter(InMemoryKeyValueStorage()),
+            coroutineScope = vmScope,
+        )
+        try {
+            viewModel.onStartConfiguringAlarm("alarm-manggarai")
+            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(label = "Edited without saving"))
+
+            var showDiscardDialog = false
+            var pops = 0
+            handleEditorBackIfCurrent(
+                viewModel = viewModel,
+                isCurrentEditor = { true },
+                requestDiscardConfirmation = { showDiscardDialog = true },
+                popEditor = { pops++ },
+            )
+            assertTrue(showDiscardDialog)
+            assertEquals(0, pops)
+            assertTrue(saves.savedAlarms.isEmpty())
+            assertEquals("Edited without saving", viewModel.uiState.value.activeDraft?.label)
+
+            // "Keep editing" dismisses dialog and keeps draft intact
+            showDiscardDialog = false
+            assertEquals("Edited without saving", viewModel.uiState.value.activeDraft?.label)
+
+            // "Discard" clears draft without saving and exits
+            viewModel.onDiscardAlarmEditor { pops++ }
+            assertEquals(1, pops)
+            assertNull(viewModel.uiState.value.activeDraft)
+            assertTrue(saves.savedAlarms.isEmpty())
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun returningFromMapPickerWithCoordinatesMarksDraftDirtyForBackConfirmation() = runTest {
+        val vmScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        val saves = FakeSaveAlarmPort()
+        val viewModel = FjalarViewModel(
+            observeAlarmsPort = FakeObserveAlarmsPort(),
+            saveAlarmPort = saves,
+            toggleAlarmPort = FakeToggleAlarmPort(),
+            dismissAlarmPort = FakeDismissAlarmPort(),
+            skipTodayPort = FakeSkipTodayPort(),
+            preferencesPort = PersistentPreferencesAdapter(InMemoryKeyValueStorage()),
+            coroutineScope = vmScope,
+        )
+        try {
+            viewModel.onStartConfiguringAlarm(null)
+            assertFalse(viewModel.hasUnsavedEditorChanges())
+
+            viewModel.onDraftCoordinatesChanged(GeoCoordinates(-6.2098, 106.8502), "Stasiun Manggarai")
+            assertTrue(viewModel.hasUnsavedEditorChanges())
+
+            var confirmRequests = 0
+            var pops = 0
+            handleEditorBackIfCurrent(
+                viewModel = viewModel,
+                isCurrentEditor = { true },
+                requestDiscardConfirmation = { confirmRequests++ },
+                popEditor = { pops++ },
+            )
+            assertEquals(1, confirmRequests)
+            assertEquals(0, pops)
+            assertTrue(saves.savedAlarms.isEmpty())
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun pendingSaveBlocksBackAndDiscardUntilCompletion() = runTest {
+        val vmScope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        val saveCompletion = CompletableDeferred<Result<Unit>>()
+        val saves = object : SaveAlarmPort {
+            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> = Result.success(Unit)
+            override suspend fun saveAlarmConfiguration(
+                alarm: LocationAlarm,
+                enabled: Boolean?,
+                requireExisting: Boolean,
+            ): Result<Unit> = saveCompletion.await()
+        }
+        val viewModel = FjalarViewModel(
+            observeAlarmsPort = FakeObserveAlarmsPort(listOf(sampleAlarm())),
+            saveAlarmPort = saves,
+            toggleAlarmPort = FakeToggleAlarmPort(),
+            dismissAlarmPort = FakeDismissAlarmPort(),
+            skipTodayPort = FakeSkipTodayPort(),
+            preferencesPort = PersistentPreferencesAdapter(InMemoryKeyValueStorage()),
+            coroutineScope = vmScope,
+        )
+        try {
+            viewModel.onStartConfiguringAlarm("alarm-manggarai")
+            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(label = "In flight"))
+            var pops = 0
+            saveEditorIfCurrent(viewModel, { true }) { pops++ }
+            assertTrue(viewModel.uiState.value.isOperationPending)
+
+            var confirmRequests = 0
+            handleEditorBackIfCurrent(
+                viewModel = viewModel,
+                isCurrentEditor = { true },
+                requestDiscardConfirmation = { confirmRequests++ },
+                popEditor = { pops++ },
+            )
+            viewModel.onDiscardAlarmEditor { pops++ }
+            assertEquals(0, confirmRequests)
+            assertEquals(0, pops)
+            assertNotNull(viewModel.uiState.value.activeDraft)
+
+            saveCompletion.complete(Result.success(Unit))
+            assertEquals(1, pops)
+            assertNull(viewModel.uiState.value.activeDraft)
         } finally {
             vmScope.cancel()
         }
