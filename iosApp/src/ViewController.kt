@@ -6,6 +6,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import com.muhammadridha.fjalar.ui.FjalarViewModel
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
+import platform.UIKit.UIApplicationDidEnterBackgroundNotification
 import platform.UIKit.UIApplicationWillEnterForegroundNotification
 import platform.UIKit.UIApplicationDidBecomeActiveNotification
 import platform.UIKit.UIApplicationWillResignActiveNotification
@@ -19,9 +20,21 @@ fun ViewController(): UIViewController = ComposeUIViewController {
         viewModel.onAppForegroundChanged(UIApplication.sharedApplication.applicationState == UIApplicationState.UIApplicationStateActive)
         viewModel.syncSchedules()
 
-        val observer = try {
+        val foregroundObserver = try {
             NSNotificationCenter.defaultCenter.addObserverForName(
                 name = UIApplicationWillEnterForegroundNotification,
+                `object` = null,
+                queue = NSOperationQueue.mainQueue,
+            ) { _ ->
+                viewModel.syncSchedules()
+            }
+        } catch (_: Throwable) {
+            null
+        }
+
+        val backgroundObserver = try {
+            NSNotificationCenter.defaultCenter.addObserverForName(
+                name = UIApplicationDidEnterBackgroundNotification,
                 `object` = null,
                 queue = NSOperationQueue.mainQueue,
             ) { _ ->
@@ -42,9 +55,16 @@ fun ViewController(): UIViewController = ComposeUIViewController {
             viewModel.onAppForegroundChanged(false)
             NSNotificationCenter.defaultCenter.removeObserver(activeObserver)
             NSNotificationCenter.defaultCenter.removeObserver(inactiveObserver)
-            if (observer != null) {
+            if (foregroundObserver != null) {
                 try {
-                    NSNotificationCenter.defaultCenter.removeObserver(observer)
+                    NSNotificationCenter.defaultCenter.removeObserver(foregroundObserver)
+                } catch (_: Throwable) {
+                    // Defensive in headless test environments
+                }
+            }
+            if (backgroundObserver != null) {
+                try {
+                    NSNotificationCenter.defaultCenter.removeObserver(backgroundObserver)
                 } catch (_: Throwable) {
                     // Defensive in headless test environments
                 }

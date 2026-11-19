@@ -3,14 +3,22 @@ package com.muhammadridha.fjalar.adapters.geofence
 import com.muhammadridha.fjalar.domain.model.GeofenceRegion
 import com.muhammadridha.fjalar.domain.model.GeofenceTransitionEvent
 import com.muhammadridha.fjalar.domain.model.GeofenceTransitionType
+import com.muhammadridha.fjalar.domain.ports.inbound.HandleGeofenceTransitionPort
 import com.muhammadridha.fjalar.domain.ports.outbound.GeofencePort
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCSignatureOverride
 import kotlinx.cinterop.cValue
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -93,8 +101,11 @@ class DefaultIosGeofenceEngine(
 class IosRegionGeofenceAdapter(
     private val engine: IosGeofenceEngine = DefaultIosGeofenceEngine(),
     private val clock: () -> kotlin.time.Instant = { Clock.System.now() },
+    private val transitionPortProvider: (() -> HandleGeofenceTransitionPort?)? = null,
+    coroutineDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : GeofencePort {
 
+    private val adapterScope = CoroutineScope(SupervisorJob() + coroutineDispatcher)
     private val transitionsFlow = MutableSharedFlow<GeofenceTransitionEvent>(extraBufferCapacity = 64)
     private val registered = mutableMapOf<String, GeofenceRegion>()
     private val mutex = Mutex()
@@ -102,28 +113,16 @@ class IosRegionGeofenceAdapter(
     init {
         engine.setListener(object : IosGeofenceListener {
             override fun onRegionEntered(identifier: String) {
-                transitionsFlow.tryEmit(
-                    GeofenceTransitionEvent(
-                        regionId = identifier,
-                        transitionType = GeofenceTransitionType.ENTER,
-                        timestamp = clock(),
-                    ),
-                )
+                dispatchTransition(identifier, GeofenceTransitionType.ENTER)
             }
 
             override fun onRegionExited(identifier: String) {
-                transitionsFlow.tryEmit(
-                    GeofenceTransitionEvent(
-                        regionId = identifier,
-                        transitionType = GeofenceTransitionType.EXIT,
-                        timestamp = clock(),
-                    ),
-                )
+                dispatchTransition(identifier, GeofenceTransitionType.EXIT)
             }
 
             override fun onMonitoringFailed(identifier: String?, errorCode: Long) {
                 if (identifier != null) {
-                    runBlocking {
+                    adapterScope.launch {
                         mutex.withLock {
                             registered.remove(identifier)
                         }
@@ -131,6 +130,25 @@ class IosRegionGeofenceAdapter(
                 }
             }
         })
+    }
+
+    private fun dispatchTransition(identifier: String, transitionType: GeofenceTransitionType) {
+        val event = GeofenceTransitionEvent(
+            regionId = identifier,
+            transitionType = transitionType,
+            timestamp = clock(),
+        )
+        transitionsFlow.tryEmit(event)
+        val provider = transitionPortProvider ?: return
+        adapterScope.launch {
+            try {
+                provider()?.handleGeofenceTransition(event)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Throwable) {
+                // Isolate transition handler errors from adapter coroutine scope
+            }
+        }
     }
 
     override suspend fun registerGeofences(regions: List<GeofenceRegion>) {
@@ -169,14 +187,17 @@ class IosRegionGeofenceAdapter(
 
     suspend fun getRegisteredRegions(): Map<String, GeofenceRegion> = mutex.withLock { registered.toMap() }
 
-    fun close() = runBlocking {
-        mutex.withLock {
-            engine.setListener(null)
-            val regionIds = registered.keys.toList()
-            for (id in regionIds) {
-                engine.stopMonitoring(id)
+    fun close() {
+        adapterScope.cancel()
+        runBlocking {
+            mutex.withLock {
+                engine.setListener(null)
+                val regionIds = registered.keys.toList()
+                for (id in regionIds) {
+                    engine.stopMonitoring(id)
+                }
+                registered.clear()
             }
-            registered.clear()
         }
     }
 }

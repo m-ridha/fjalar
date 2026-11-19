@@ -1,5 +1,8 @@
 package com.muhammadridha.fjalar.adapters.sync
 
+import com.muhammadridha.fjalar.domain.WEEKDAY_COMMUTE
+import com.muhammadridha.fjalar.domain.manggaraiAlarm
+import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -11,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class FakeIosBgTaskSchedulerEngine : IosBgTaskSchedulerEngine {
@@ -140,9 +144,11 @@ class IosBackgroundSyncAdapterTest {
     }
 
     @Test
-    fun handleTask_onSuccessfulSync_reschedulesAndCompletesWithSuccess() = runTest {
+    fun handleTask_onSuccessfulSyncWithScheduledAlarm_reschedulesAndCompletesWithSuccess() = runTest {
         val fakeEngine = FakeIosBgTaskSchedulerEngine()
-        val fakeSyncPort = FakeSyncSchedulesPort()
+        val fakeSyncPort = FakeSyncSchedulesPort().apply {
+            returnedAlarms = listOf(manggaraiAlarm(schedule = WEEKDAY_COMMUTE).copy(state = AlarmState.SCHEDULED_IDLE))
+        }
         val adapter = IosBackgroundSyncAdapter(
             syncSchedulesPortProvider = { fakeSyncPort },
             engine = fakeEngine,
@@ -156,6 +162,29 @@ class IosBackgroundSyncAdapterTest {
         assertEquals(1, fakeTask.completionCallCount)
         assertEquals(true, fakeTask.lastSuccessValue)
         assertNotNull(fakeEngine.submittedRequest)
+        assertNull(fakeEngine.cancelledIdentifier)
+    }
+
+    @Test
+    fun handleTask_onSuccessfulSyncWithoutScheduledOrSnoozedAlarms_cancelsAndCompletesWithSuccess() = runTest {
+        val fakeEngine = FakeIosBgTaskSchedulerEngine()
+        val fakeSyncPort = FakeSyncSchedulesPort().apply {
+            returnedAlarms = emptyList()
+        }
+        val adapter = IosBackgroundSyncAdapter(
+            syncSchedulesPortProvider = { fakeSyncPort },
+            engine = fakeEngine,
+        )
+        val fakeTask = FakeBgTask()
+
+        val job = adapter.handleTask(fakeTask)
+        job.join()
+
+        assertEquals(1, fakeSyncPort.syncCallCount)
+        assertEquals(1, fakeTask.completionCallCount)
+        assertEquals(true, fakeTask.lastSuccessValue)
+        assertNull(fakeEngine.submittedRequest)
+        assertEquals(IOS_BACKGROUND_REFRESH_TASK_ID, fakeEngine.cancelledIdentifier)
     }
 
     @Test
@@ -222,7 +251,9 @@ class IosBackgroundSyncAdapterTest {
     @Test
     fun handleTask_onRescheduleError_stillCompletesWithSuccess() = runTest {
         val fakeEngine = FakeIosBgTaskSchedulerEngine().apply { shouldFailOnSubmit = true }
-        val fakeSyncPort = FakeSyncSchedulesPort()
+        val fakeSyncPort = FakeSyncSchedulesPort().apply {
+            returnedAlarms = listOf(manggaraiAlarm(schedule = WEEKDAY_COMMUTE).copy(state = AlarmState.SCHEDULED_IDLE))
+        }
         val adapter = IosBackgroundSyncAdapter(
             syncSchedulesPortProvider = { fakeSyncPort },
             engine = fakeEngine,

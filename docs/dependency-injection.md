@@ -27,8 +27,8 @@ Definitions live in `com.muhammadridha.fjalar.di`:
 | Module | Responsibility | Lifetime |
 | --- | --- | --- |
 | `persistenceModule` | `PersistentAlarmRepository`, `PersistentPreferencesAdapter`, and `PersistentRecentDestinationsAdapter`, exposed through their ports | Application singleton |
-| `alarmModule` | Mutable system timezone, schedule evaluator, one `AlarmService`, all inbound port bindings, and `SynchronizeAlarmsUseCase` (unconsumed in production) | Application singleton; every inbound port aliases the same service |
-| `presentationModule` | `FjalarViewModel` (with optional `recentDestinationsPort`) and `MapPickerViewModel` (registered, unconsumed in production UI) | ViewModel-store lifetime through Koin's ViewModel integration |
+| `alarmModule` | Mutable system timezone, schedule evaluator, one `AlarmService` (with optional `GeofencePort`), all inbound port bindings (including `HandleGeofenceTransitionPort`), and `SynchronizeAlarmsUseCase` | Application singleton; every inbound port aliases the same service |
+| `presentationModule` | `FjalarViewModel` (with optional `recentDestinationsPort` and `synchronizeAlarmsUseCase`) | ViewModel-store lifetime through Koin's ViewModel integration |
 | `androidPresentationModule` | Restricted alarm ViewModel with notification ID parameter | Activity ViewModel-store lifetime |
 | `androidPlatformModule` | SharedPreferences storage, `AndroidAccessibilityAdapter`, Android location, AlarmManager, ringer, hybrid place search, `AndroidBackgroundSyncAdapter`, and `AndroidGeofenceAdapter` | Application singleton, application context only |
 | `iosPlatformModule` | NSUserDefaults storage, `IosAccessibilityAdapter`, CoreLocation, `IosSystemEvents`, background scheduler, ringer, hybrid place search, `IosBackgroundSyncAdapter`, and `IosRegionGeofenceAdapter` | Application singleton |
@@ -42,16 +42,18 @@ location requests independently from active alarm monitoring.
 The location adapter receives a deferred inbound-port provider. It resolves the
 service only when delivering a location fix, after construction, avoiding an
 eager tracker → service → tracker cycle. `IosBackgroundSyncAdapter` likewise
-receives a deferred `syncSchedulesPortProvider` (`{ get() }`). The service and
-its mutation mutex must remain shared by UI, receivers, and background execution.
+receives a deferred `syncSchedulesPortProvider` (`{ get() }`), and both
+`IosRegionGeofenceAdapter` and `AndroidGeofenceAdapter` receive a deferred
+`transitionPortProvider` (`{ get() }`) resolving `HandleGeofenceTransitionPort`.
+The service and its mutation mutex must remain shared by UI, receivers, and
+background execution.
 
-**Current Koin bypass and unconsumed bindings:** Although `AccessibilityPort` is
-registered as a singleton in both platform modules, `isReduceTransparencyActive()`
+**Current Koin bypass:** Although `AccessibilityPort` is registered as a
+singleton in both platform modules, `isReduceTransparencyActive()`
 (`shared/src@android/ui/ReduceTransparency.android.kt` and
 `shared/src@ios/ui/ReduceTransparency.ios.kt`) constructs `AndroidAccessibilityAdapter`
-or `IosAccessibilityAdapter` directly inside Compose `remember { ... }`. In
-addition, `GeofencePort`, `SynchronizeAlarmsUseCase`, `MapPickerViewModel`, and
-Koin's `AccessibilityPort` singleton currently have zero production Koin consumers.
+or `IosAccessibilityAdapter` directly inside Compose `remember { ... }`, so
+Koin's `AccessibilityPort` singleton currently has zero production Koin consumers.
 
 ## Initialization and shutdown
 

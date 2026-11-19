@@ -166,6 +166,7 @@ class FjalarViewModelTest {
         searchPlacesPort: SearchPlacesPort? = null,
         snoozePort: com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort? = null,
         recentDestinationsPort: RecentDestinationsPort? = null,
+        synchronizeAlarmsUseCase: com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase? = null,
         clock: kotlin.time.Clock = kotlin.time.Clock.System,
         storage: InMemoryKeyValueStorage = InMemoryKeyValueStorage(),
     ): Triple<FjalarViewModel, PersistentPreferencesAdapter, CoroutineScope> {
@@ -188,6 +189,7 @@ class FjalarViewModelTest {
             snoozeAlarmPort = snoozePort,
             clock = clock,
             recentDestinationsPort = recentDestinationsPort,
+            synchronizeAlarmsUseCase = synchronizeAlarmsUseCase,
         )
         return Triple(viewModel, preferencesPort, vmScope)
     }
@@ -1737,6 +1739,74 @@ class FjalarViewModelTest {
             assertEquals(2, updatedRecents.size)
             assertEquals("-6.2, 106.8", updatedRecents.first().name)
             assertEquals("dest--6.2-106.8", updatedRecents.first().id)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun syncSchedulesAndMutationsReconcileBackgroundSyncViaUseCase() = runTest {
+        val repository = com.muhammadridha.fjalar.fakes.InMemoryAlarmRepository()
+        val tracker = com.muhammadridha.fjalar.fakes.FakeLocationTracker()
+        val scheduler = com.muhammadridha.fjalar.fakes.FakeAlarmScheduler()
+        val ringer = com.muhammadridha.fjalar.fakes.FakeAlarmRinger()
+        val backgroundSync = com.muhammadridha.fjalar.fakes.FakeBackgroundSyncAdapter()
+        val clock = com.muhammadridha.fjalar.fakes.FakeClock(com.muhammadridha.fjalar.domain.jakarta(2026, 10, 26, 7))
+        val service = com.muhammadridha.fjalar.domain.service.AlarmService(
+            repository = repository,
+            tracker = tracker,
+            scheduler = scheduler,
+            ringer = ringer,
+            scheduleEvaluator = com.muhammadridha.fjalar.domain.service.ScheduleEvaluator(com.muhammadridha.fjalar.domain.JAKARTA),
+            clock = clock,
+        )
+        val useCase = com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase(
+            syncSchedulesPort = service,
+            backgroundSyncPort = backgroundSync,
+        )
+        val (viewModel, _, vmScope) = createTestViewModel(
+            observePort = service,
+            savePort = service,
+            togglePort = service,
+            dismissPort = service,
+            skipTodayPort = service,
+            deleteAlarmPort = service,
+            syncSchedulesPort = service,
+            snoozePort = service,
+            synchronizeAlarmsUseCase = useCase,
+            clock = clock,
+        )
+        try {
+            // Initially no alarms -> sync cancels background refresh
+            viewModel.syncSchedules().join()
+            assertTrue(backgroundSync.isCancelled)
+            assertNull(backgroundSync.scheduledDelayMinutes)
+
+            // Saving an enabled scheduled alarm schedules background refresh
+            val scheduledAlarm = manggaraiAlarm(
+                schedule = com.muhammadridha.fjalar.domain.WEEKDAY_COMMUTE,
+            ).copy(id = "commute-sync", state = AlarmState.SCHEDULED_IDLE)
+            viewModel.onSaveAlarm(scheduledAlarm)
+            assertEquals(
+                com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase.DEFAULT_NEXT_SYNC_MINUTES,
+                backgroundSync.scheduledDelayMinutes,
+            )
+            assertFalse(backgroundSync.isCancelled)
+
+            // Disabling the only scheduled alarm cancels background refresh
+            viewModel.onToggleAlarm("commute-sync", enabled = false)
+            assertTrue(backgroundSync.isCancelled)
+            assertNull(backgroundSync.scheduledDelayMinutes)
+
+            // Re-enabling schedules again; deleting cancels again
+            viewModel.onToggleAlarm("commute-sync", enabled = true)
+            assertEquals(
+                com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase.DEFAULT_NEXT_SYNC_MINUTES,
+                backgroundSync.scheduledDelayMinutes,
+            )
+            viewModel.onDeleteAlarm("commute-sync")
+            assertTrue(backgroundSync.isCancelled)
+            assertNull(backgroundSync.scheduledDelayMinutes)
         } finally {
             vmScope.cancel()
         }

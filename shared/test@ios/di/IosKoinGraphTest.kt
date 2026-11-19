@@ -8,6 +8,7 @@ import com.muhammadridha.fjalar.adapters.scheduler.IosBackgroundSchedulerAdapter
 import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
 import com.muhammadridha.fjalar.adapters.sync.IosBackgroundSyncAdapter
+import com.muhammadridha.fjalar.domain.ports.inbound.HandleGeofenceTransitionPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AccessibilityPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
@@ -19,7 +20,6 @@ import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import com.muhammadridha.fjalar.domain.service.AlarmService
 import com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase
-import com.muhammadridha.fjalar.ui.screens.MapPickerViewModel
 import kotlinx.datetime.TimeZone
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
@@ -47,12 +47,13 @@ class IosKoinGraphTest {
             assertSame(tracker, koin.get<IosCLLocationAdapter>())
             assertFalse(tracker.isTracking)
             assertSame(koin.get<AlarmService>(), koin.get<ObserveAlarmsPort>())
+            assertSame(koin.get<AlarmService>(), koin.get<HandleGeofenceTransitionPort>())
             koin.get<SearchPlacesPort>()
             koin.get<SystemTimeZone>().refresh(TimeZone.of("Asia/Tokyo"))
             koin.get<IosSystemEvents>()
             assertNotNull(koin.getOrNull<RecentDestinationsPort>())
-            assertNotNull(koin.getOrNull<MapPickerViewModel>())
-            assertIs<IosBackgroundSyncAdapter>(koin.get<BackgroundSyncPort>())
+            val backgroundSync = assertIs<IosBackgroundSyncAdapter>(koin.get<BackgroundSyncPort>())
+            assertFalse(backgroundSync.isRegistered)
             assertIs<IosRegionGeofenceAdapter>(koin.get<GeofencePort>())
             assertNotNull(koin.getOrNull<SynchronizeAlarmsUseCase>())
         } finally {

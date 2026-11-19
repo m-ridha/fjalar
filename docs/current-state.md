@@ -18,14 +18,20 @@ dynamic accessibility observation, release packaging, and additional domain/adap
   below).
 - **iOS Background Refresh**: `BGAppRefreshTask` (`com.muhammadridha.fjalar.refresh`, `fetch`
   mode in `iosApp/src/Info.plist`) is implemented via `BackgroundSyncPort` /
-  `IosBackgroundSyncAdapter`, and its handler is registered at iOS launch
-  (`shared/src@ios/di/IosModule.kt`). Initial `BGAppRefreshTaskRequest` submission
-  (`scheduleBackgroundSync()` / `SynchronizeAlarmsUseCase`) is not yet wired to a production
-  caller.
-- **Native Circular Geofencing**: `GeofencePort`, `IosRegionGeofenceAdapter` (`CLCircularRegion`),
-  and `AndroidGeofenceAdapter` (default engine reports `isAvailable() == false`) are implemented,
-  unit-tested, and bound in Koin. Production `AlarmService` does not yet invoke `GeofencePort`;
-  active runtime tracking currently uses distance-tiered polling on both platforms.
+  `IosBackgroundSyncAdapter`, registered at iOS launch (`shared/src@ios/di/IosModule.kt`), and
+  wired into production lifecycle and alarm mutations via `SynchronizeAlarmsUseCase` in
+  `FjalarViewModel` (triggered on launch, foreground, background entry via
+  `UIApplicationDidEnterBackgroundNotification`, locale change, and alarm mutations). Pending
+  refresh requests are submitted only when an enabled `SCHEDULED` alarm (`SCHEDULED_IDLE`,
+  `ARMED_MONITORING`, or `COMPLETED_FOR_WINDOW`) or `SNOOZED` alarm exists, and cancelled
+  otherwise.
+- **Native Circular Geofencing**: `GeofencePort` (`IosRegionGeofenceAdapter` via
+  `CLCircularRegion` and `AndroidGeofenceAdapter`, whose default engine reports
+  `isAvailable() == false`) and inbound `HandleGeofenceTransitionPort` are wired into
+  `AlarmService`. `AlarmService` reconciles up to 20 armed alarm regions (sorted by `alarm.id`,
+  registering `ENTER` + `EXIT` when `mustExitBeforeTrigger` is set and unregistering all regions
+  when disarmed). Geofence transitions escalate tracking to `TrackingTier.APPROACH` without
+  bypassing GPS accuracy filtering or `mustExitBeforeTrigger`.
 - **Automated Multiplatform Packaging**: Headless build and packaging scripts build and verify
   signed Android APKs (`scripts/build_release_android.sh`) and unsigned physical-device iOS
   `.xcarchive` / `.ipa` packages (`scripts/build_release_ios.sh`) with SHA-256 checksums.
@@ -105,11 +111,13 @@ and minimum displacement (`minDistanceMeters`: `50 m`, `10 m`, `0 m`) while keep
 `IosCLLocationAdapter` adjusts Core Location `desiredAccuracy`
 (`kCLLocationAccuracyHundredMeters` for `FAR` and `MEDIUM`,
 `kCLLocationAccuracyBest` for `APPROACH`) and `distanceFilter` (`50 m`, `10 m`, down to
-`kCLDistanceFilterNone`). Native circular geofencing is declared via `GeofencePort` and
-implemented with Koin bindings in `IosRegionGeofenceAdapter` (`CLCircularRegion`) and
-`AndroidGeofenceAdapter` (whose default engine reports `isAvailable() == false`), but
-production `AlarmService` does not yet invoke `GeofencePort`; active runtime tracking
-currently uses distance-tiered polling on both platforms.
+`kCLDistanceFilterNone`). Native circular geofencing is wired through `GeofencePort` and inbound
+`HandleGeofenceTransitionPort` in `AlarmService`, backed by `IosRegionGeofenceAdapter`
+(`CLCircularRegion`) and `AndroidGeofenceAdapter` (whose default engine reports
+`isAvailable() == false`, leaving Android on distance-tiered `LocationManager` polling).
+`AlarmService` reconciles up to 20 armed regions sorted by `alarm.id`, removes all regions when
+no alarms are armed, and escalates tracking to `TrackingTier.APPROACH` on matching transitions
+without directly triggering `RINGING` or clearing `mustExitBeforeTrigger`.
 
 Snooze persists a two-minute deadline without changing the radius. Scheduled-window
 completion suppression and GPS accuracy filtering live in the domain. When a scheduled
@@ -127,17 +135,19 @@ iOS schedules user-facing local notifications via `UNUserNotificationCenter` and
 declares `BGTaskScheduler` support with the permitted task identifier
 `com.muhammadridha.fjalar.refresh` (`fetch` background mode in `iosApp/src/Info.plist`).
 `IosBackgroundSyncAdapter` registers the task handler at launch
-(`shared/src@ios/di/IosModule.kt`). Once fired, `handleTask()` calls
-`SyncSchedulesPort.syncSchedules()` and attempts to reschedule with a 15-minute minimum
-delay only after `syncSchedules()` succeeds; if `syncSchedules()` fails, the task
-completes without rescheduling, and if submission fails, the error is caught without
-retry, so a fired task does not guarantee another request. No production entrypoint
-currently calls `scheduleBackgroundSync()` or `SynchronizeAlarmsUseCase` to submit an
-initial `BGAppRefreshTaskRequest`. Because
-`BGAppRefreshTask` execution timing is strictly best-effort and subject to iOS power
-heuristics, the app continues to resynchronize schedules when executed again in the
-foreground. `IosRegionGeofenceAdapter` (`CLCircularRegion`) is registered in Koin and
-unit-tested, without a production caller in `AlarmService` yet.
+(`shared/src@ios/di/IosModule.kt`). `FjalarViewModel` invokes `SynchronizeAlarmsUseCase` on
+launch, foreground/background transitions (`UIApplicationWillEnterForegroundNotification` and
+`UIApplicationDidEnterBackgroundNotification`), locale updates, and alarm mutations, submitting
+a `BGAppRefreshTaskRequest` only when a scheduled (`SCHEDULED_IDLE`, `ARMED_MONITORING`,
+`COMPLETED_FOR_WINDOW`) or `SNOOZED` alarm needs refresh and cancelling pending requests
+otherwise. Once fired, `handleTask()` calls `SyncSchedulesPort.syncSchedules()` and either
+reschedules with a 15-minute minimum delay (when alarms still need refresh) or cancels pending
+requests; if `syncSchedules()` fails, the task completes without rescheduling, and if
+reschedule/cancel fails, the error is caught without retry. Because `BGAppRefreshTask` execution
+timing is strictly best-effort and subject to iOS power heuristics, the app continues to
+resynchronize schedules when executed again in the foreground. `IosRegionGeofenceAdapter`
+(`CLCircularRegion`) is wired to `AlarmService` for region reconciliation and `APPROACH`
+escalation via `HandleGeofenceTransitionPort`.
 The ringer uses `AVAudioSession`/`AVAudioPlayer` with the bundled `alarm.wav` audio file
 for a continuous looping alarm chime, falling back to system alert sound if unavailable.
 The adapter's name does not establish Apple Critical Alerts entitlement or delivery.
@@ -193,8 +203,6 @@ via `RecentDestinationsPort` backed by `PersistentRecentDestinationsAdapter` in
 platform key-value storage. Confirmed destinations recorded by `FjalarViewModel` (which
 drives `MapPickerScreen` in `FjalarApp.kt`) are stored in an LRU list capped at 5 entries,
 deduplicated by ID, case-insensitive trimmed name, and coordinate proximity within 50 meters.
-`MapPickerViewModel` also implements `RecentDestinationsPort` recording and unit tests,
-though `FjalarApp.kt` does not currently resolve it in production UI.
 In `SearchPlacesSheet`, when the query is blank and recent destinations exist,
 horizontal quick-pick chips render station/place icons, destination names, and
 accessible content descriptions. Tapping a quick-pick centers the map picker,

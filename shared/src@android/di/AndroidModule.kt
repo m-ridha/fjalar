@@ -40,6 +40,6 @@ val androidPlatformModule = module {
     single<LocationTrackerPort> { get<AndroidFusedLocationAdapter>() }
     single<SearchPlacesPort> { HybridPlaceSearchAdapter(onlineEngine = AndroidNominatimEngine()) }
     single<BackgroundSyncPort> { AndroidBackgroundSyncAdapter() }
-    single { AndroidGeofenceAdapter(androidContext()) } onClose { it?.close() }
+    single { AndroidGeofenceAdapter(androidContext(), transitionPortProvider = { get() }) } onClose { it?.close() }
     single<GeofencePort> { get<AndroidGeofenceAdapter>() }
 }
