@@ -28,7 +28,7 @@ class BuildReleaseIosTest(unittest.TestCase):
         self.assertNotEqual(0, res.returncode)
         self.assertIn("Missing release tag", res.stderr)
 
-        env["RELEASE_TAG"] = "v0.3.0"
+        env["RELEASE_TAG"] = "v0.3.1"
         env.pop("BUILD_NUMBER", None)
         res = subprocess.run(["bash", str(BUILD_SCRIPT)], env=env, capture_output=True, text=True)
         self.assertNotEqual(0, res.returncode)
