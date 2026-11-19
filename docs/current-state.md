@@ -1,16 +1,20 @@
 # Current project state
 
-Source audit: 2026-11-19, based on main through v0.3.0 (PR #42, commit `ad82f83`) and
-`origin/main` PR #43. This records implemented behavior across Phases 1 through 10. Notion
-requirements and historical Stitch mockups may include planned future enhancements.
+Source audit: 2026-11-19, based on main through v0.3.1 preparation (PRs #44–#48, commit
+`2f96b7d`). This records implemented behavior across Phases 1 through 10 and post-v0.3.0
+wiring, security, editor UX, and app icon updates. Notion requirements and historical Stitch
+mockups may include planned future enhancements.
 
-## Release readiness (v0.3.0)
+## Release readiness (v0.3.1)
 
-Fjalar v0.3.0 ships core domain logic, Liquid Glass UI, bilingual transit localization,
-dynamic accessibility observation, release packaging, and additional domain/adapter ports:
+Fjalar v0.3.1 ships core domain logic, Liquid Glass UI, bilingual transit localization,
+dynamic accessibility observation, wired background refresh and circular geofencing,
+explicit alarm editor save/discard confirmation, updated crowing-bolt app icons, and
+multiplatform release packaging:
 
 - **Bilingual transit (`en` & `id`)**: Full English and Bahasa Indonesia catalog parity across
-  UI, day chips (`Mo..Su` / `Sn..Mg`), notifications, and station search autocomplete.
+  UI, day chips (`Mo..Su` / `Sn..Mg`), notifications, unsaved-changes discard dialog, and
+  station search autocomplete.
 - **Accessibility & Contrast**: Live observation of OS reduce-transparency / high-contrast
   settings on Android and iOS, falling back to 92% opaque tinted surfaces and >= 15:1 WCAG AAA
   primary-text contrast. Semantic content descriptions and `>= 48 dp` touch targets cover
@@ -35,12 +39,17 @@ dynamic accessibility observation, release packaging, and additional domain/adap
   tracking to `TrackingTier.APPROACH` in a single `startTracking` call (retained across syncs
   until a fresh GPS fix arrives) without bypassing GPS accuracy filtering or
   `mustExitBeforeTrigger`.
-- **Automated Multiplatform Packaging**: Headless build and packaging scripts build and verify
-  signed Android APKs (`scripts/build_release_android.sh`) and unsigned physical-device iOS
-  `.xcarchive` / `.ipa` packages (`scripts/build_release_ios.sh`) with SHA-256 checksums.
+- **Automated Multiplatform Packaging & App Icons**: Headless build and packaging scripts build
+  and verify signed Android APKs (`scripts/build_release_android.sh`) and unsigned physical-device
+  iOS `.xcarchive` / `.ipa` packages (`scripts/build_release_ios.sh`, stamping
+  `CFBundleShortVersionString` and `CFBundleVersion` in both the outer archive plist and embedded
+  `Fjalar.app/Info.plist`) with SHA-256 checksums. Platform launcher icons and iOS 18 Light,
+  Dark, and Tinted appearances are generated from the crowing-bolt master artwork via
+  `scripts/generate_app_icons.py` within the 66 dp radial safe circle.
 - **Security & Keyguard Isolation**: Non-exported `AlarmActivity` isolated with `FLAG_SECURE`,
   `excludeFromRecents="true"`, `launchMode="singleTask"`, separate `taskAffinity`,
-  `setShowWhenLocked(true)`, and `finishAndRemoveTask()` on dismissal.
+  `setShowWhenLocked(true)`, `BackHandler` guarding while loading/ringing/pending, and
+  `finishAndRemoveTask()` on dismissal.
 
 ## Screens and controls
 
@@ -80,7 +89,7 @@ unchanged. The radius slider spans
 50 m to 3 km, with 50 m, 100 m, 200 m, 300 m, 500 m, 1 km, 2 km, and 3 km presets
 arranged in two center-aligned equal-width 5-column rows (sub-km in row 1; 1–3 km in row 2). New alarms
 default to 100 m. The domain retains its 10 km maximum for saved alarms;
-`v0.3.0` adds no migration or clamping of existing values. Day chips use
+`v0.3.1` adds no migration or clamping of existing values. Day chips use
 `Mo Tu We Th Fr Sa Su` and `Sn Sl Rb Km Jm Sb Mg` across two center-aligned equal-width 5-column
 rows (`Mo–Fr` / `Sn–Jm` in row 1; `Sa–Su` / `Sb–Mg` in row 2). Alarm-card Delete actions are
 trailing text-labeled outlined buttons without a trash icon, while Configure Alarm uses
