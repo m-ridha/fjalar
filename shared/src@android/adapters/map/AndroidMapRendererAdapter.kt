@@ -6,7 +6,9 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
 import org.maplibre.android.style.layers.SymbolLayer
+import org.maplibre.android.style.layers.Layer
 import org.maplibre.android.style.layers.Property.ICON_ANCHOR_BOTTOM
+import org.maplibre.android.style.layers.Property.TEXT_ANCHOR_TOP
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
@@ -83,7 +85,7 @@ class AndroidMapRendererAdapter(
      * Invoked whenever the initial style loads or when switching between light and dark Carto styles.
      */
     fun onStyleLoaded(style: Style) {
-        addLandmarkLabels(style)
+        addPoiLayers(style)
         currentUserPosition?.let { applyUserPosition(it, style) }
         currentPin?.let { pin ->
             applyPin(pin, style)
@@ -93,31 +95,120 @@ class AndroidMapRendererAdapter(
         }
     }
 
-    private fun addLandmarkLabels(style: Style) {
-        if (style.getSource(LANDMARK_SOURCE_ID) == null || style.getLayer(LANDMARK_LAYER_ID) != null) return
+    private fun addPoiLayers(style: Style) {
+        if (style.getSource(POI_SOURCE_ID) == null) return
 
-        val labels = SymbolLayer(LANDMARK_LAYER_ID, LANDMARK_SOURCE_ID).apply {
-            sourceLayer = "pois"
-            minZoom = 14f
-            setFilter(Expression.raw(LANDMARK_FILTER))
-            setProperties(
-                PropertyFactory.textField(Expression.get("name")),
-                PropertyFactory.textFont(arrayOf("Montserrat SemiBold", "Open Sans Bold", "Noto Sans Regular", "Noto Sans CJK JP Regular")),
-                PropertyFactory.textSize(11f),
-                PropertyFactory.textPadding(20f),
-                PropertyFactory.symbolSortKey(Expression.raw("""["case",["==",["get","kind"],"hospital"],0,["in",["get","kind"],["literal",["school","university","college"]]],1,2]""")),
-                PropertyFactory.textColor(if (isDarkTheme) "#D4D4D4" else "#444444"),
-                PropertyFactory.textHaloColor(if (isDarkTheme) "#181818" else "#F5F5F3"),
-                PropertyFactory.textHaloWidth(1.5f),
-                PropertyFactory.textAllowOverlap(false),
-                PropertyFactory.textIgnorePlacement(false),
+        style.addImages(HashMap(AndroidPoiIcons.createPoiIconBitmaps(isDarkTheme)))
+
+        val belowMinorRoadAnchor = if (style.getLayer(ROADNAME_MINOR_LAYER_ID) != null) {
+            ROADNAME_MINOR_LAYER_ID
+        } else {
+            TOP_OVERLAY_ANCHOR_ORDER.firstOrNull { style.getLayer(it) != null }
+        }
+        val topOverlayAnchor = TOP_OVERLAY_ANCHOR_ORDER.firstOrNull { style.getLayer(it) != null }
+
+        if (style.getLayer(POI_LOCAL_LAYER_ID) == null) {
+            insertLayer(
+                style = style,
+                layer = createPoiLayer(
+                    layerId = POI_LOCAL_LAYER_ID,
+                    minZoomLevel = 16f,
+                    filterJson = POI_LOCAL_FILTER,
+                    fontStack = POI_DETAIL_FONT,
+                    iconScale = 0.34f,
+                    textSizeSp = 10f,
+                    textPaddingPx = 5f,
+                    iconPaddingPx = 2f,
+                ),
+                anchorLayerId = belowMinorRoadAnchor,
             )
         }
-        style.addLayer(labels)
+
+        if (style.getLayer(POI_NEIGHBORHOOD_LAYER_ID) == null) {
+            insertLayer(
+                style = style,
+                layer = createPoiLayer(
+                    layerId = POI_NEIGHBORHOOD_LAYER_ID,
+                    minZoomLevel = 15f,
+                    filterJson = POI_NEIGHBORHOOD_FILTER,
+                    fontStack = POI_DETAIL_FONT,
+                    iconScale = 0.36f,
+                    textSizeSp = 10.5f,
+                    textPaddingPx = 6f,
+                    iconPaddingPx = 3f,
+                ),
+                anchorLayerId = belowMinorRoadAnchor,
+            )
+        }
+
+        if (style.getLayer(POI_MAJOR_LAYER_ID) == null) {
+            insertLayer(
+                style = style,
+                layer = createPoiLayer(
+                    layerId = POI_MAJOR_LAYER_ID,
+                    minZoomLevel = 13f,
+                    filterJson = POI_MAJOR_FILTER,
+                    fontStack = POI_MAJOR_FONT,
+                    iconScale = 0.42f,
+                    textSizeSp = 11.5f,
+                    textPaddingPx = 8f,
+                    iconPaddingPx = 4f,
+                    sortKeyJson = POI_MAJOR_SORT_KEY,
+                ),
+                anchorLayerId = topOverlayAnchor,
+            )
+        }
+    }
+
+    private fun createPoiLayer(
+        layerId: String,
+        minZoomLevel: Float,
+        filterJson: String,
+        fontStack: Array<String>,
+        iconScale: Float,
+        textSizeSp: Float,
+        textPaddingPx: Float,
+        iconPaddingPx: Float,
+        sortKeyJson: String? = null,
+    ): SymbolLayer = SymbolLayer(layerId, POI_SOURCE_ID).apply {
+        sourceLayer = POI_SOURCE_LAYER
+        minZoom = minZoomLevel
+        setFilter(Expression.raw(filterJson))
+        setProperties(
+            PropertyFactory.textField(Expression.get("name")),
+            PropertyFactory.textFont(fontStack),
+            PropertyFactory.iconImage(AndroidPoiIcons.iconImageExpression()),
+            PropertyFactory.iconAnchor(ICON_ANCHOR_BOTTOM),
+            PropertyFactory.textAnchor(TEXT_ANCHOR_TOP),
+            PropertyFactory.textOffset(arrayOf(0f, 0.25f)),
+            PropertyFactory.iconSize(iconScale),
+            PropertyFactory.textSize(textSizeSp),
+            PropertyFactory.textMaxWidth(8f),
+            PropertyFactory.textPadding(textPaddingPx),
+            PropertyFactory.iconPadding(iconPaddingPx),
+            PropertyFactory.textAllowOverlap(false),
+            PropertyFactory.iconAllowOverlap(false),
+            PropertyFactory.textIgnorePlacement(false),
+            PropertyFactory.iconIgnorePlacement(false),
+            PropertyFactory.textColor(AndroidPoiIcons.textColorExpression(isDarkTheme)),
+            PropertyFactory.textHaloColor(AndroidPoiIcons.textHaloColorHex(isDarkTheme)),
+            PropertyFactory.textHaloWidth(1.5f),
+        )
+        if (sortKeyJson != null) {
+            setProperties(PropertyFactory.symbolSortKey(Expression.raw(sortKeyJson)))
+        }
+    }
+
+    private fun insertLayer(style: Style, layer: Layer, anchorLayerId: String?) {
+        if (anchorLayerId != null) {
+            style.addLayerBelow(layer, anchorLayerId)
+        } else {
+            style.addLayer(layer)
+        }
     }
 
     /**
-     * Updates theme state and refreshes layer paint properties to match tokens.
+     * Updates theme state and refreshes layer paint properties and POI sprites to match tokens.
      */
     fun updateTheme(isDark: Boolean) {
         if (this.isDarkTheme != isDark) {
@@ -132,6 +223,17 @@ class AndroidMapRendererAdapter(
                 PropertyFactory.lineColor(primaryColor)
             )
 
+            if (style.getSource(POI_SOURCE_ID) != null) {
+                style.addImages(HashMap(AndroidPoiIcons.createPoiIconBitmaps(isDark)))
+            }
+            val poiTextColor = AndroidPoiIcons.textColorExpression(isDark)
+            val poiHaloColor = AndroidPoiIcons.textHaloColorHex(isDark)
+            for (poiLayerId in POI_LAYER_IDS) {
+                (style.getLayer(poiLayerId) as? SymbolLayer)?.setProperties(
+                    PropertyFactory.textColor(poiTextColor),
+                    PropertyFactory.textHaloColor(poiHaloColor),
+                )
+            }
         }
     }
 
@@ -349,7 +451,7 @@ class AndroidMapRendererAdapter(
                 PropertyFactory.fillOpacity(0.2f),
                 PropertyFactory.fillAntialias(true),
             )
-            if (anchor != null) style.addLayerBelow(fillLayer, anchor) else style.addLayer(fillLayer)
+            insertLayer(style, fillLayer, anchor)
         }
 
         if (needsStroke) {
@@ -358,16 +460,39 @@ class AndroidMapRendererAdapter(
                 PropertyFactory.lineWidth(2.5f),
                 PropertyFactory.lineOpacity(0.8f),
             )
-            if (anchor != null) style.addLayerBelow(strokeLayer, anchor) else style.addLayer(strokeLayer)
+            insertLayer(style, strokeLayer, anchor)
         }
     }
 
     companion object {
         data class StyleLayerDescriptor(val id: String, val isSymbol: Boolean)
 
-        const val LANDMARK_SOURCE_ID = "protomaps"
-        const val LANDMARK_LAYER_ID = "fjalar-landmark-labels"
-        const val LANDMARK_FILTER = """["all",["has","name"],["in",["get","kind"],["literal",["hospital","school","university","college","station","railway_station","bus_station","government"]]],["<=",["coalesce",["get","min_zoom"],0],["zoom"]]]"""
+        const val POI_SOURCE_ID = "protomaps"
+        const val POI_SOURCE_LAYER = "pois"
+        const val ROADNAME_MINOR_LAYER_ID = "roadname_minor"
+
+        const val POI_MAJOR_LAYER_ID = "fjalar-poi-major"
+        const val POI_NEIGHBORHOOD_LAYER_ID = "fjalar-poi-neighborhood"
+        const val POI_LOCAL_LAYER_ID = "fjalar-poi-local"
+
+        val POI_MAJOR_FILTER: String = AndroidPoiIcons.tierFilterJson(AndroidPoiIcons.MAJOR_TIER_KINDS)
+        val POI_NEIGHBORHOOD_FILTER: String = AndroidPoiIcons.tierFilterJson(AndroidPoiIcons.NEIGHBORHOOD_TIER_KINDS)
+        val POI_LOCAL_FILTER: String = AndroidPoiIcons.tierFilterJson(AndroidPoiIcons.LOCAL_TIER_KINDS)
+
+        private val POI_MAJOR_FONT = arrayOf(
+            "Montserrat SemiBold",
+            "Open Sans Bold",
+            "Noto Sans Regular",
+            "Noto Sans CJK JP Regular",
+        )
+        private val POI_DETAIL_FONT = arrayOf(
+            "Montserrat Medium",
+            "Open Sans Regular",
+            "Noto Sans Regular",
+            "Noto Sans CJK JP Regular",
+        )
+        private const val POI_MAJOR_SORT_KEY =
+            """["case",["==",["get","kind"],"hospital"],0,["in",["get","kind"],["literal",["station","railway_station","subway_entrance","train_station_entrance","light_rail","ferry_terminal","aerodrome","airport"]]],1,["in",["get","kind"],["literal",["bus_station","university"]]],2,3]"""
 
         const val USER_SOURCE_ID = "fjalar-user-source"
         const val USER_DOT_LAYER_ID = "fjalar-user-dot"
@@ -380,21 +505,39 @@ class AndroidMapRendererAdapter(
         const val GEOFENCE_FILL_LAYER_ID = "fjalar-geofence-fill-layer"
         const val GEOFENCE_STROKE_LAYER_ID = "fjalar-geofence-stroke-layer"
 
+        private val POI_LAYER_IDS = listOf(
+            POI_MAJOR_LAYER_ID,
+            POI_NEIGHBORHOOD_LAYER_ID,
+            POI_LOCAL_LAYER_ID,
+        )
+
+        private val TOP_OVERLAY_ANCHOR_ORDER = listOf(
+            USER_ACCURACY_LAYER_ID,
+            USER_DOT_LAYER_ID,
+            PIN_LAYER_ID,
+        )
+
         private val MANAGED_OVERLAY_LAYER_IDS = setOf(
             GEOFENCE_FILL_LAYER_ID,
             GEOFENCE_STROKE_LAYER_ID,
             USER_ACCURACY_LAYER_ID,
             USER_DOT_LAYER_ID,
             PIN_LAYER_ID,
-            LANDMARK_LAYER_ID,
+            POI_MAJOR_LAYER_ID,
+            POI_NEIGHBORHOOD_LAYER_ID,
+            POI_LOCAL_LAYER_ID,
         )
 
         private val FALLBACK_OVERLAY_ANCHOR_ORDER = listOf(
             USER_ACCURACY_LAYER_ID,
             USER_DOT_LAYER_ID,
             PIN_LAYER_ID,
-            LANDMARK_LAYER_ID,
+            POI_LOCAL_LAYER_ID,
+            POI_NEIGHBORHOOD_LAYER_ID,
+            POI_MAJOR_LAYER_ID,
         )
+
+        private val FALLBACK_OVERLAY_ANCHOR_IDS = FALLBACK_OVERLAY_ANCHOR_ORDER.toSet()
 
         /**
          * Selects the style layer ID immediately below which geofence fill and stroke layers
@@ -410,8 +553,7 @@ class AndroidMapRendererAdapter(
                 return trailingSymbolAnchor
             }
 
-            val presentLayerIds = layers.mapTo(HashSet()) { it.id }
-            return FALLBACK_OVERLAY_ANCHOR_ORDER.firstOrNull { it in presentLayerIds }
+            return layers.firstOrNull { it.id in FALLBACK_OVERLAY_ANCHOR_IDS }?.id
         }
 
         const val MAP_STYLE_LIGHT = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
