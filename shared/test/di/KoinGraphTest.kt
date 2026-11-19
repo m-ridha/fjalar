@@ -14,7 +14,6 @@ import com.muhammadridha.fjalar.domain.service.ScheduleEvaluator
 import com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase
 import com.muhammadridha.fjalar.fakes.*
 import com.muhammadridha.fjalar.ui.FjalarViewModel
-import com.muhammadridha.fjalar.ui.screens.MapPickerViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.*
@@ -46,6 +45,7 @@ class KoinGraphTest {
             assertSame(service, koin.get<SaveAlarmPort>())
             assertSame(service, koin.get<ToggleAlarmPort>())
             assertSame(service, koin.get<HandleLocationUpdatePort>())
+            assertSame(service, koin.get<HandleGeofenceTransitionPort>())
             assertSame(service, koin.get<DismissAlarmPort>())
             assertSame(service, koin.get<SnoozeAlarmPort>())
             assertSame(service, koin.get<SkipTodayPort>())
@@ -66,7 +66,6 @@ class KoinGraphTest {
             assertNotNull(koin.getOrNull<SynchronizeAlarmsUseCase>())
             assertSame(service, koin.get<AlarmService>())
             assertNotNull(koin.getOrNull<RecentDestinationsPort>())
-            assertNotNull(koin.getOrNull<MapPickerViewModel>())
         } finally {
             app.close()
         }

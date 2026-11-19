@@ -2,7 +2,9 @@ package com.muhammadridha.fjalar.adapters.geofence
 
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.GeofenceRegion
+import com.muhammadridha.fjalar.domain.model.GeofenceTransitionEvent
 import com.muhammadridha.fjalar.domain.model.GeofenceTransitionType
+import com.muhammadridha.fjalar.domain.ports.inbound.HandleGeofenceTransitionPort
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -204,6 +206,7 @@ class IosRegionGeofenceAdapterTest {
         val adapter = IosRegionGeofenceAdapter(
             engine = fakeEngine,
             clock = { fixedInstant },
+            coroutineDispatcher = UnconfinedTestDispatcher(testScheduler),
         )
 
         val region = GeofenceRegion(
@@ -216,6 +219,70 @@ class IosRegionGeofenceAdapterTest {
 
         fakeEngine.simulateFailure("failing-region", 1L)
         assertTrue(adapter.getRegisteredRegions().isEmpty())
+    }
+
+    @Test
+    fun monitoringFailure_duringStartMonitoring_doesNotDeadlock() = runTest {
+        val reentrantEngine = object : IosGeofenceEngine {
+            var listener: IosGeofenceListener? = null
+            override fun startMonitoring(region: CLCircularRegion): Boolean {
+                // CoreLocation may invoke monitoringDidFailForRegion synchronously during startMonitoring
+                listener?.onMonitoringFailed(region.identifier, 4L)
+                return false
+            }
+            override fun stopMonitoring(identifier: String) {}
+            override fun getMonitoredRegionIdentifiers(): Set<String> = emptySet()
+            override fun isMonitoringAvailable(): Boolean = true
+            override fun setListener(listener: IosGeofenceListener?) {
+                this.listener = listener
+            }
+        }
+        val adapter = IosRegionGeofenceAdapter(
+            engine = reentrantEngine,
+            clock = { fixedInstant },
+            coroutineDispatcher = UnconfinedTestDispatcher(testScheduler),
+        )
+        val region = GeofenceRegion(
+            id = "reentrant-region",
+            center = GeoCoordinates(-6.2, 106.8),
+            radiusMeters = 500.0,
+        )
+
+        adapter.registerGeofences(listOf(region))
+        assertTrue(adapter.getRegisteredRegions().isEmpty())
+        adapter.close()
+    }
+
+    @Test
+    fun transitionCallbacks_forwardToTransitionPortProviderAndIsolateErrors() = runTest {
+        val fakeEngine = FakeIosGeofenceEngine()
+        val received = mutableListOf<GeofenceTransitionEvent>()
+        var shouldThrow = true
+        val port = object : HandleGeofenceTransitionPort {
+            override suspend fun handleGeofenceTransition(event: GeofenceTransitionEvent) {
+                received += event
+                if (shouldThrow) {
+                    shouldThrow = false
+                    throw IllegalStateException("Transient handler error")
+                }
+            }
+        }
+        val adapter = IosRegionGeofenceAdapter(
+            engine = fakeEngine,
+            clock = { fixedInstant },
+            transitionPortProvider = { port },
+            coroutineDispatcher = UnconfinedTestDispatcher(testScheduler),
+        )
+
+        fakeEngine.simulateEnter("alarm-1")
+        fakeEngine.simulateExit("alarm-2")
+
+        assertEquals(2, received.size)
+        assertEquals("alarm-1", received[0].regionId)
+        assertEquals(GeofenceTransitionType.ENTER, received[0].transitionType)
+        assertEquals("alarm-2", received[1].regionId)
+        assertEquals(GeofenceTransitionType.EXIT, received[1].transitionType)
+        adapter.close()
     }
 
     @Test

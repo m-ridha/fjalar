@@ -158,6 +158,8 @@ class FakeGeofenceAdapter : GeofencePort {
         }
     }
 
+    override suspend fun getRegisteredRegionIds(): Set<String> = registeredRegions.keys.toSet()
+
     override fun observeGeofenceTransitions(): Flow<GeofenceTransitionEvent> = eventsFlow
 
     suspend fun emitTransition(event: GeofenceTransitionEvent) {

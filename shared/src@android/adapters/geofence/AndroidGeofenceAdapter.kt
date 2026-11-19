@@ -5,10 +5,18 @@ import android.location.LocationManager
 import com.muhammadridha.fjalar.domain.model.GeofenceRegion
 import com.muhammadridha.fjalar.domain.model.GeofenceTransitionEvent
 import com.muhammadridha.fjalar.domain.model.GeofenceTransitionType
+import com.muhammadridha.fjalar.domain.ports.inbound.HandleGeofenceTransitionPort
 import com.muhammadridha.fjalar.domain.ports.outbound.GeofencePort
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -63,8 +71,11 @@ class AndroidGeofenceAdapter(
     private val context: Context? = null,
     private val engine: AndroidGeofenceEngine = DefaultAndroidGeofenceEngine(context),
     private val clock: () -> kotlin.time.Instant = { Clock.System.now() },
+    private val transitionPortProvider: (() -> HandleGeofenceTransitionPort?)? = null,
+    coroutineDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : GeofencePort {
 
+    private val adapterScope = CoroutineScope(SupervisorJob() + coroutineDispatcher)
     private val transitionsFlow = MutableSharedFlow<GeofenceTransitionEvent>(extraBufferCapacity = 64)
     private val activeRegions = mutableMapOf<String, GeofenceRegion>()
     private val mutex = Mutex()
@@ -72,13 +83,22 @@ class AndroidGeofenceAdapter(
     init {
         engine.setListener(object : AndroidGeofenceListener {
             override fun onTransition(regionId: String, transitionType: GeofenceTransitionType) {
-                transitionsFlow.tryEmit(
-                    GeofenceTransitionEvent(
-                        regionId = regionId,
-                        transitionType = transitionType,
-                        timestamp = clock(),
-                    ),
+                val event = GeofenceTransitionEvent(
+                    regionId = regionId,
+                    transitionType = transitionType,
+                    timestamp = clock(),
                 )
+                transitionsFlow.tryEmit(event)
+                val provider = transitionPortProvider ?: return
+                adapterScope.launch {
+                    try {
+                        provider()?.handleGeofenceTransition(event)
+                    } catch (cancellation: CancellationException) {
+                        throw cancellation
+                    } catch (_: Throwable) {
+                        // Isolate transition handler errors from adapter coroutine scope
+                    }
+                }
             }
         })
     }
@@ -103,18 +123,25 @@ class AndroidGeofenceAdapter(
         }
     }
 
+    override suspend fun getRegisteredRegionIds(): Set<String> = mutex.withLock {
+        engine.getRegisteredRegionIds()
+    }
+
     override fun observeGeofenceTransitions(): Flow<GeofenceTransitionEvent> = transitionsFlow.asSharedFlow()
 
     suspend fun getActiveRegions(): Map<String, GeofenceRegion> = mutex.withLock { activeRegions.toMap() }
 
-    fun close() = runBlocking {
-        mutex.withLock {
-            engine.setListener(null)
-            val regionIds = activeRegions.keys.toList()
-            for (id in regionIds) {
-                engine.unregisterRegion(id)
+    fun close() {
+        adapterScope.cancel()
+        runBlocking {
+            mutex.withLock {
+                engine.setListener(null)
+                val regionIds = activeRegions.keys.toList()
+                for (id in regionIds) {
+                    engine.unregisterRegion(id)
+                }
+                activeRegions.clear()
             }
-            activeRegions.clear()
         }
     }
 }

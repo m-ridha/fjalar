@@ -37,7 +37,7 @@ Contributor and agent development guidelines, architecture contracts, UI design 
 - **Hexagonal Architecture (Ports & Adapters):** Core domain logic is 100% pure Kotlin with zero platform SDK imports. Map providers, location trackers, audio ringers, place search, and persistence can be swapped without touching domain code.
 - **iPhone-Inspired Liquid Glass UI:** Translucent tinted surfaces with specular borders floating over full-bleed maps, with instant **Light (`Daylight Glass`)** and **Dark (`Nocturnal Obsidian Glass`)** mode switching.
 - **Accessibility & Dynamic Reduce Transparency:** Translucent glass surfaces automatically adapt when OS reduce-transparency / high-contrast settings are enabled (observed via Android `Settings.Secure` / API 36+ `AccessibilityManager` and iOS `UIAccessibility`), switching to 92% opaque tinted surfaces (`#F4F3F8` Light / `#191B22` Dark) with 1.5 dp rim borders and >= 15:1 WCAG AAA primary-text contrast.
-- **Native Circular Geofencing & Distance-Tiered Polling:** Outbound `GeofencePort` is implemented, unit-tested, and bound in Koin (`IosRegionGeofenceAdapter` via CoreLocation `CLCircularRegion` and `AndroidGeofenceAdapter`, whose default engine reports `isAvailable() == false`), though production `AlarmService` does not yet invoke `GeofencePort`; active tracking currently uses distance-tiered adaptive location polling (`TrackingTier` / `LocationTrackingPolicy`) on both platforms.
+- **Native Circular Geofencing & Distance-Tiered Polling:** `AlarmService` reconciles up to 20 armed alarm regions through `GeofencePort` (`IosRegionGeofenceAdapter` via CoreLocation `CLCircularRegion` and `AndroidGeofenceAdapter`, whose default engine reports `isAvailable() == false` so Android stays on distance-tiered `LocationManager` polling) and handles `HandleGeofenceTransitionPort` events to escalate tracking to `TrackingTier.APPROACH` without bypassing GPS accuracy or exit-guard checks.
 - **Automated Multiplatform Release Packaging (v0.3.0):** Reproducible CI scripts build and verify signed Android APKs (`scripts/build_release_android.sh`) and unsigned physical-device iOS `.xcarchive` / `.ipa` bundles (`scripts/build_release_ios.sh`) with SHA-256 checksums, attaching APK, unsigned IPA, and both checksum files to published GitHub Releases (`scripts/upload_release_assets.py`).
 - **Bilingual Localization (`English` & `Bahasa Indonesia`):** Shared UI and app-owned notification text use the saved app language, with `Mo–Su` and `Sn–Mg` day chips. Launcher names (*"Wake Me at"* / *"Bangunkan Saya di"*) and platform permission prompts use system localization.
 - **Sleepy-Eyes Dismissal Safety:** Android presents a restricted `AlarmActivity` (`FLAG_SECURE`, separate non-exported task) over the keyguard with high-contrast pulsing alerts and a tactile **Slide to Stop Alarm** (`Geser untuk mematikan alarm`) track, preventing accidental pocket touches or sleepy dismissals.
@@ -63,6 +63,7 @@ flowchart TD
         UC2["SaveAlarmPort"]
         UC3["ToggleAlarmPort"]
         UC4["HandleLocationUpdatePort"]
+        UC4b["HandleGeofenceTransitionPort"]
         UC5["DismissAlarmPort"]
         UC6["SnoozeAlarmPort"]
         UC7["SkipTodayPort"]
@@ -128,7 +129,7 @@ fjalar/
 │   ├── src/
 │   │   ├── domain/              # PURE KOTLIN CORE (Zero platform dependencies)
 │   │   │   ├── model/           # Geo, GeofenceRegion, LocationAlarm, AlarmSchedule, LocationFix, RecentDestination, SearchResultPlace, TrackingTier
-│   │   │   ├── ports/inbound/   # Use cases: Observe, Save, Toggle, HandleLocation, Dismiss, Snooze, Skip, SyncSchedules, Delete
+│   │   │   ├── ports/inbound/   # Use cases: Observe, Save, Toggle, HandleLocation, HandleGeofenceTransition, Dismiss, Snooze, Skip, SyncSchedules, Delete
 │   │   │   ├── ports/outbound/  # 11 SPIs: Accessibility, Repository, Ringer, Scheduler, Sync, Geofence, Location, Map, Preferences, Recents, Search
 │   │   │   ├── service/         # AlarmEvaluator, ScheduleEvaluator, DistanceCalculator, HaversineCalculator, LocationTrackingPolicy, AlarmService
 │   │   │   └── usecase/         # SynchronizeAlarmsUseCase
@@ -170,7 +171,7 @@ All contributors and automated agents must preserve these core invariants:
 4. **Zero Ads on Ringing Screen:** Advertisements must never appear before, during, or obstructing the dismissal of an active wake-up alarm. (v1 is 100% ad-free).
 5. **Once-Per-Window Completion Guard:** Dismissed alarms mark their window completed (`COMPLETED_FOR_WINDOW`), preventing false re-triggering while the commuter remains at their destination.
 6. **Accuracy Filter:** Rejects coarse GPS fixes where `horizontalAccuracy > radius * 0.8` to prevent false jumps from triggering alarms.
-7. **Snooze and iOS execution:** Snooze persists a two-minute deadline. On iOS, its local notification is user-facing and suspended state reconciliation happens on the next execution on a best-effort basis. `IosBackgroundSyncAdapter` registers the `BGAppRefreshTask` handler at launch, while initial request submission is not yet wired at runtime and OS background refresh remains best-effort.
+7. **Snooze and iOS execution:** Snooze persists a two-minute deadline. On iOS, its local notification is user-facing and suspended state reconciliation happens on the next execution on a best-effort basis. `IosBackgroundSyncAdapter` registers the `BGAppRefreshTask` handler at launch and `FjalarViewModel` submits or cancels `BGAppRefreshTaskRequest` via `SynchronizeAlarmsUseCase` based on whether scheduled or snoozed alarms need refresh; OS background delivery remains best-effort.
 
 ---
 
@@ -225,7 +226,7 @@ for Android signing secrets, publication steps, and the current iOS signing limi
 ## Testing Standards
 
 - **Core domain is verified in `commonTest`:** Pure Kotlin unit tests run fast without Android emulators or iOS simulators.
-- **Test Doubles:** Use the shared in-memory fakes in `shared/test/fakes/FakeAdapters.kt` (`InMemoryAlarmRepository`, `FakeLocationTracker`, `FakeAlarmRinger`, `FakeAlarmScheduler`, `FakeClock`, `FakeAccessibilityAdapter`, `FakeRecentDestinationsAdapter`, `FakeBackgroundSyncAdapter`, `FakeGeofenceAdapter`), `InMemoryKeyValueStorage` (`shared/src/adapters/storage/KeyValueStorage.kt`), and the local `FakeSearchPlacesPort` doubles in `FjalarViewModelTest.kt` and `MapPickerViewModelTest.kt` rather than mocking frameworks.
+- **Test Doubles:** Use the shared in-memory fakes in `shared/test/fakes/FakeAdapters.kt` (`InMemoryAlarmRepository`, `FakeLocationTracker`, `FakeAlarmRinger`, `FakeAlarmScheduler`, `FakeClock`, `FakeAccessibilityAdapter`, `FakeRecentDestinationsAdapter`, `FakeBackgroundSyncAdapter`, `FakeGeofenceAdapter`), `InMemoryKeyValueStorage` (`shared/src/adapters/storage/KeyValueStorage.kt`), and the local `FakeSearchPlacesPort` double in `FjalarViewModelTest.kt` rather than mocking frameworks.
 - **Boundary Verification:** Tests explicitly cover midnight-crossing commute windows (`23:00–02:00`), leap years, accuracy jitter, and ringer failure rollbacks.
 
 ---

@@ -36,7 +36,7 @@ val iosPlatformModule = module {
     single<SearchPlacesPort> { HybridPlaceSearchAdapter(onlineEngine = IosAppleGeocoderEngine()) }
     single { IosBackgroundSyncAdapter(syncSchedulesPortProvider = { get() }) } onClose { it?.close() }
     single<BackgroundSyncPort> { get<IosBackgroundSyncAdapter>() }
-    single { IosRegionGeofenceAdapter() } onClose { it?.close() }
+    single { IosRegionGeofenceAdapter(transitionPortProvider = { get() }) } onClose { it?.close() }
     single<GeofencePort> { get<IosRegionGeofenceAdapter>() }
 }
 

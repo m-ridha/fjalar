@@ -11,7 +11,6 @@ import com.muhammadridha.fjalar.domain.service.AlarmService
 import com.muhammadridha.fjalar.domain.service.ScheduleEvaluator
 import com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase
 import com.muhammadridha.fjalar.ui.FjalarViewModel
-import com.muhammadridha.fjalar.ui.screens.MapPickerViewModel
 import kotlinx.datetime.TimeZone
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
@@ -39,11 +38,12 @@ val persistenceModule = module {
 val alarmModule = module {
     single { SystemTimeZone() }
     single { ScheduleEvaluator(timeZoneProvider = { get<SystemTimeZone>().current }) }
-    single { AlarmService(get(), get(), get(), get(), get()) }
+    single { AlarmService(get(), get(), get(), get(), get(), geofencePort = getOrNull()) }
     single<ObserveAlarmsPort> { get<AlarmService>() }
     single<SaveAlarmPort> { get<AlarmService>() }
     single<ToggleAlarmPort> { get<AlarmService>() }
     single<HandleLocationUpdatePort> { get<AlarmService>() }
+    single<HandleGeofenceTransitionPort> { get<AlarmService>() }
     single<DismissAlarmPort> { get<AlarmService>() }
     single<SnoozeAlarmPort> { get<AlarmService>() }
     single<SkipTodayPort> { get<AlarmService>() }
@@ -67,12 +67,7 @@ val presentationModule = module {
             locationTrackerPort = get(),
             snoozeAlarmPort = get(),
             recentDestinationsPort = getOrNull(),
-        )
-    }
-    viewModel {
-        MapPickerViewModel(
-            recentDestinationsPort = get(),
-            searchPlacesPort = getOrNull(),
+            synchronizeAlarmsUseCase = getOrNull(),
         )
     }
 }

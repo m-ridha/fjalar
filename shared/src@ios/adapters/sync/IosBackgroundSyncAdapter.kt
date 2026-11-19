@@ -2,6 +2,7 @@ package com.muhammadridha.fjalar.adapters.sync
 
 import com.muhammadridha.fjalar.domain.ports.inbound.SyncSchedulesPort
 import com.muhammadridha.fjalar.domain.ports.outbound.BackgroundSyncPort
+import com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase
 import kotlin.concurrent.AtomicInt
 import kotlin.concurrent.Volatile
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -122,11 +123,17 @@ class IosBackgroundSyncAdapter(
         val job = adapterScope.launch {
             try {
                 val syncPort = syncSchedulesPortProvider()
-                syncPort.syncSchedules()
+                val updatedAlarms = syncPort.syncSchedules()
                 try {
-                    scheduleBackgroundSync(DEFAULT_BACKGROUND_SYNC_INTERVAL_MINUTES)
+                    if (SynchronizeAlarmsUseCase.needsBackgroundRefresh(updatedAlarms)) {
+                        scheduleBackgroundSync(DEFAULT_BACKGROUND_SYNC_INTERVAL_MINUTES)
+                    } else {
+                        cancelBackgroundSync()
+                    }
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
                 } catch (_: Throwable) {
-                    // Reschedule failure does not fail an already successful sync
+                    // Reschedule/cancel failure does not fail an already successful sync
                 }
                 complete(true)
             } catch (e: Throwable) {

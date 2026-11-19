@@ -30,6 +30,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.MapRendererPort
 import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
 import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
+import com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase
 import com.muhammadridha.fjalar.ui.screens.ConfigureAlarmDraft
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -37,6 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.random.Random
@@ -105,6 +107,7 @@ class FjalarViewModel(
     private val snoozeAlarmPort: SnoozeAlarmPort? = null,
     private val clock: Clock = Clock.System,
     private val recentDestinationsPort: RecentDestinationsPort? = null,
+    private val synchronizeAlarmsUseCase: SynchronizeAlarmsUseCase? = null,
 ) : ViewModel() {
 
     internal val scope: CoroutineScope = coroutineScope ?: viewModelScope
@@ -136,7 +139,7 @@ class FjalarViewModel(
 
     private fun updateSnoozeDeadline(alarms: List<LocationAlarm>) {
         snoozeDeadlineJob?.cancel()
-        if (!appForeground || syncSchedulesPort == null) return
+        if (!appForeground || (synchronizeAlarmsUseCase == null && syncSchedulesPort == null)) return
         val deadline = alarms.filter { it.state == AlarmState.SNOOZED }
             .mapNotNull { alarm ->
                 alarm.snoozedUntil?.let { deadline ->
@@ -376,7 +379,11 @@ class FjalarViewModel(
             preferencesPort.setLocale(locale)
             // Rebuild pending user-facing notifications with the same deadlines.
             try {
-                syncSchedulesPort?.syncSchedules()
+                if (synchronizeAlarmsUseCase != null) {
+                    synchronizeAlarmsUseCase.invoke()
+                } else {
+                    syncSchedulesPort?.syncSchedules()
+                }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -387,13 +394,17 @@ class FjalarViewModel(
 
     fun onToggleAlarm(alarmId: String, enabled: Boolean) {
         scope.launch {
-            toggleAlarmPort.toggleAlarm(alarmId, enabled)
+            if (toggleAlarmPort.toggleAlarm(alarmId, enabled).isSuccess) {
+                refreshBackgroundSyncAfterMutation()
+            }
         }
     }
 
     fun onSkipToday(alarmId: String) {
         scope.launch {
-            skipTodayPort.skipToday(alarmId)
+            if (skipTodayPort.skipToday(alarmId).isSuccess) {
+                refreshBackgroundSyncAfterMutation()
+            }
         }
     }
 
@@ -401,6 +412,7 @@ class FjalarViewModel(
         scope.launch {
             val result = saveAlarmPort.saveAlarm(alarm)
             if (result.isSuccess) {
+                refreshBackgroundSyncAfterMutation()
                 _uiState.update { current ->
                     current.copy(
                         isConfigureSheetVisible = false,
@@ -421,6 +433,9 @@ class FjalarViewModel(
         _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false) }
         scope.launch {
             val result = deleteAlarmPort?.deleteAlarm(alarmId)
+            if (result?.isSuccess == true) {
+                refreshBackgroundSyncAfterMutation()
+            }
             val ownsDraft = operationDraftRevision == draftRevision
             _uiState.update {
                 it.copy(
@@ -464,6 +479,9 @@ class FjalarViewModel(
         scope.launch {
             try {
                 val result = operation()
+                if (result.isSuccess) {
+                    refreshBackgroundSyncAfterMutation()
+                }
                 _uiState.update {
                     it.copy(
                         hasOperationFailure = result.isFailure,
@@ -629,6 +647,9 @@ class FjalarViewModel(
         _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false) }
         scope.launch {
             val result = saveAlarmPort.saveAlarm(alarm, draft.enabledOverride)
+            if (result.isSuccess) {
+                refreshBackgroundSyncAfterMutation()
+            }
             val ownsDraft = operationDraftRevision == draftRevision
             _uiState.update {
                 it.copy(isOperationPending = false, hasOperationFailure = ownsDraft && result.isFailure)
@@ -704,6 +725,9 @@ class FjalarViewModel(
                 enabled = draft.enabledOverride,
                 requireExisting = persistedId != null,
             )
+            if (result.isSuccess) {
+                refreshBackgroundSyncAfterMutation()
+            }
             val ownsDraft = operationDraftRevision == draftRevision && _uiState.value.activeDraft == draft
             if (pendingEditorRevision == operationDraftRevision) pendingEditorRevision = null
             _uiState.update { state -> state.copy(isOperationPending = false) }
@@ -773,7 +797,23 @@ class FjalarViewModel(
      * and transition states. Invoked during foreground application entry and system events.
      */
     fun syncSchedules(): Job = scope.launch {
-        syncSchedulesPort?.syncSchedules()
+        if (synchronizeAlarmsUseCase != null) {
+            synchronizeAlarmsUseCase.invoke()
+        } else {
+            syncSchedulesPort?.syncSchedules()
+        }
+    }
+
+    private suspend fun refreshBackgroundSyncAfterMutation() {
+        val useCase = synchronizeAlarmsUseCase ?: return
+        try {
+            val latestAlarms = observeAlarmsPort.observeAlarms().first()
+            useCase.reconcileBackgroundSync(latestAlarms)
+        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            // Post-mutation background refresh failure does not affect completed alarm mutations.
+        }
     }
 
     fun onPermissionResult(granted: Boolean) {

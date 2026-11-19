@@ -4,6 +4,7 @@ import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.GeofenceRegion
 import com.muhammadridha.fjalar.domain.model.GeofenceTransitionEvent
 import com.muhammadridha.fjalar.domain.model.GeofenceTransitionType
+import com.muhammadridha.fjalar.domain.ports.inbound.HandleGeofenceTransitionPort
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -207,5 +208,37 @@ class AndroidGeofenceAdapterTest {
             radiusMeters = 500.0,
         )
         assertFalse(engine.registerRegion(region))
+    }
+
+    @Test
+    fun transitionListener_forwardsToTransitionPortProviderAndIsolatesErrors() = runTest {
+        val fakeEngine = FakeAndroidGeofenceEngine()
+        val received = mutableListOf<GeofenceTransitionEvent>()
+        var shouldThrow = true
+        val port = object : HandleGeofenceTransitionPort {
+            override suspend fun handleGeofenceTransition(event: GeofenceTransitionEvent) {
+                received += event
+                if (shouldThrow) {
+                    shouldThrow = false
+                    throw IllegalStateException("Transient handler error")
+                }
+            }
+        }
+        val adapter = AndroidGeofenceAdapter(
+            engine = fakeEngine,
+            clock = { fixedInstant },
+            transitionPortProvider = { port },
+            coroutineDispatcher = UnconfinedTestDispatcher(testScheduler),
+        )
+
+        fakeEngine.simulateTransition("android-alarm-1", GeofenceTransitionType.ENTER)
+        fakeEngine.simulateTransition("android-alarm-2", GeofenceTransitionType.EXIT)
+
+        assertEquals(2, received.size)
+        assertEquals("android-alarm-1", received[0].regionId)
+        assertEquals(GeofenceTransitionType.ENTER, received[0].transitionType)
+        assertEquals("android-alarm-2", received[1].regionId)
+        assertEquals(GeofenceTransitionType.EXIT, received[1].transitionType)
+        adapter.close()
     }
 }

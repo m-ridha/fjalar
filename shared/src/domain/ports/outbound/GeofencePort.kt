@@ -14,5 +14,6 @@ import kotlinx.coroutines.flow.emptyFlow
 interface GeofencePort {
     suspend fun registerGeofences(regions: List<GeofenceRegion>)
     suspend fun unregisterGeofences(regionIds: List<String>)
+    suspend fun getRegisteredRegionIds(): Set<String> = emptySet()
     fun observeGeofenceTransitions(): Flow<GeofenceTransitionEvent> = emptyFlow()
 }

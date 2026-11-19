@@ -8,11 +8,15 @@ import com.muhammadridha.fjalar.domain.model.AlarmState.SCHEDULED_IDLE
 import com.muhammadridha.fjalar.domain.model.AlarmState.SNOOZED
 import com.muhammadridha.fjalar.domain.ports.inbound.SnoozeAlarmPort
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
+import com.muhammadridha.fjalar.domain.model.GeofenceRegion
+import com.muhammadridha.fjalar.domain.model.GeofenceTransitionEvent
+import com.muhammadridha.fjalar.domain.model.GeofenceTransitionType
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ScheduleType
 import com.muhammadridha.fjalar.domain.model.TrackingTier
 import com.muhammadridha.fjalar.domain.ports.inbound.DeleteAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
+import com.muhammadridha.fjalar.domain.ports.inbound.HandleGeofenceTransitionPort
 import com.muhammadridha.fjalar.domain.ports.inbound.HandleLocationUpdatePort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
 import com.muhammadridha.fjalar.domain.ports.inbound.SaveAlarmPort
@@ -24,6 +28,7 @@ import com.muhammadridha.fjalar.domain.ports.inbound.ToggleAlarmPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort
+import com.muhammadridha.fjalar.domain.ports.outbound.GeofencePort
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -45,8 +50,10 @@ class AlarmService(
     private val ringer: AlarmRingerPort,
     private val scheduleEvaluator: ScheduleEvaluator,
     private val clock: Clock = Clock.System,
+    private val geofencePort: GeofencePort? = null,
 ) : ObserveAlarmsPort, SaveAlarmPort, ToggleAlarmPort, HandleLocationUpdatePort,
-    DismissAlarmPort, SnoozeAlarmPort, SkipTodayPort, SyncSchedulesPort, DeleteAlarmPort {
+    HandleGeofenceTransitionPort, DismissAlarmPort, SnoozeAlarmPort, SkipTodayPort,
+    SyncSchedulesPort, DeleteAlarmPort {
 
     private val evaluator = AlarmEvaluator(scheduleEvaluator)
 
@@ -55,6 +62,8 @@ class AlarmService(
     private var ringingOwnerId: String? = null
     private var latestCoordinates: GeoCoordinates? = null
     private var currentTrackingTier: TrackingTier = LocationTrackingPolicy.INITIAL_TIER
+    private var approachEscalationPending: Boolean = false
+    private val registeredGeofences = mutableMapOf<String, GeofenceRegion>()
 
     override fun observeAlarms(): Flow<List<LocationAlarm>> = repository.observeAlarms()
 
@@ -166,6 +175,7 @@ class AlarmService(
         horizontalAccuracyMeters: Float,
     ): List<LocationAlarm> = mutex.withLock {
         latestCoordinates = coordinates
+        approachEscalationPending = false
         val now = clock.now()
         val triggered = repository.getAlarms().mapNotNull { old ->
             val new = evaluator.evaluateFix(evaluator.syncSchedule(old, now), coordinates, horizontalAccuracyMeters)
@@ -181,6 +191,18 @@ class AlarmService(
         val alarms = repository.getAlarms().map { old -> evaluator.syncSchedule(old, now).also { persist(old, it) } }
         applySideEffects(now)
         alarms
+    }
+
+    override suspend fun handleGeofenceTransition(event: GeofenceTransitionEvent): Unit = mutex.withLock {
+        val now = clock.now()
+        val alarms = repository.getAlarms().map { old -> evaluator.syncSchedule(old, now).also { persist(old, it) } }
+        val matchingAlarm = alarms.firstOrNull { it.id == event.regionId }
+        if (matchingAlarm?.state == ARMED_MONITORING) {
+            latestCoordinates = null
+            approachEscalationPending = true
+            currentTrackingTier = TrackingTier.APPROACH
+        }
+        applySideEffects(now)
     }
 
     private suspend fun mutate(
@@ -245,25 +267,79 @@ class AlarmService(
 
         val armedAlarms = alarms.filter { it.state == ARMED_MONITORING }
         if (armedAlarms.isNotEmpty()) {
-            val minDistance = latestCoordinates?.let { coords ->
-                LocationTrackingPolicy.minimumDistanceMeters(coords, armedAlarms)
-            }
-            currentTrackingTier = if (minDistance != null) {
-                LocationTrackingPolicy.evaluateTier(minDistance, currentTrackingTier)
+            currentTrackingTier = if (approachEscalationPending) {
+                TrackingTier.APPROACH
             } else {
-                LocationTrackingPolicy.INITIAL_TIER
+                val minDistance = latestCoordinates?.let { coords ->
+                    LocationTrackingPolicy.minimumDistanceMeters(coords, armedAlarms)
+                }
+                if (minDistance != null) {
+                    LocationTrackingPolicy.evaluateTier(minDistance, currentTrackingTier)
+                } else {
+                    LocationTrackingPolicy.INITIAL_TIER
+                }
             }
             tracker.startTracking(currentTrackingTier.intervalMillis, currentTrackingTier)
         } else {
             tracker.stopTracking()
             currentTrackingTier = LocationTrackingPolicy.INITIAL_TIER
             latestCoordinates = null
+            approachEscalationPending = false
         }
+
+        reconcileGeofences(armedAlarms)
 
         for (alarm in alarms) {
             if (alarm.id == alreadyScheduledId) continue
             val wakeAt = nextWakeup(alarm, now)
             if (wakeAt == null) scheduler.cancelWakeup(alarm.id) else scheduleWakeup(alarm, wakeAt)
+        }
+    }
+
+    private suspend fun reconcileGeofences(armedAlarms: List<LocationAlarm>) {
+        val port = geofencePort ?: return
+        val desiredRegions = armedAlarms
+            .sortedBy { it.id }
+            .take(MAX_GEOFENCE_REGIONS)
+            .associate { alarm ->
+                val transitionTypes = if (alarm.mustExitBeforeTrigger) {
+                    setOf(GeofenceTransitionType.ENTER, GeofenceTransitionType.EXIT)
+                } else {
+                    setOf(GeofenceTransitionType.ENTER)
+                }
+                alarm.id to GeofenceRegion(
+                    id = alarm.id,
+                    center = alarm.coordinates,
+                    radiusMeters = alarm.radius.meters.toDouble(),
+                    transitionTypes = transitionTypes,
+                )
+            }
+
+        try {
+            val activeIds = port.getRegisteredRegionIds()
+            val idsToUnregister = (registeredGeofences.keys + activeIds).filter { it !in desiredRegions }
+            val regionsToRegister = desiredRegions.values.filter {
+                it.id !in activeIds || registeredGeofences[it.id] != it
+            }
+
+            if (idsToUnregister.isNotEmpty()) {
+                port.unregisterGeofences(idsToUnregister)
+            }
+            if (regionsToRegister.isNotEmpty()) {
+                port.registerGeofences(regionsToRegister)
+            }
+
+            val confirmedActiveIds = port.getRegisteredRegionIds()
+            registeredGeofences.keys.removeAll { it !in confirmedActiveIds || it !in desiredRegions }
+            for ((id, region) in desiredRegions) {
+                if (id in confirmedActiveIds) {
+                    registeredGeofences[id] = region
+                }
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            // Geofence adapter failures must never disrupt location tracking, ringing, or persistence.
         }
     }
 
@@ -293,6 +369,7 @@ class AlarmService(
 
     companion object {
         const val TRACKING_INTERVAL_MILLIS = 10_000L
+        const val MAX_GEOFENCE_REGIONS = 20
     }
 }
 
