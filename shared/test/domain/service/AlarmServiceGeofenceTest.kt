@@ -210,4 +210,152 @@ class AlarmServiceGeofenceTest {
         assertEquals(AlarmState.ARMED_MONITORING, repository.getAlarm("resilient")!!.state)
         assertTrue(tracker.isTracking)
     }
+
+    @Test
+    fun reconcileGeofencesPrunesOrphanedOsRegionsAcrossFreshProcessStart() = runTest {
+        // Simulate an OS-monitored region left over from a previous process launch
+        val orphanedRegion = GeofenceRegion(
+            id = "stale-orphan",
+            center = SUDIRMAN,
+            radiusMeters = 300.0,
+        )
+        geofenceAdapter.registerGeofences(listOf(orphanedRegion))
+        assertEquals(setOf("stale-orphan"), geofenceAdapter.getRegisteredRegionIds())
+
+        // Fresh AlarmService instance with empty in-memory cache reconciles on syncSchedules()
+        val freshService = AlarmService(
+            repository = repository,
+            tracker = tracker,
+            scheduler = scheduler,
+            ringer = ringer,
+            scheduleEvaluator = ScheduleEvaluator(JAKARTA),
+            clock = clock,
+            geofencePort = geofenceAdapter,
+        )
+        freshService.syncSchedules()
+
+        assertTrue(geofenceAdapter.getRegisteredRegionIds().isEmpty())
+    }
+
+    @Test
+    fun reconcileGeofencesRetriesAfterRejectedOrFailedRegistration() = runTest {
+        var allowRegistration = false
+        val activeRegions = mutableMapOf<String, GeofenceRegion>()
+        var registerAttempts = 0
+        val flakyGeofencePort = object : GeofencePort {
+            override suspend fun registerGeofences(regions: List<GeofenceRegion>) {
+                registerAttempts++
+                if (allowRegistration) {
+                    for (region in regions) {
+                        activeRegions[region.id] = region
+                    }
+                }
+            }
+
+            override suspend fun unregisterGeofences(regionIds: List<String>) {
+                for (id in regionIds) {
+                    activeRegions.remove(id)
+                }
+            }
+
+            override suspend fun getRegisteredRegionIds(): Set<String> = activeRegions.keys.toSet()
+        }
+
+        val retryService = AlarmService(
+            repository = repository,
+            tracker = tracker,
+            scheduler = scheduler,
+            ringer = ringer,
+            scheduleEvaluator = ScheduleEvaluator(JAKARTA),
+            clock = clock,
+            geofencePort = flakyGeofencePort,
+        )
+
+        val alarm = manggaraiAlarm(schedule = AlarmSchedule.ONE_TIME).copy(id = "retry-alarm")
+        retryService.saveAlarm(alarm, enabled = true).getOrThrow()
+        assertEquals(1, registerAttempts)
+        assertTrue(activeRegions.isEmpty())
+
+        // Permission/availability is granted later; next sync retries and succeeds
+        allowRegistration = true
+        retryService.syncSchedules()
+        assertEquals(2, registerAttempts)
+        assertEquals(setOf("retry-alarm"), activeRegions.keys)
+
+        // Subsequent sync with unchanged confirmed region does not re-register redundantly
+        retryService.syncSchedules()
+        assertEquals(2, registerAttempts)
+    }
+
+    @Test
+    fun handleGeofenceTransitionCallsStartTrackingOnceWithApproachWithoutFarBounce() = runTest {
+        val recordedTiers = mutableListOf<TrackingTier>()
+        val recordingTracker = object : com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort {
+            override suspend fun startTracking(updateIntervalMillis: Long) {
+                recordedTiers += TrackingTier.fromInterval(updateIntervalMillis)
+            }
+
+            override suspend fun startTracking(updateIntervalMillis: Long, tier: TrackingTier) {
+                recordedTiers += tier
+            }
+
+            override suspend fun stopTracking() {}
+        }
+        val recordingService = AlarmService(
+            repository = repository,
+            tracker = recordingTracker,
+            scheduler = scheduler,
+            ringer = ringer,
+            scheduleEvaluator = ScheduleEvaluator(JAKARTA),
+            clock = clock,
+            geofencePort = geofenceAdapter,
+        )
+
+        val alarm = manggaraiAlarm(radius = TriggerRadius(500), schedule = AlarmSchedule.ONE_TIME).copy(id = "one-time")
+        recordingService.saveAlarm(alarm, enabled = true).getOrThrow()
+        // Move to FAR tier (~40 km away)
+        recordingService.handleLocationUpdate(GeoCoordinates(-6.5971, 106.7909), 20f)
+        assertEquals(TrackingTier.FAR, recordedTiers.last())
+
+        recordedTiers.clear()
+        recordingService.handleGeofenceTransition(
+            GeofenceTransitionEvent(
+                regionId = "one-time",
+                transitionType = GeofenceTransitionType.ENTER,
+                timestamp = clock.now,
+            ),
+        )
+
+        // Exactly one startTracking call directly at APPROACH (no FAR -> APPROACH bounce)
+        assertEquals(listOf(TrackingTier.APPROACH), recordedTiers)
+    }
+
+    @Test
+    fun handleGeofenceTransitionRetainsApproachAcrossSyncUntilFreshGpsFixArrives() = runTest {
+        val alarm = manggaraiAlarm(radius = TriggerRadius(500), schedule = AlarmSchedule.ONE_TIME).copy(id = "one-time")
+        service.saveAlarm(alarm, enabled = true).getOrThrow()
+
+        // Establish FAR tier
+        val bogor = GeoCoordinates(-6.5971, 106.7909)
+        service.handleLocationUpdate(bogor, 20f)
+        assertEquals(TrackingTier.FAR, tracker.currentTier)
+
+        // Escalate via geofence ENTER
+        service.handleGeofenceTransition(
+            GeofenceTransitionEvent(
+                regionId = "one-time",
+                transitionType = GeofenceTransitionType.ENTER,
+                timestamp = clock.now,
+            ),
+        )
+        assertEquals(TrackingTier.APPROACH, tracker.currentTier)
+
+        // Subsequent syncSchedules() before any new GPS fix must retain APPROACH
+        service.syncSchedules()
+        assertEquals(TrackingTier.APPROACH, tracker.currentTier)
+
+        // Once a fresh far GPS fix arrives, approachEscalationPending clears and steps down
+        service.handleLocationUpdate(bogor, 20f)
+        assertEquals(TrackingTier.FAR, tracker.currentTier)
+    }
 }

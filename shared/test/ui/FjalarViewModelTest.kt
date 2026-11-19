@@ -1812,4 +1812,79 @@ class FjalarViewModelTest {
         }
     }
 
+    @Test
+    fun mutationsReconcileBackgroundSyncWithoutRedundantSyncSchedulesOrDuplicateSnoozeWakeup() = runTest {
+        val repository = com.muhammadridha.fjalar.fakes.InMemoryAlarmRepository()
+        val tracker = com.muhammadridha.fjalar.fakes.FakeLocationTracker()
+        var snoozeScheduleCount = 0
+        val countingScheduler = object : com.muhammadridha.fjalar.domain.ports.outbound.AlarmSchedulerPort {
+            override suspend fun scheduleWakeup(alarmId: String, at: kotlin.time.Instant) {}
+            override suspend fun scheduleSnoozeWakeup(alarm: LocationAlarm, at: kotlin.time.Instant) {
+                snoozeScheduleCount++
+            }
+            override suspend fun cancelWakeup(alarmId: String) {}
+        }
+        val ringer = com.muhammadridha.fjalar.fakes.FakeAlarmRinger()
+        val backgroundSync = com.muhammadridha.fjalar.fakes.FakeBackgroundSyncAdapter()
+        val clock = com.muhammadridha.fjalar.fakes.FakeClock(com.muhammadridha.fjalar.domain.jakarta(2026, 10, 26, 7))
+        val service = com.muhammadridha.fjalar.domain.service.AlarmService(
+            repository = repository,
+            tracker = tracker,
+            scheduler = countingScheduler,
+            ringer = ringer,
+            scheduleEvaluator = com.muhammadridha.fjalar.domain.service.ScheduleEvaluator(com.muhammadridha.fjalar.domain.JAKARTA),
+            clock = clock,
+        )
+        var syncSchedulesCallCount = 0
+        val countingSyncPort = object : SyncSchedulesPort {
+            override suspend fun syncSchedules(): List<LocationAlarm> {
+                syncSchedulesCallCount++
+                return service.syncSchedules()
+            }
+        }
+        val useCase = com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase(
+            syncSchedulesPort = countingSyncPort,
+            backgroundSyncPort = backgroundSync,
+        )
+        val (viewModel, _, vmScope) = createTestViewModel(
+            observePort = service,
+            savePort = service,
+            togglePort = service,
+            dismissPort = service,
+            skipTodayPort = service,
+            deleteAlarmPort = service,
+            syncSchedulesPort = countingSyncPort,
+            snoozePort = service,
+            synchronizeAlarmsUseCase = useCase,
+            clock = clock,
+        )
+        try {
+            // Save a one-time alarm and trigger it into RINGING
+            val oneTime = manggaraiAlarm(
+                schedule = com.muhammadridha.fjalar.domain.model.AlarmSchedule.ONE_TIME,
+            ).copy(
+                id = "snooze-test",
+                state = AlarmState.ARMED_MONITORING,
+            )
+            viewModel.onSaveAlarm(oneTime)
+            assertEquals(0, syncSchedulesCallCount)
+            assertTrue(backgroundSync.isCancelled)
+
+            service.handleLocationUpdate(com.muhammadridha.fjalar.domain.MANGGARAI, 10f)
+            assertEquals(AlarmState.RINGING, repository.getAlarm("snooze-test")?.state)
+
+            // Snoozing schedules background refresh and calls scheduleSnoozeWakeup exactly once without syncSchedules()
+            viewModel.onSnoozeRingingAlarm("snooze-test")
+            assertEquals(0, syncSchedulesCallCount)
+            assertEquals(1, snoozeScheduleCount)
+            assertEquals(
+                com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase.DEFAULT_NEXT_SYNC_MINUTES,
+                backgroundSync.scheduledDelayMinutes,
+            )
+            assertFalse(backgroundSync.isCancelled)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
 }

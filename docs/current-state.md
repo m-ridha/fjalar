@@ -29,9 +29,12 @@ dynamic accessibility observation, release packaging, and additional domain/adap
   `CLCircularRegion` and `AndroidGeofenceAdapter`, whose default engine reports
   `isAvailable() == false`) and inbound `HandleGeofenceTransitionPort` are wired into
   `AlarmService`. `AlarmService` reconciles up to 20 armed alarm regions (sorted by `alarm.id`,
-  registering `ENTER` + `EXIT` when `mustExitBeforeTrigger` is set and unregistering all regions
-  when disarmed). Geofence transitions escalate tracking to `TrackingTier.APPROACH` without
-  bypassing GPS accuracy filtering or `mustExitBeforeTrigger`.
+  registering `ENTER` + `EXIT` when `mustExitBeforeTrigger` is set, querying active OS regions via
+  `getRegisteredRegionIds()` to prune orphaned regions across restarts and retry rejected
+  registrations, and unregistering all regions when disarmed). Geofence transitions escalate
+  tracking to `TrackingTier.APPROACH` in a single `startTracking` call (retained across syncs
+  until a fresh GPS fix arrives) without bypassing GPS accuracy filtering or
+  `mustExitBeforeTrigger`.
 - **Automated Multiplatform Packaging**: Headless build and packaging scripts build and verify
   signed Android APKs (`scripts/build_release_android.sh`) and unsigned physical-device iOS
   `.xcarchive` / `.ipa` packages (`scripts/build_release_ios.sh`) with SHA-256 checksums.

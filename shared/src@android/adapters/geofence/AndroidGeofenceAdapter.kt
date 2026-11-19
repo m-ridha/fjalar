@@ -123,6 +123,10 @@ class AndroidGeofenceAdapter(
         }
     }
 
+    override suspend fun getRegisteredRegionIds(): Set<String> = mutex.withLock {
+        engine.getRegisteredRegionIds()
+    }
+
     override fun observeGeofenceTransitions(): Flow<GeofenceTransitionEvent> = transitionsFlow.asSharedFlow()
 
     suspend fun getActiveRegions(): Map<String, GeofenceRegion> = mutex.withLock { activeRegions.toMap() }

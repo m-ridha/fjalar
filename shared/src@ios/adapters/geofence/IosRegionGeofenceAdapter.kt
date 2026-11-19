@@ -183,6 +183,10 @@ class IosRegionGeofenceAdapter(
         }
     }
 
+    override suspend fun getRegisteredRegionIds(): Set<String> = mutex.withLock {
+        engine.getMonitoredRegionIdentifiers()
+    }
+
     override fun observeGeofenceTransitions(): Flow<GeofenceTransitionEvent> = transitionsFlow.asSharedFlow()
 
     suspend fun getRegisteredRegions(): Map<String, GeofenceRegion> = mutex.withLock { registered.toMap() }

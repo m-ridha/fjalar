@@ -177,4 +177,24 @@ class SynchronizeAlarmsUseCaseTest {
         )
         assertFailsWith<CancellationException> { cancelUseCase() }
     }
+
+    @Test
+    fun reconcileBackgroundSyncSchedulesAndCancelsWithoutCallingSyncSchedules() = runTest {
+        val syncSchedulesPort = FakeSyncSchedulesPort()
+        val backgroundSyncAdapter = FakeBackgroundSyncAdapter()
+        val useCase = SynchronizeAlarmsUseCase(
+            syncSchedulesPort = syncSchedulesPort,
+            backgroundSyncPort = backgroundSyncAdapter,
+        )
+
+        useCase.reconcileBackgroundSync(listOf(scheduledAlarm(AlarmState.SCHEDULED_IDLE)))
+        assertEquals(0, syncSchedulesPort.callCount)
+        assertEquals(SynchronizeAlarmsUseCase.DEFAULT_NEXT_SYNC_MINUTES, backgroundSyncAdapter.scheduledDelayMinutes)
+        assertFalse(backgroundSyncAdapter.isCancelled)
+
+        useCase.reconcileBackgroundSync(emptyList())
+        assertEquals(0, syncSchedulesPort.callCount)
+        assertNull(backgroundSyncAdapter.scheduledDelayMinutes)
+        assertTrue(backgroundSyncAdapter.isCancelled)
+    }
 }

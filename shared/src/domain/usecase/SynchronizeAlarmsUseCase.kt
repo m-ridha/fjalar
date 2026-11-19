@@ -13,22 +13,27 @@ class SynchronizeAlarmsUseCase(
 ) {
     suspend operator fun invoke(nextSyncDelayMinutes: Long = DEFAULT_NEXT_SYNC_MINUTES): List<LocationAlarm> {
         val updatedAlarms = syncSchedulesPort.syncSchedules()
-        val delayMinutes = nextSyncDelayMinutes.coerceAtLeast(MINIMUM_SYNC_DELAY_MINUTES)
-        val port = backgroundSyncPort
-        if (port != null) {
-            try {
-                if (needsBackgroundRefresh(updatedAlarms)) {
-                    port.scheduleBackgroundSync(delayMinutes)
-                } else {
-                    port.cancelBackgroundSync()
-                }
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (_: Exception) {
-                // Auxiliary background refresh failure does not invalidate completed schedule synchronization
-            }
-        }
+        reconcileBackgroundSync(updatedAlarms, nextSyncDelayMinutes)
         return updatedAlarms
+    }
+
+    suspend fun reconcileBackgroundSync(
+        alarms: List<LocationAlarm>,
+        nextSyncDelayMinutes: Long = DEFAULT_NEXT_SYNC_MINUTES,
+    ) {
+        val port = backgroundSyncPort ?: return
+        val delayMinutes = nextSyncDelayMinutes.coerceAtLeast(MINIMUM_SYNC_DELAY_MINUTES)
+        try {
+            if (needsBackgroundRefresh(alarms)) {
+                port.scheduleBackgroundSync(delayMinutes)
+            } else {
+                port.cancelBackgroundSync()
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            // Auxiliary background refresh failure does not invalidate completed schedule synchronization
+        }
     }
 
     companion object {

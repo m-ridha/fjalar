@@ -62,6 +62,7 @@ class AlarmService(
     private var ringingOwnerId: String? = null
     private var latestCoordinates: GeoCoordinates? = null
     private var currentTrackingTier: TrackingTier = LocationTrackingPolicy.INITIAL_TIER
+    private var approachEscalationPending: Boolean = false
     private val registeredGeofences = mutableMapOf<String, GeofenceRegion>()
 
     override fun observeAlarms(): Flow<List<LocationAlarm>> = repository.observeAlarms()
@@ -174,6 +175,7 @@ class AlarmService(
         horizontalAccuracyMeters: Float,
     ): List<LocationAlarm> = mutex.withLock {
         latestCoordinates = coordinates
+        approachEscalationPending = false
         val now = clock.now()
         val triggered = repository.getAlarms().mapNotNull { old ->
             val new = evaluator.evaluateFix(evaluator.syncSchedule(old, now), coordinates, horizontalAccuracyMeters)
@@ -194,12 +196,13 @@ class AlarmService(
     override suspend fun handleGeofenceTransition(event: GeofenceTransitionEvent): Unit = mutex.withLock {
         val now = clock.now()
         val alarms = repository.getAlarms().map { old -> evaluator.syncSchedule(old, now).also { persist(old, it) } }
-        applySideEffects(now)
         val matchingAlarm = alarms.firstOrNull { it.id == event.regionId }
         if (matchingAlarm?.state == ARMED_MONITORING) {
+            latestCoordinates = null
+            approachEscalationPending = true
             currentTrackingTier = TrackingTier.APPROACH
-            tracker.startTracking(TrackingTier.APPROACH.intervalMillis, TrackingTier.APPROACH)
         }
+        applySideEffects(now)
     }
 
     private suspend fun mutate(
@@ -264,19 +267,24 @@ class AlarmService(
 
         val armedAlarms = alarms.filter { it.state == ARMED_MONITORING }
         if (armedAlarms.isNotEmpty()) {
-            val minDistance = latestCoordinates?.let { coords ->
-                LocationTrackingPolicy.minimumDistanceMeters(coords, armedAlarms)
-            }
-            currentTrackingTier = if (minDistance != null) {
-                LocationTrackingPolicy.evaluateTier(minDistance, currentTrackingTier)
+            currentTrackingTier = if (approachEscalationPending) {
+                TrackingTier.APPROACH
             } else {
-                LocationTrackingPolicy.INITIAL_TIER
+                val minDistance = latestCoordinates?.let { coords ->
+                    LocationTrackingPolicy.minimumDistanceMeters(coords, armedAlarms)
+                }
+                if (minDistance != null) {
+                    LocationTrackingPolicy.evaluateTier(minDistance, currentTrackingTier)
+                } else {
+                    LocationTrackingPolicy.INITIAL_TIER
+                }
             }
             tracker.startTracking(currentTrackingTier.intervalMillis, currentTrackingTier)
         } else {
             tracker.stopTracking()
             currentTrackingTier = LocationTrackingPolicy.INITIAL_TIER
             latestCoordinates = null
+            approachEscalationPending = false
         }
 
         reconcileGeofences(armedAlarms)
@@ -307,17 +315,26 @@ class AlarmService(
                 )
             }
 
-        val idsToUnregister = registeredGeofences.keys.filter { it !in desiredRegions }
-        val regionsToRegister = desiredRegions.values.filter { registeredGeofences[it.id] != it }
-
         try {
+            val activeIds = port.getRegisteredRegionIds()
+            val idsToUnregister = (registeredGeofences.keys + activeIds).filter { it !in desiredRegions }
+            val regionsToRegister = desiredRegions.values.filter {
+                it.id !in activeIds || registeredGeofences[it.id] != it
+            }
+
             if (idsToUnregister.isNotEmpty()) {
                 port.unregisterGeofences(idsToUnregister)
-                idsToUnregister.forEach { registeredGeofences.remove(it) }
             }
             if (regionsToRegister.isNotEmpty()) {
                 port.registerGeofences(regionsToRegister)
-                regionsToRegister.forEach { registeredGeofences[it.id] = it }
+            }
+
+            val confirmedActiveIds = port.getRegisteredRegionIds()
+            registeredGeofences.keys.removeAll { it !in confirmedActiveIds || it !in desiredRegions }
+            for ((id, region) in desiredRegions) {
+                if (id in confirmedActiveIds) {
+                    registeredGeofences[id] = region
+                }
             }
         } catch (cancellation: CancellationException) {
             throw cancellation

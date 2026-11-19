@@ -38,6 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.random.Random
@@ -806,7 +807,8 @@ class FjalarViewModel(
     private suspend fun refreshBackgroundSyncAfterMutation() {
         val useCase = synchronizeAlarmsUseCase ?: return
         try {
-            useCase.invoke()
+            val latestAlarms = observeAlarmsPort.observeAlarms().first()
+            useCase.reconcileBackgroundSync(latestAlarms)
         } catch (cancellation: kotlinx.coroutines.CancellationException) {
             throw cancellation
         } catch (_: Exception) {
