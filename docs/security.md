@@ -7,16 +7,22 @@ set `showWhenLocked`, `turnScreenOn`, `FLAG_SHOW_WHEN_LOCKED`, or request keygua
 dismissal to expose application navigation. Authentication belongs to the system;
 Fjalar does not implement its own PIN or password screen.
 
-The alarm presentation uses a separate, non-exported `AlarmActivity` and task.
-Only this restricted activity may show above the keyguard. Its ViewModel retains
-in-flight actions across activity recreation. The task waits for action side
-effects to finish before closing. It must validate its
-explicit alarm intent against the current ringing state, present generic alarm
+The alarm presentation uses a separate, non-exported `AlarmActivity` and task
+configured in `androidApp/src/AndroidManifest.xml` with `android:exported="false"`,
+`android:excludeFromRecents="true"`, `android:launchMode="singleTask"`,
+`android:taskAffinity="com.muhammadridha.fjalar.alarm"`, `android:showWhenLocked="true"`,
+and `android:turnScreenOn="true"`. Only this restricted activity may show above the
+keyguard. At runtime, `AlarmActivity` adds `WindowManager.LayoutParams.FLAG_SECURE`
+(`androidApp/src/AlarmActivity.kt`) to exclude ringing surfaces from task previews
+and screenshots. Its ViewModel retains in-flight actions across activity recreation.
+The task waits for action side effects to finish before closing. It must validate
+its explicit alarm intent against the current ringing state, present generic alarm
 copy instead of a saved destination or location, and expose only the existing
 slide-to-stop and two-minute snooze actions. Ending ringing must finish that task
-without launching the main application. Notification/full-screen intents route
-to this restricted surface rather than to ordinary application navigation.
-The notification uses private visibility with a generic public version.
+via `finishAndRemoveTask()` without launching the main application.
+Notification/full-screen intents route to this restricted surface rather than to
+ordinary application navigation. The notification uses private visibility with a
+generic public version.
 
 These are activity/task boundaries, not a conditional overlay protecting an
 otherwise accessible navigation tree. Preserve this distinction in future
@@ -67,20 +73,29 @@ trusted conventional-title diagnostics. The title never becomes executable shell
 source. Do not replace the token with a fixed value or print other untrusted
 metadata outside this boundary.
 
-The workflow audit covers all run scripts: event title is passed through the
-environment. Concurrency metadata and action/cache inputs are not interpolated
-into executable shell source. Permissions and build steps remain unchanged.
+The workflow command audit in `scripts/test_workflow_command_safety.py`
+covers `.github/workflows/pr-check.yml` (PR title command safety and Apple SDK
+selection) and `.github/workflows/release-assets.yml` (Apple SDK selection). In
+`pr-check.yml`, the event title is passed through the environment, concurrency
+metadata and action/cache inputs are not interpolated into executable shell
+source, and permissions and build steps remain unchanged. Static security
+analysis also runs via `.github/workflows/codeql.yml` across `actions`, `python`,
+and manual-build `java-kotlin` targets.
 
 ```sh
 python3 scripts/test_android_alarm_security.py
 python3 scripts/test_workflow_command_safety.py
 ```
 
-The regression test runs the actual extracted shell and a local model of modern
-and legacy runner-command parsing. It covers multiline/CR payloads, masks,
-annotations, nested stop commands, shell metacharacters, token freshness, and
-resumption of later diagnostics. This is contract-level verification rather
-than execution on a hosted GitHub runner.
+`scripts/test_workflow_command_safety.py` runs the actual extracted shell and a
+local model of modern and legacy runner-command parsing. It covers
+multiline/CR payloads, masks, annotations, nested stop commands, shell
+metacharacters, token freshness, and resumption of later diagnostics.
+`scripts/test_android_alarm_security.py` asserts manifest keyguard/task
+isolation attributes, `FLAG_SECURE`, non-exported status, and `finishAndRemoveTask()`
+lifecycle guards (`test_locked_device_window_flags_and_lifecycle_on_dismiss`).
+Both are contract-level verification rather than execution on a hosted GitHub
+runner or physical locked device.
 
 ## References
 
@@ -90,14 +105,18 @@ than execution on a hosted GitHub runner.
 - [Actions runner command parser](https://github.com/actions/runner/blob/main/src/Runner.Common/ActionCommand.cs)
 - [Actions runner command manager](https://github.com/actions/runner/blob/main/src/Runner.Worker/ActionCommandManager.cs)
 
-## Recorded verification for PR #18
+## Recorded verification
 
-On the API 37 emulator, the debug application started through the shipping
-Android Koin module, and an external attempt to launch `AlarmActivity` was
-rejected with Android's non-exported-component `SecurityException`. With a
+On the API 37 emulator (PR #18), the debug application started through the
+shipping Android Koin module, and an external attempt to launch `AlarmActivity`
+was rejected with Android's non-exported-component `SecurityException`. With a
 temporary secure PIN and lockdown enabled, launching `MainActivity` left the
 keyguard showing, input-restricted, and unoccluded (`deviceLocked=1`,
 `showing=true`, `inputRestricted=true`, `occluded=false`). The temporary PIN was
-removed afterward. This verifies startup and the ordinary-app keyguard boundary;
-it does not reproduce a full locked-device ringing/dismiss/snooze sequence or
-older API behavior. Those scenarios remain in the manual matrix above.
+removed afterward. In PR #40 (`v0.3.0`), `scripts/test_android_alarm_security.py`
+added source-text and manifest assertions for `FLAG_SECURE`, isolated task
+attributes, and `finishAndRemoveTask()`, while `AlarmStateTransitionTest.kt`
+covers pure domain ringing, snooze, and dismiss transitions without any lock
+state. Neither test verifies runtime locked-device behavior; locked-device
+ringing/dismiss/snooze sequences and older API checks remain unverified in the
+manual matrix above.

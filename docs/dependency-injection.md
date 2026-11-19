@@ -26,12 +26,12 @@ Definitions live in `com.muhammadridha.fjalar.di`:
 
 | Module | Responsibility | Lifetime |
 | --- | --- | --- |
-| `persistenceModule` | `PersistentAlarmRepository` and `PersistentPreferencesAdapter`, exposed through their ports | Application singleton |
-| `alarmModule` | Mutable system timezone, schedule evaluator, one `AlarmService`, and all inbound port bindings | Application singleton; every inbound port aliases the same service |
-| `presentationModule` | Constructor dependencies for `FjalarViewModel` | ViewModel-store lifetime through Koin's ViewModel integration |
+| `persistenceModule` | `PersistentAlarmRepository`, `PersistentPreferencesAdapter`, and `PersistentRecentDestinationsAdapter`, exposed through their ports | Application singleton |
+| `alarmModule` | Mutable system timezone, schedule evaluator, one `AlarmService`, all inbound port bindings, and `SynchronizeAlarmsUseCase` (unconsumed in production) | Application singleton; every inbound port aliases the same service |
+| `presentationModule` | `FjalarViewModel` (with optional `recentDestinationsPort`) and `MapPickerViewModel` (registered, unconsumed in production UI) | ViewModel-store lifetime through Koin's ViewModel integration |
 | `androidPresentationModule` | Restricted alarm ViewModel with notification ID parameter | Activity ViewModel-store lifetime |
-| `androidPlatformModule` | SharedPreferences storage, Android location, AlarmManager, ringer, and hybrid place search | Application singleton, application context only |
-| `iosPlatformModule` | NSUserDefaults storage, CoreLocation, background scheduler, ringer, and hybrid place search | Application singleton |
+| `androidPlatformModule` | SharedPreferences storage, `AndroidAccessibilityAdapter`, Android location, AlarmManager, ringer, hybrid place search, `AndroidBackgroundSyncAdapter`, and `AndroidGeofenceAdapter` | Application singleton, application context only |
+| `iosPlatformModule` | NSUserDefaults storage, `IosAccessibilityAdapter`, CoreLocation, `IosSystemEvents`, background scheduler, ringer, hybrid place search, `IosBackgroundSyncAdapter`, and `IosRegionGeofenceAdapter` | Application singleton |
 | `fjalarModule(platformModule)` | Includes shared definitions and the selected platform definitions | One assembled application graph |
 
 Native map views retain their existing composition-owned lifecycle. They are not
@@ -41,8 +41,17 @@ location requests independently from active alarm monitoring.
 
 The location adapter receives a deferred inbound-port provider. It resolves the
 service only when delivering a location fix, after construction, avoiding an
-eager tracker → service → tracker cycle. The service and its mutation mutex must
-remain shared by UI, receivers, and background execution.
+eager tracker → service → tracker cycle. `IosBackgroundSyncAdapter` likewise
+receives a deferred `syncSchedulesPortProvider` (`{ get() }`). The service and
+its mutation mutex must remain shared by UI, receivers, and background execution.
+
+**Current Koin bypass and unconsumed bindings:** Although `AccessibilityPort` is
+registered as a singleton in both platform modules, `isReduceTransparencyActive()`
+(`shared/src@android/ui/ReduceTransparency.android.kt` and
+`shared/src@ios/ui/ReduceTransparency.ios.kt`) constructs `AndroidAccessibilityAdapter`
+or `IosAccessibilityAdapter` directly inside Compose `remember { ... }`. In
+addition, `GeofencePort`, `SynchronizeAlarmsUseCase`, `MapPickerViewModel`, and
+Koin's `AccessibilityPort` singleton currently have zero production Koin consumers.
 
 ## Initialization and shutdown
 
@@ -53,12 +62,15 @@ process graph. The restricted alarm ViewModel receives the notification alarm ID
 as a Koin parameter and retains pending operations through activity recreation.
 
 SwiftUI's `iosApp.init()` calls `initializeIosApp()`. Its process-lifetime lazy
-application starts Koin once, requests notification authorization, and installs
-the timezone observer. Recreating `ViewController()` resolves a ViewModel through
-Compose rather than constructing a second native graph. Foreground/background
-notifications still synchronize schedules and stop map-only tracking. Platform
-tracker and iOS timezone-observer definitions register close callbacks for
-isolated graph teardown.
+application starts Koin once, requests notification authorization, calls
+`IosBackgroundSyncAdapter.registerBackgroundSyncTask()`, and installs the timezone
+observer (`IosSystemEvents`). Recreating `ViewController()` resolves a ViewModel
+through Compose rather than constructing a second native graph.
+Foreground/background notifications still synchronize schedules and stop map-only
+tracking. Platform adapters register `onClose { it?.close() }` callbacks for
+isolated graph teardown (`AndroidFusedLocationAdapter`, `AndroidGeofenceAdapter`,
+`IosCLLocationAdapter`, `IosSystemEvents`, `IosBackgroundSyncAdapter`, and
+`IosRegionGeofenceAdapter`).
 
 ## Contributor conventions
 

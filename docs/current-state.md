@@ -1,29 +1,37 @@
 # Current project state
 
-Source audit: 2026-11-08, based on main through PR #39 (v0.3.0 release candidate). This
-records implemented behavior across Phases 1 through 10. Notion requirements and historical
-Stitch mockups may include planned future enhancements.
+Source audit: 2026-11-19, based on main through v0.3.0 (PR #42, commit `ad82f83`) and
+`origin/main` PR #43. This records implemented behavior across Phases 1 through 10. Notion
+requirements and historical Stitch mockups may include planned future enhancements.
 
 ## Release readiness (v0.3.0)
 
-Fjalar v0.3.0 completes all planned milestones across core domain logic, Liquid Glass UI,
-bilingual transit localization, accessibility, background synchronization, native geofencing,
-and release packaging:
+Fjalar v0.3.0 ships core domain logic, Liquid Glass UI, bilingual transit localization,
+dynamic accessibility observation, release packaging, and additional domain/adapter ports:
 
 - **Bilingual transit (`en` & `id`)**: Full English and Bahasa Indonesia catalog parity across
   UI, day chips (`Mo..Su` / `Sn..Mg`), notifications, and station search autocomplete.
-- **Accessibility & Contrast**: Live observation of OS reduce-transparency settings on Android
-  (API 34+) and iOS (`UIAccessibility`), with fallback to 92% opaque tinted surfaces and >= 15:1
-  WCAG AAA primary-text contrast. Semantic content descriptions and 48dp minimum touch targets.
-- **iOS Background Refresh**: `BGAppRefreshTask` integration (`com.muhammadridha.fjalar.refresh`)
-  with `fetch` mode to synchronize upcoming commute windows while suspended.
-- **Native Circular Geofencing**: `GeofencePort` with `CLCircularRegion` on iOS for low-power
-  baseband transition detection, complementing adaptive distance-tiered GPS tracking.
-- **Automated Multiplatform Packaging**: Headless build and packaging scripts for signed
-  Android APKs (`scripts/build_release_android.sh`) and iOS `.xcarchive` / unsigned `.ipa`
-  packages (`scripts/build_release_ios.sh`).
+- **Accessibility & Contrast**: Live observation of OS reduce-transparency / high-contrast
+  settings on Android and iOS, falling back to 92% opaque tinted surfaces and >= 15:1 WCAG AAA
+  primary-text contrast. Semantic content descriptions and `>= 48 dp` touch targets cover
+  primary HUD, list, navigation, and editor controls (see notes on Snooze and glyph semantics
+  below).
+- **iOS Background Refresh**: `BGAppRefreshTask` (`com.muhammadridha.fjalar.refresh`, `fetch`
+  mode in `iosApp/src/Info.plist`) is implemented via `BackgroundSyncPort` /
+  `IosBackgroundSyncAdapter`, and its handler is registered at iOS launch
+  (`shared/src@ios/di/IosModule.kt`). Initial `BGAppRefreshTaskRequest` submission
+  (`scheduleBackgroundSync()` / `SynchronizeAlarmsUseCase`) is not yet wired to a production
+  caller.
+- **Native Circular Geofencing**: `GeofencePort`, `IosRegionGeofenceAdapter` (`CLCircularRegion`),
+  and `AndroidGeofenceAdapter` (default engine reports `isAvailable() == false`) are implemented,
+  unit-tested, and bound in Koin. Production `AlarmService` does not yet invoke `GeofencePort`;
+  active runtime tracking currently uses distance-tiered polling on both platforms.
+- **Automated Multiplatform Packaging**: Headless build and packaging scripts build and verify
+  signed Android APKs (`scripts/build_release_android.sh`) and unsigned physical-device iOS
+  `.xcarchive` / `.ipa` packages (`scripts/build_release_ios.sh`) with SHA-256 checksums.
 - **Security & Keyguard Isolation**: Non-exported `AlarmActivity` isolated with `FLAG_SECURE`,
-  `setShowWhenLocked(true)`, and immediate `finishAndRemoveTask()` termination upon dismissal.
+  `excludeFromRecents="true"`, `launchMode="singleTask"`, separate `taskAffinity`,
+  `setShowWhenLocked(true)`, and `finishAndRemoveTask()` on dismissal.
 
 ## Screens and controls
 
@@ -60,11 +68,12 @@ Compact or large-font layouts use numeric input. Cancel leaves the draft time
 unchanged. The radius slider spans
 50 m to 3 km, with 50 m, 100 m, 200 m, 300 m, 500 m, 1 km, 2 km, and 3 km presets
 arranged in two center-aligned equal-width 5-column rows (sub-km in row 1; 1–3 km in row 2). New alarms
-default to 100 m. The domain retains its 10 km maximum for saved alarms; this
-branch adds no migration or clamping of existing values. Day chips use
+default to 100 m. The domain retains its 10 km maximum for saved alarms;
+`v0.3.0` adds no migration or clamping of existing values. Day chips use
 `Mo Tu We Th Fr Sa Su` and `Sn Sl Rb Km Jm Sb Mg` across two center-aligned equal-width 5-column
-rows (`Mo–Fr` / `Sn–Jm` in row 1; `Sa–Su` / `Sb–Mg` in row 2). Alarm-list Delete actions are
-text-only and aligned to the trailing edge.
+rows (`Mo–Fr` / `Sn–Jm` in row 1; `Sa–Su` / `Sb–Mg` in row 2). Alarm-card Delete actions are
+trailing text-labeled outlined buttons without a trash icon, while Configure Alarm uses
+a full-width centered danger-tinted pill.
 
 Both maps use a blue-dot GPS recenter button with a white ring. The compass appears
 when rotated, restores north when tapped, and fades one second after returning
@@ -88,17 +97,19 @@ providers, not Google Play Services. iOS uses `CLLocationManager` updates. Map-o
 tracking has its own foreground owner and stops when the map is hidden or the
 app backgrounds. Alarm monitoring has independent ownership. Distance-tiered
 adaptive polling is implemented per PRD 7.3 L4 via pure domain `TrackingTier`
-(Far: >5 km, Medium: 2–5 km, Near: <2 km) with hysteresis margin. On Android,
-`FjalarLocationService` adjusts `LocationManager` polling intervals (60s, 20s, 10s)
-and provider accuracy. On iOS, `IosCLLocationAdapter` adjusts Core Location
-`desiredAccuracy` (`kCLLocationAccuracyHundredMeters` to `kCLLocationAccuracyBest`)
-and `distanceFilter` (100 m down to none). On iOS, native circular geofence monitoring is active via outbound `GeofencePort`
-(`IosRegionGeofenceAdapter` wrapping CoreLocation `CLCircularRegion` monitoring),
-enabling power-efficient hardware baseband transition detection (ENTER/EXIT) for
-commuter journeys. On Android, commuter tracking currently relies on `FjalarLocationService`
-distance-tiered polling (`AndroidGeofenceAdapter` implements `GeofencePort` with a testable
-engine interface ready for Google Play Services / OS geofence client binding, with the
-default fallback engine honestly reporting unavailable).
+(`FAR`: > 5 km, `MEDIUM`: 2–5 km, `APPROACH`: < 2 km) with a 100 m hysteresis margin
+(`shared/src/domain/service/LocationTrackingPolicy.kt`). On Android,
+`FjalarLocationService` adjusts `LocationManager` polling intervals (`60s`, `20s`, `10s`)
+and minimum displacement (`minDistanceMeters`: `50 m`, `10 m`, `0 m`) while keeping both
+`GPS_PROVIDER` and `NETWORK_PROVIDER` registered across all tiers. On iOS,
+`IosCLLocationAdapter` adjusts Core Location `desiredAccuracy`
+(`kCLLocationAccuracyHundredMeters` for `FAR` and `MEDIUM`,
+`kCLLocationAccuracyBest` for `APPROACH`) and `distanceFilter` (`50 m`, `10 m`, down to
+`kCLDistanceFilterNone`). Native circular geofencing is declared via `GeofencePort` and
+implemented with Koin bindings in `IosRegionGeofenceAdapter` (`CLCircularRegion`) and
+`AndroidGeofenceAdapter` (whose default engine reports `isAvailable() == false`), but
+production `AlarmService` does not yet invoke `GeofencePort`; active runtime tracking
+currently uses distance-tiered polling on both platforms.
 
 Snooze persists a two-minute deadline without changing the radius. Scheduled-window
 completion suppression and GPS accuracy filtering live in the domain. When a scheduled
@@ -107,22 +118,28 @@ this guard clears only after an accurate fix confirms the commuter is outside th
 radius, keeping the alarm suppressed if initial fixes arrive inside the destination area.
 Android ongoing monitoring notifications feature a context-aware action: "Skip Today"
 for scheduled alarms or "Stop Monitoring" for one-time alarms; Snooze is offered in the
-restricted full-screen ringing `AlarmActivity`. Android uses AlarmManager wakeups and
-a restricted alarm activity. See [Security](security.md) for the keyguard boundary and
-device verification matrix.
+restricted full-screen ringing `AlarmActivity`. Android uses AlarmManager wakeups, a
+restricted `FLAG_SECURE` alarm activity, and the bundled `androidApp/res/raw/alarm.wav`
+as its final fallback ringtone after system default and installed `TYPE_ALARM` tones. See
+[Security](security.md) for the keyguard boundary and device verification matrix.
 
 iOS schedules user-facing local notifications via `UNUserNotificationCenter` and
-supports background schedule synchronization via `BGTaskScheduler` with the permitted
-task identifier `com.muhammadridha.fjalar.refresh` (registered in Info.plist with `fetch`
-background mode). `IosBackgroundSyncAdapter` registers the task at launch and submits
-refresh requests with a minimum 15-minute delay to invoke `SynchronizeAlarmsUseCase` /
-`SyncSchedulesPort.syncSchedules()`. Because `BGAppRefreshTask` execution timing is
-strictly best-effort and subject to iOS power heuristics, the app continues to
-resynchronize schedules when executed again in the foreground. Native circular
-geofence monitoring is supported via `IosRegionGeofenceAdapter` (`CLCircularRegion`),
-operating within iOS CoreLocation power heuristics.
-The ringer uses AVAudioSession/AVAudioPlayer with the bundled `alarm.wav` audio file
-for continuous looping alarm chime, falling back to system alert sound if unavailable.
+declares `BGTaskScheduler` support with the permitted task identifier
+`com.muhammadridha.fjalar.refresh` (`fetch` background mode in `iosApp/src/Info.plist`).
+`IosBackgroundSyncAdapter` registers the task handler at launch
+(`shared/src@ios/di/IosModule.kt`). Once fired, `handleTask()` calls
+`SyncSchedulesPort.syncSchedules()` and attempts to reschedule with a 15-minute minimum
+delay only after `syncSchedules()` succeeds; if `syncSchedules()` fails, the task
+completes without rescheduling, and if submission fails, the error is caught without
+retry, so a fired task does not guarantee another request. No production entrypoint
+currently calls `scheduleBackgroundSync()` or `SynchronizeAlarmsUseCase` to submit an
+initial `BGAppRefreshTaskRequest`. Because
+`BGAppRefreshTask` execution timing is strictly best-effort and subject to iOS power
+heuristics, the app continues to resynchronize schedules when executed again in the
+foreground. `IosRegionGeofenceAdapter` (`CLCircularRegion`) is registered in Koin and
+unit-tested, without a production caller in `AlarmService` yet.
+The ringer uses `AVAudioSession`/`AVAudioPlayer` with the bundled `alarm.wav` audio file
+for a continuous looping alarm chime, falling back to system alert sound if unavailable.
 The adapter's name does not establish Apple Critical Alerts entitlement or delivery.
 Do not promise reliable automatic iOS window activation while suspended.
 
@@ -145,28 +162,39 @@ can apply to the next scheduled window, including one starting the next day.
 
 `glassSurface` draws translucent tinted backgrounds and gradient borders. It does
 not implement Gaussian backdrop blur or Haze. Reduced-transparency colors and
-1.5 dp high-contrast borders dynamically react to live OS accessibility settings
-via `AccessibilityPort` and `isReduceTransparencyActive()`: observing Android 14+ / API 34+
-`Settings.Secure.accessibility_reduce_transparency` and API 36+
-`AccessibilityManager.isHighContrastTextEnabled` on Android, and
-`UIAccessibility.isReduceTransparencyEnabled` and
-`UIAccessibilityReduceTransparencyStatusDidChangeNotification` on iOS.
+1.5 dp high-contrast borders react to live OS accessibility settings via
+`AccessibilityPort` and `isReduceTransparencyActive()`: observing `Settings.Secure`
+string key `"accessibility_reduce_transparency"` (`AndroidAccessibilityAdapter.ACCESSIBILITY_REDUCE_TRANSPARENCY`)
+and API 36+ `AccessibilityManager.isHighContrastTextEnabled` on Android, and
+`UIAccessibilityIsReduceTransparencyEnabled()` plus
+`UIAccessibilityReduceTransparencyStatusDidChangeNotification` on iOS. Note that
+`isReduceTransparencyActive()` currently instantiates the platform adapter inside
+Compose `remember` rather than resolving Koin's `AccessibilityPort` singleton.
 Primary-text token contrast tests do not prove contrast over every live map.
 
-Screen-reader semantics for TalkBack (Android) and VoiceOver (iOS) are implemented across the primary screens and validated via Compose unit test assertions. Physical device screen-reader speech execution remains to be verified:
+Screen-reader semantics for TalkBack (Android) and VoiceOver (iOS) are wired
+across the primary screens, with semantic helper functions validated by pure Kotlin
+unit tests (`AlarmCardSemanticsTest.kt`, `ConfigureAlarmSemanticsTest.kt`,
+`MapPickerSemanticsTest.kt`, `MapNavigationSemanticsTest.kt`, rather than Compose UI
+semantics-tree assertions). Physical device screen-reader speech execution remains to
+be verified:
 - **Alarm Card (`AlarmCard`)**: Merges descendants (`mergeDescendants = true`) into a single natural speech description including alarm label, address, schedule/one-time trip, trigger radius, sound/vibration mode, and active/completed/disabled status. Action buttons (Delete, Skip Today) provide distinct, labeled announcements (`ACCESSIBLE_DELETE_ALARM`).
-- **HUD & Navigation Controls (`FloatingHudBar`, `MapNavigationControls`, `ArmedStatusPill`)**: `ArmedStatusPill` announces commute monitoring state (`ACCESSIBLE_ARMED_STATE`); `MapCompassControl` calculates dynamic speech descriptions with normalized integer bearings and cardinal/intercardinal direction names (`ACCESSIBLE_COMPASS_BEARING`); `MapRecenterControl` and HUD Search Pill expose explicit button roles and content descriptions without raw emoji reading.
-- **Alarm Editor (`ConfigureAlarmScreen`)**: Radius slider exposes natural content description (`ACCESSIBLE_RADIUS_SLIDER`) and tabular state description (`stateDescription`); radius presets use `Role.RadioButton`; day-of-week chips use `Role.Checkbox` with full day names and localized selection state descriptions (`ACCESSIBLE_DAY_SELECTED` / `ACCESSIBLE_DAY_NOT_SELECTED`).
-- **Map Picker (`MapPickerScreen`)**: Center crosshair announces placement instructions; confirmation button dynamically announces the targeted place name or coordinate fallback (`ACCESSIBLE_PICKER_CONFIRM`) rather than symbol glyphs.
-All interactive controls enforce touch targets >= 48 dp.
+- **HUD & Navigation Controls (`FloatingHudBar`, `MapNavigationControls`, `ArmedStatusPill`)**: `ArmedStatusPill` announces commute monitoring state (`ACCESSIBLE_ARMED_STATE`); `MapCompassControl` calculates dynamic speech descriptions with normalized integer bearings and cardinal/intercardinal direction names (`ACCESSIBLE_COMPASS_BEARING`); `MapRecenterControl` and the HUD Search Pill expose explicit `Role.Button` semantics and content descriptions (the HUD Search Pill `"🔍"` uses `.semantics` rather than `clearAndSetSemantics`, leaving the glyph text node in the merged tree).
+- **Alarm Editor (`ConfigureAlarmScreen`)**: Radius slider exposes natural content description (`ACCESSIBLE_RADIUS_SLIDER`) and tabular state description (`stateDescription`); radius presets use `Role.RadioButton`; day-of-week chips use `Role.Checkbox` with localized day abbreviations (`DAY_NAME_*`: `Mon..Sun` in EN, `Sn..Mg` in ID) and selection state descriptions (`ACCESSIBLE_DAY_SELECTED` / `ACCESSIBLE_DAY_NOT_SELECTED`).
+- **Map Picker (`MapPickerScreen`)**: Center crosshair clears child semantics (`clearAndSetSemantics`) to announce placement instructions; confirmation button exposes explicit `contentDescription` (`ACCESSIBLE_PICKER_CONFIRM`) via `.semantics` while retaining child `"✓ ..."` text.
+Primary HUD, navigation, card, and editor interactive controls enforce `>= 48 dp`
+touch targets, while the Snooze button in `RingingAlertOverlay.kt` uses padding
+(`horizontal = 20.dp, vertical = 10.dp`) without an explicit `heightIn(min = 48.dp)`.
 
 ## Commute quick-picks and recent destinations
 
 The map picker and place search support offline-first recent destination quick-picks
 via `RecentDestinationsPort` backed by `PersistentRecentDestinationsAdapter` in
-platform key-value storage. Confirmed destinations in `MapPickerViewModel` and
-`FjalarViewModel` are stored in an LRU list capped at 5 entries, deduplicated by ID,
-case-insensitive trimmed name, and coordinate proximity within 50 meters.
+platform key-value storage. Confirmed destinations recorded by `FjalarViewModel` (which
+drives `MapPickerScreen` in `FjalarApp.kt`) are stored in an LRU list capped at 5 entries,
+deduplicated by ID, case-insensitive trimmed name, and coordinate proximity within 50 meters.
+`MapPickerViewModel` also implements `RecentDestinationsPort` recording and unit tests,
+though `FjalarApp.kt` does not currently resolve it in production UI.
 In `SearchPlacesSheet`, when the query is blank and recent destinations exist,
 horizontal quick-pick chips render station/place icons, destination names, and
 accessible content descriptions. Tapping a quick-pick centers the map picker,
@@ -180,22 +208,26 @@ classes stay constructor-injected. Persistence is JSON in platform key-value
 storage. See [Dependency injection](dependency-injection.md).
 
 For published releases with valid version tags, the `android` job builds a
-signed APK and the `verify` job runs multiplatform verification. After both
-jobs pass, the `publish` job generates the SHA-256 checksum and uploads both
-assets. iOS IPA publication is disabled. The Xcode project bundle identifier
-is aligned to canonical `com.muhammadridha.fjalar` across configurations.
+signed APK and the `verify` job runs multiplatform verification (`./kotlin test`,
+`./kotlin check`) plus unsigned physical-device iOS packaging
+(`scripts/build_release_ios.sh`). After both jobs pass, the `publish` job verifies
+and attaches the signed Android APK (`fjalar-<tag>-android.apk`), `SHA256SUMS.txt`,
+unsigned iOS IPA (`fjalar-<tag>-ios-unsigned.ipa`), and `SHA256SUMS-ios.txt` via
+`scripts/upload_release_assets.py`. Signed App Store / TestFlight distribution is not
+yet wired. The Xcode project bundle identifier is aligned to canonical
+`com.muhammadridha.fjalar` across configurations.
 See [Releasing](releasing.md) for signing secrets and workflow details.
 
 ## Verification boundaries
 
-The Task 8 integration pass ran `./kotlin test`, `./kotlin check`, Android debug
-build, and iOS simulator Arm64 debug build on this branch. The first test run
+The PR #22 Task 8 integration pass ran `./kotlin test`, `./kotlin check`, Android debug
+build, and iOS simulator Arm64 debug build. The first test run
 exposed two outdated Indonesian alarm-list string expectations; those test
 assertions were corrected and the full test rerun passed. String catalog parity
 and whitespace checks also passed. The task report retains exact commands, logs,
 and exit codes.
 
-| Device and view | Recorded observations on PR #22 builds |
+| Device and view | Recorded observations (PR #22 and PR #33 builds) |
 | --- | --- |
 | Android API 37, 1080 × 2400 | Existing destination pin and radius ring stayed visible after map tap, long press, and nearby pan. Main-map search moved the camera with no search marker. New editor began with no destination; picker search cancellation preserved that absence. Picker pan enabled confirmation; an earlier map-tap attempt was inconclusive because its coordinate and settlement state were not recorded. Android system Back saved a valid draft, discarded an invalid draft with a visible reason, and first hid the open keyboard. A destination-selected blank-name draft and an existing edit with equal start/end times discarded with visible reasons; the existing record retained its original schedule. The slider reached 50 m and 3 km on screen. |
 | Android API 37, 320 dp portrait at 1.3 font scale | English Light editor showed destination action, radius presets, and mode text inside the screenshot. The form remained scrollable. |
