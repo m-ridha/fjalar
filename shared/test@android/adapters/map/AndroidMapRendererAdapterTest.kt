@@ -2,8 +2,10 @@ package com.muhammadridha.fjalar.adapters.map
 
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.GEOFENCE_FILL_LAYER_ID
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.GEOFENCE_STROKE_LAYER_ID
-import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.LANDMARK_LAYER_ID
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.PIN_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.POI_LOCAL_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.POI_MAJOR_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.POI_NEIGHBORHOOD_LAYER_ID
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.StyleLayerDescriptor
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.USER_ACCURACY_LAYER_ID
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.USER_DOT_LAYER_ID
@@ -25,11 +27,17 @@ import kotlin.test.assertTrue
 
 class AndroidMapRendererAdapterTest {
     @Test
-    fun landmarkFilterRequiresNamedSupportedKindsAndSourceZoom() {
-        val expected = Expression.raw(
-            """["all",["has","name"],["in",["get","kind"],["literal",["hospital","school","university","college","station","railway_station","bus_station","government"]]],["<=",["coalesce",["get","min_zoom"],0],["zoom"]]]"""
-        )
-        assertEquals(expected.toString(), Expression.raw(AndroidMapRendererAdapter.LANDMARK_FILTER).toString())
+    fun zoomTierPoiFiltersRequireNamedKindsAndParseCleanly() {
+        val majorExpr = Expression.raw(AndroidMapRendererAdapter.POI_MAJOR_FILTER)
+        val neighborhoodExpr = Expression.raw(AndroidMapRendererAdapter.POI_NEIGHBORHOOD_FILTER)
+        val localExpr = Expression.raw(AndroidMapRendererAdapter.POI_LOCAL_FILTER)
+
+        assertTrue(majorExpr.toString().contains("hospital"))
+        assertTrue(majorExpr.toString().contains("railway_station"))
+        assertTrue(neighborhoodExpr.toString().contains("place_of_worship"))
+        assertTrue(neighborhoodExpr.toString().contains("atm"))
+        assertTrue(localExpr.toString().contains("pet"))
+        assertTrue(localExpr.toString().contains("convenience"))
     }
 
     @Test
@@ -215,8 +223,11 @@ class AndroidMapRendererAdapterTest {
             StyleLayerDescriptor("boundary_country_inner", isSymbol = false),
             StyleLayerDescriptor("watername_ocean", isSymbol = true),
             StyleLayerDescriptor("place_label", isSymbol = true),
+            StyleLayerDescriptor("roadname_minor", isSymbol = true),
             StyleLayerDescriptor("housenumber", isSymbol = true),
-            StyleLayerDescriptor(LANDMARK_LAYER_ID, isSymbol = true),
+            StyleLayerDescriptor(POI_LOCAL_LAYER_ID, isSymbol = true),
+            StyleLayerDescriptor(POI_NEIGHBORHOOD_LAYER_ID, isSymbol = true),
+            StyleLayerDescriptor(POI_MAJOR_LAYER_ID, isSymbol = true),
             StyleLayerDescriptor(USER_ACCURACY_LAYER_ID, isSymbol = false),
             StyleLayerDescriptor(USER_DOT_LAYER_ID, isSymbol = false),
             StyleLayerDescriptor(PIN_LAYER_ID, isSymbol = true),
@@ -234,6 +245,7 @@ class AndroidMapRendererAdapterTest {
             StyleLayerDescriptor("boundary_country_inner", isSymbol = false),
             StyleLayerDescriptor("waterway_label", isSymbol = true),
             StyleLayerDescriptor("place_label", isSymbol = true),
+            StyleLayerDescriptor(POI_MAJOR_LAYER_ID, isSymbol = true),
             StyleLayerDescriptor(PIN_LAYER_ID, isSymbol = true),
         )
 
@@ -258,7 +270,9 @@ class AndroidMapRendererAdapterTest {
                     StyleLayerDescriptor(USER_ACCURACY_LAYER_ID, isSymbol = false),
                     StyleLayerDescriptor(USER_DOT_LAYER_ID, isSymbol = false),
                     StyleLayerDescriptor(PIN_LAYER_ID, isSymbol = true),
-                    StyleLayerDescriptor(LANDMARK_LAYER_ID, isSymbol = true),
+                    StyleLayerDescriptor(POI_LOCAL_LAYER_ID, isSymbol = true),
+                    StyleLayerDescriptor(POI_NEIGHBORHOOD_LAYER_ID, isSymbol = true),
+                    StyleLayerDescriptor(POI_MAJOR_LAYER_ID, isSymbol = true),
                 ),
             ),
         )
@@ -269,7 +283,7 @@ class AndroidMapRendererAdapterTest {
                 baseWithoutTrailingSymbols + listOf(
                     StyleLayerDescriptor(USER_DOT_LAYER_ID, isSymbol = false),
                     StyleLayerDescriptor(PIN_LAYER_ID, isSymbol = true),
-                    StyleLayerDescriptor(LANDMARK_LAYER_ID, isSymbol = true),
+                    StyleLayerDescriptor(POI_MAJOR_LAYER_ID, isSymbol = true),
                 ),
             ),
         )
@@ -279,16 +293,37 @@ class AndroidMapRendererAdapterTest {
             resolveGeofenceAnchorLayerId(
                 baseWithoutTrailingSymbols + listOf(
                     StyleLayerDescriptor(PIN_LAYER_ID, isSymbol = true),
-                    StyleLayerDescriptor(LANDMARK_LAYER_ID, isSymbol = true),
+                    StyleLayerDescriptor(POI_MAJOR_LAYER_ID, isSymbol = true),
                 ),
             ),
         )
 
         assertEquals(
-            LANDMARK_LAYER_ID,
+            POI_LOCAL_LAYER_ID,
             resolveGeofenceAnchorLayerId(
                 baseWithoutTrailingSymbols + listOf(
-                    StyleLayerDescriptor(LANDMARK_LAYER_ID, isSymbol = true),
+                    StyleLayerDescriptor(POI_LOCAL_LAYER_ID, isSymbol = true),
+                    StyleLayerDescriptor(POI_NEIGHBORHOOD_LAYER_ID, isSymbol = true),
+                    StyleLayerDescriptor(POI_MAJOR_LAYER_ID, isSymbol = true),
+                ),
+            ),
+        )
+
+        assertEquals(
+            POI_NEIGHBORHOOD_LAYER_ID,
+            resolveGeofenceAnchorLayerId(
+                baseWithoutTrailingSymbols + listOf(
+                    StyleLayerDescriptor(POI_NEIGHBORHOOD_LAYER_ID, isSymbol = true),
+                    StyleLayerDescriptor(POI_MAJOR_LAYER_ID, isSymbol = true),
+                ),
+            ),
+        )
+
+        assertEquals(
+            POI_MAJOR_LAYER_ID,
+            resolveGeofenceAnchorLayerId(
+                baseWithoutTrailingSymbols + listOf(
+                    StyleLayerDescriptor(POI_MAJOR_LAYER_ID, isSymbol = true),
                 ),
             ),
         )
@@ -300,9 +335,10 @@ class AndroidMapRendererAdapterTest {
     fun resolveGeofenceAnchorLayerId_selectsFirstBaseSymbolWhenStyleContainsOnlySymbols() {
         val symbolOnlyWithManagedOverlays = listOf(
             StyleLayerDescriptor(PIN_LAYER_ID, isSymbol = true),
+            StyleLayerDescriptor(POI_MAJOR_LAYER_ID, isSymbol = true),
             StyleLayerDescriptor("place_country", isSymbol = true),
             StyleLayerDescriptor("place_city", isSymbol = true),
-            StyleLayerDescriptor(LANDMARK_LAYER_ID, isSymbol = true),
+            StyleLayerDescriptor(POI_LOCAL_LAYER_ID, isSymbol = true),
         )
 
         assertEquals("place_country", resolveGeofenceAnchorLayerId(symbolOnlyWithManagedOverlays))
