@@ -82,6 +82,28 @@ staging_dir=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/fjalar-ipa.XXXXXX")
 trap 'rm -rf "$staging_dir"' EXIT
 mkdir -p "$staging_dir/Payload"
 cp -R "$app_path" "$staging_dir/Payload/Fjalar.app"
+
+# Stamp release version and build number into the copied embedded Info.plist files
+# without mutating the intermediate build/tasks output.
+python3 - "$ios_version" "$ios_build_number" \
+    "$archive_dir/Products/Applications/Fjalar.app/Info.plist" \
+    "$staging_dir/Payload/Fjalar.app/Info.plist" <<'PY'
+from pathlib import Path
+import plistlib
+import sys
+
+ios_version, ios_build_number, *plist_paths = sys.argv[1:]
+for raw_path in plist_paths:
+    plist_path = Path(raw_path)
+    raw = plist_path.read_bytes()
+    fmt = plistlib.FMT_BINARY if raw.startswith(b"bplist") else plistlib.FMT_XML
+    data = plistlib.loads(raw)
+    data["CFBundleShortVersionString"] = ios_version
+    data["CFBundleVersion"] = ios_build_number
+    with plist_path.open("wb") as handle:
+        plistlib.dump(data, handle, fmt=fmt)
+PY
+
 (cd "$staging_dir" && zip -qr -9 "$OLDPWD/$ipa_path" Payload)
 
 # 3. Compute SHA256 checksums

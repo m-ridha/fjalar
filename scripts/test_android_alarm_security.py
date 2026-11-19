@@ -76,6 +76,15 @@ class AndroidAlarmSecurityTests(unittest.TestCase):
         for flag in ("setShowWhenLocked", "setTurnScreenOn", "FLAG_SHOW_WHEN_LOCKED", "FLAG_TURN_SCREEN_ON"):
             self.assertNotIn(flag, main_activity)
 
+    def test_alarm_activity_guards_back_press_while_ringing(self):
+        """Verify BackHandler stays enabled while AlarmActivity is loading, ringing, or completing an action."""
+        activity = (ROOT / "androidApp/src/AlarmActivity.kt").read_text()
+        self.assertNotIn("BackHandler(enabled = state.isOperationPending)", activity)
+        self.assertRegex(
+            activity,
+            r"BackHandler\s*\(\s*enabled\s*=\s*state\.isLoading\s*\|\|\s*state\.alarm\s*!=\s*null\s*\|\|\s*state\.isOperationPending\s*\)",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

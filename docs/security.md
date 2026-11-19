@@ -107,16 +107,12 @@ runner or physical locked device.
 
 ## Recorded verification
 
-On the API 37 emulator (PR #18), the debug application started through the
-shipping Android Koin module, and an external attempt to launch `AlarmActivity`
-was rejected with Android's non-exported-component `SecurityException`. With a
-temporary secure PIN and lockdown enabled, launching `MainActivity` left the
-keyguard showing, input-restricted, and unoccluded (`deviceLocked=1`,
-`showing=true`, `inputRestricted=true`, `occluded=false`). The temporary PIN was
-removed afterward. In PR #40 (`v0.3.0`), `scripts/test_android_alarm_security.py`
-added source-text and manifest assertions for `FLAG_SECURE`, isolated task
-attributes, and `finishAndRemoveTask()`, while `AlarmStateTransitionTest.kt`
-covers pure domain ringing, snooze, and dismiss transitions without any lock
-state. Neither test verifies runtime locked-device behavior; locked-device
-ringing/dismiss/snooze sequences and older API checks remain unverified in the
-manual matrix above.
+- **Android API 37 Emulator (`Medium_Phone_API_37.0`, PR #18):** Debug application started through the shipping Android Koin module, and an external attempt to launch `AlarmActivity` was rejected with Android's non-exported-component `SecurityException`. With a temporary secure PIN and lockdown enabled, launching `MainActivity` left the keyguard showing, input-restricted, and unoccluded (`deviceLocked=1`, `showing=true`, `inputRestricted=true`, `occluded=false`). The temporary PIN was removed afterward.
+- **Android API 37 Emulator (`Medium_Phone_API_37.0`, `main` `5c87d42` debug APK):**
+  - External `adb shell am start -n com.muhammadridha.fjalar/.AlarmActivity` rejected with `SecurityException` (`not exported`).
+  - With temporary PIN `1234` locked (`showing=true, inputRestricted=true`) and `USE_FULL_SCREEN_INTENT` granted via `appops`, simulated GPS entering the 500 m radius launched `AlarmActivity` in isolated task `t40` (`occluded=true`) with `FLAG_SECURE` (`SECURE`) and a `VISIBILITY_PRIVATE` alarm notification + generic `publicVersion`.
+  - `Recents` kept keyguard locked/occluded; rotation (`ROTATION_90` → `ROTATION_0`) kept `AlarmActivity` over keyguard.
+  - `Snooze (+2 min)` scheduled exact `RTC_WAKEUP` (`window=0`) in `AlarmManager`; re-locking with PIN `1234` and waiting 2 minutes automatically re-launched `AlarmActivity` (`t42`, `FLAG_SECURE`) over the locked keyguard; single-tap on the Slide-to-Stop thumb did not dismiss. Temporary PIN was cleared afterward.
+  - Pressing system `Back` while ringing exposed an accidental exit bug (`BackHandler` was previously gated only on `state.isOperationPending`), which is now guarded in `AlarmActivity.kt` (`state.isLoading || state.alarm != null || state.isOperationPending`) and asserted in `scripts/test_android_alarm_security.py`.
+- **Contract-level regression checks (`scripts/test_android_alarm_security.py`):** Asserts manifest keyguard/task isolation attributes, `FLAG_SECURE`, non-exported status, `finishAndRemoveTask()` lifecycle guards, and `BackHandler` guarding while ringing; `AlarmStateTransitionTest.kt` covers pure domain ringing, snooze, and dismiss transitions without lock state.
+- **Still unverified:** Completing the locked-screen Slide-to-Stop swipe gesture on Android, physical TalkBack speech audio, foldable postures, map-bearing rotation, and older Android APIs (API 26–33).
