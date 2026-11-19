@@ -1887,4 +1887,78 @@ class FjalarViewModelTest {
         }
     }
 
+    @Test
+    fun hasUnsavedEditorChangesAndDiscardAndExplicitSaveBehaviors() = runTest {
+        val existing = manggaraiAlarm(
+            schedule = com.muhammadridha.fjalar.domain.model.AlarmSchedule.ONE_TIME,
+        ).copy(id = "existing-1")
+        val observePort = FakeObserveAlarmsPort(listOf(existing))
+        var shouldFailSave = false
+        val savedConfigs = mutableListOf<LocationAlarm>()
+        val savePort = object : SaveAlarmPort {
+            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> = Result.success(Unit)
+            override suspend fun saveAlarmConfiguration(
+                alarm: LocationAlarm,
+                enabled: Boolean?,
+                requireExisting: Boolean,
+            ): Result<Unit> {
+                if (shouldFailSave) return Result.failure(IllegalStateException("Disk full"))
+                savedConfigs += alarm
+                return Result.success(Unit)
+            }
+        }
+        val (viewModel, _, vmScope) = createTestViewModel(
+            observePort = observePort,
+            savePort = savePort,
+        )
+        try {
+            // Untouched new alarm is clean
+            viewModel.onStartConfiguringAlarm(null)
+            assertFalse(viewModel.hasUnsavedEditorChanges())
+
+            // Modifying new alarm marks it dirty; invalid Save keeps editor open with notice
+            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(label = "No pin yet"))
+            assertTrue(viewModel.hasUnsavedEditorChanges())
+            var exits = 0
+            viewModel.onSaveAlarmEditor { exits++ }
+            assertEquals(0, exits)
+            assertEquals(AlarmEditorNotice.NO_DESTINATION, viewModel.uiState.value.pendingEditorNotice)
+            assertTrue(viewModel.hasUnsavedEditorChanges())
+
+            // Explicit discard clears draft without saving
+            viewModel.onDiscardAlarmEditor { exits++ }
+            assertEquals(1, exits)
+            assertNull(viewModel.uiState.value.activeDraft)
+            assertFalse(viewModel.hasUnsavedEditorChanges())
+            assertTrue(savedConfigs.isEmpty())
+
+            // Untouched existing alarm is clean and explicit Save exits without redundant write
+            viewModel.onStartConfiguringAlarm("existing-1")
+            assertFalse(viewModel.hasUnsavedEditorChanges())
+            viewModel.onSaveAlarmEditor { exits++ }
+            assertEquals(2, exits)
+            assertTrue(savedConfigs.isEmpty())
+
+            // Failed save keeps editor open and hasUnsavedEditorChanges() remains true even if reverted
+            viewModel.onStartConfiguringAlarm("existing-1")
+            val originalDraft = viewModel.uiState.value.activeDraft!!
+            viewModel.onUpdateDraft(originalDraft.copy(label = "Updated"))
+            assertTrue(viewModel.hasUnsavedEditorChanges())
+            shouldFailSave = true
+            viewModel.onSaveAlarmEditor { exits++ }
+            assertEquals(2, exits)
+            assertTrue(viewModel.uiState.value.hasOperationFailure)
+            assertTrue(viewModel.hasUnsavedEditorChanges())
+
+            // Retrying Save after failure succeeds and exits
+            shouldFailSave = false
+            viewModel.onSaveAlarmEditor { exits++ }
+            assertEquals(3, exits)
+            assertEquals(listOf("Updated"), savedConfigs.map { it.label })
+            assertNull(viewModel.uiState.value.activeDraft)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
 }

@@ -25,7 +25,10 @@
     <string name="editor_title">Configure Alarm</string>
     <string name="editor_cancel">Cancel</string>
     <string name="editor_save">Save</string>
-    <string name="editor_back_saves_changes">Changes are saved when you go back if all fields are valid.</string>
+    <string name="editor_discard_title">Discard changes?</string>
+    <string name="editor_discard_message">Your unsaved changes will be lost.</string>
+    <string name="editor_discard_keep_editing">Keep editing</string>
+    <string name="editor_discard_confirm">Discard</string>
     <string name="editor_not_saved_no_destination">Choose a destination. Changes were not saved.</string>
     <string name="editor_not_saved_name_required">Enter an alarm name. Changes were not saved.</string>
     <string name="editor_not_saved_time_invalid">Enter valid start and end times. Changes were not saved.</string>

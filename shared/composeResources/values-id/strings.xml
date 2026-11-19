@@ -25,7 +25,10 @@
     <string name="editor_title">Atur alarm</string>
     <string name="editor_cancel">Batal</string>
     <string name="editor_save">Simpan</string>
-    <string name="editor_back_saves_changes">Perubahan disimpan saat kembali jika semua isian valid.</string>
+    <string name="editor_discard_title">Buang perubahan?</string>
+    <string name="editor_discard_message">Perubahan yang belum disimpan akan hilang.</string>
+    <string name="editor_discard_keep_editing">Lanjut mengedit</string>
+    <string name="editor_discard_confirm">Buang</string>
     <string name="editor_not_saved_no_destination">Pilih tujuan. Perubahan tidak disimpan.</string>
     <string name="editor_not_saved_name_required">Isi nama alarm. Perubahan tidak disimpan.</string>
     <string name="editor_not_saved_time_invalid">Masukkan waktu mulai dan selesai yang valid. Perubahan tidak disimpan.</string>
