@@ -51,6 +51,16 @@ jobs:
         uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           packages: 'platform-tools platforms;android-37.0 build-tools;37.0.0'
+      - name: Cache Kotlin Toolchain, Konan & Dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.konan
+            ~/.cache/JetBrains/Kotlin
+            ~/.m2/repository
+          key: ${{ runner.os }}-kotlin-${{ hashFiles('**/module.yaml', 'libs.versions.toml', 'kotlin') }}
+          restore-keys: |
+            ${{ runner.os }}-kotlin-
       - name: Build, align, sign and verify release APK
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -85,6 +95,16 @@ jobs:
         run: |
           xcodebuild -version
           xcrun --sdk iphonesimulator --show-sdk-version
+      - name: Cache Kotlin Toolchain, Konan & Dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.konan
+            ~/Library/Caches/JetBrains/Kotlin/cli
+            ~/.m2/repository
+          key: ${{ runner.os }}-xcode26.4-kotlin-${{ hashFiles('**/module.yaml', 'libs.versions.toml', 'kotlin') }}
+          restore-keys: |
+            ${{ runner.os }}-xcode26.4-kotlin-
       - name: Test release source
         run: ./kotlin test
       - name: Check multiplatform source
