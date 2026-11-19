@@ -334,6 +334,7 @@ class FjalarViewModel(
 
     fun onBrowsePlaceSelected(place: SearchResultPlace) {
         if (_uiState.value.searchContext != PlaceSearchContext.BROWSE) return
+        pendingRecenter = false
         onDismissSearch()
         _uiState.update { current ->
             current.copy(
@@ -509,6 +510,7 @@ class FjalarViewModel(
     }
 
     fun onOpenEditAlarm(alarm: LocationAlarm) {
+        pendingRecenter = false
         _uiState.update { current ->
             current.copy(
                 selectedAlarmForEdit = alarm,
@@ -844,6 +846,7 @@ class FjalarViewModel(
      * Deliberately leaves [FjalarUiState.viewportRequestId] alone: this is a report, not a camera command.
      */
     fun onMapViewportBrowsed(center: GeoCoordinates, zoom: Double) {
+        pendingRecenter = false
         _uiState.update { it.copy(mapViewportCenter = center, mapViewportZoom = zoom) }
     }
 

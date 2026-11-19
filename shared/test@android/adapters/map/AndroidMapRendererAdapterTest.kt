@@ -6,10 +6,16 @@ import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.POI_LOCAL_LAYER_ID
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.POI_MAJOR_LAYER_ID
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.POI_NEIGHBORHOOD_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.ROADNAME_MAJOR_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.ROADNAME_MINOR_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.ROADNAME_PRI_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.ROADNAME_SEC_LAYER_ID
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.StyleLayerDescriptor
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.USER_ACCURACY_LAYER_ID
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.USER_DOT_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.resolveCameraZoom
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.resolveGeofenceAnchorLayerId
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.resolveNeighborhoodPoiAnchorLayerId
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.toGeoCoordinates
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.toLatLng
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
@@ -343,5 +349,59 @@ class AndroidMapRendererAdapterTest {
 
         assertEquals("place_country", resolveGeofenceAnchorLayerId(symbolOnlyWithManagedOverlays))
         assertNull(resolveGeofenceAnchorLayerId(emptyList()))
+    }
+
+    @Test
+    fun resolveCameraZoom_biasesExactFifteenWithoutLeakingToSixteen() {
+        assertEquals(15.05, resolveCameraZoom(15.0), 1e-9)
+        assertEquals(2.0, resolveCameraZoom(2.0), 1e-9)
+        assertEquals(13.0, resolveCameraZoom(13.0), 1e-9)
+        assertEquals(14.5, resolveCameraZoom(14.5), 1e-9)
+        assertEquals(15.5, resolveCameraZoom(15.5), 1e-9)
+        assertEquals(16.0, resolveCameraZoom(16.0), 1e-9)
+        assertEquals(17.2, resolveCameraZoom(17.2), 1e-9)
+    }
+
+    @Test
+    fun resolveNeighborhoodPoiAnchorLayerId_prefersSecondaryRoadAndFallsBackCleanly() {
+        val cartoStack = listOf(
+            "watername_ocean",
+            "place_suburbs",
+            ROADNAME_MINOR_LAYER_ID,
+            ROADNAME_SEC_LAYER_ID,
+            ROADNAME_PRI_LAYER_ID,
+            ROADNAME_MAJOR_LAYER_ID,
+            "housenumber",
+            PIN_LAYER_ID,
+        )
+        assertEquals(ROADNAME_SEC_LAYER_ID, resolveNeighborhoodPoiAnchorLayerId(cartoStack))
+
+        assertEquals(
+            ROADNAME_PRI_LAYER_ID,
+            resolveNeighborhoodPoiAnchorLayerId(
+                listOf(ROADNAME_MINOR_LAYER_ID, ROADNAME_PRI_LAYER_ID, ROADNAME_MAJOR_LAYER_ID, PIN_LAYER_ID),
+            ),
+        )
+        assertEquals(
+            ROADNAME_MAJOR_LAYER_ID,
+            resolveNeighborhoodPoiAnchorLayerId(
+                listOf(ROADNAME_MINOR_LAYER_ID, ROADNAME_MAJOR_LAYER_ID, USER_ACCURACY_LAYER_ID, PIN_LAYER_ID),
+            ),
+        )
+        assertEquals(
+            USER_ACCURACY_LAYER_ID,
+            resolveNeighborhoodPoiAnchorLayerId(
+                listOf(ROADNAME_MINOR_LAYER_ID, USER_ACCURACY_LAYER_ID, USER_DOT_LAYER_ID, PIN_LAYER_ID),
+            ),
+        )
+        assertEquals(
+            USER_DOT_LAYER_ID,
+            resolveNeighborhoodPoiAnchorLayerId(listOf(USER_DOT_LAYER_ID, PIN_LAYER_ID)),
+        )
+        assertEquals(
+            PIN_LAYER_ID,
+            resolveNeighborhoodPoiAnchorLayerId(listOf(ROADNAME_MINOR_LAYER_ID, PIN_LAYER_ID)),
+        )
+        assertNull(resolveNeighborhoodPoiAnchorLayerId(listOf("background", ROADNAME_MINOR_LAYER_ID)))
     }
 }
