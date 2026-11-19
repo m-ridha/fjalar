@@ -48,12 +48,15 @@ receives a deferred `syncSchedulesPortProvider` (`{ get() }`), and both
 The service and its mutation mutex must remain shared by UI, receivers, and
 background execution.
 
-**Current Koin bypass:** Although `AccessibilityPort` is registered as a
-singleton in both platform modules, `isReduceTransparencyActive()`
-(`shared/src@android/ui/ReduceTransparency.android.kt` and
-`shared/src@ios/ui/ReduceTransparency.ios.kt`) constructs `AndroidAccessibilityAdapter`
-or `IosAccessibilityAdapter` directly inside Compose `remember { ... }`, so
-Koin's `AccessibilityPort` singleton currently has zero production Koin consumers.
+**Accessibility singleton resolution:** `isReduceTransparencyActive()`
+(`shared/src/ui/accessibility/ReduceTransparency.kt`,
+`shared/src@android/ui/ReduceTransparency.android.kt`, and
+`shared/src@ios/ui/ReduceTransparency.ios.kt`) resolves the active Koin
+`AccessibilityPort` singleton first
+(`KoinPlatformTools.defaultContext().getOrNull()?.getOrNull<AccessibilityPort>()`) and
+falls back to constructing `AndroidAccessibilityAdapter` or `IosAccessibilityAdapter`
+inside Compose `remember { ... }` only when Koin is uninitialized or omits an
+`AccessibilityPort` binding (such as isolated Compose previews and tests).
 
 ## Initialization and shutdown
 

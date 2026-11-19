@@ -1,5 +1,13 @@
 package com.muhammadridha.fjalar.adapters.map
 
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.GEOFENCE_FILL_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.GEOFENCE_STROKE_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.LANDMARK_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.PIN_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.StyleLayerDescriptor
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.USER_ACCURACY_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.USER_DOT_LAYER_ID
+import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.resolveGeofenceAnchorLayerId
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.toGeoCoordinates
 import com.muhammadridha.fjalar.adapters.map.AndroidMapRendererAdapter.Companion.toLatLng
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
@@ -190,5 +198,114 @@ class AndroidMapRendererAdapterTest {
 
         adapter.detachMap()
         assertNull(adapter.activeMap)
+    }
+
+    @Test
+    fun resolveGeofenceAnchorLayerId_skipsEarlyPositronSymbolsBeforeRoadsAndBuildings() {
+        val layers = listOf(
+            StyleLayerDescriptor("background", isSymbol = false),
+            StyleLayerDescriptor("water", isSymbol = false),
+            StyleLayerDescriptor("waterway_label", isSymbol = true),
+            StyleLayerDescriptor("tunnel_motorway", isSymbol = false),
+            StyleLayerDescriptor("road_primary", isSymbol = false),
+            StyleLayerDescriptor("rail", isSymbol = false),
+            StyleLayerDescriptor("bridge_primary", isSymbol = false),
+            StyleLayerDescriptor("building", isSymbol = false),
+            StyleLayerDescriptor("building-top", isSymbol = false),
+            StyleLayerDescriptor("boundary_country_inner", isSymbol = false),
+            StyleLayerDescriptor("watername_ocean", isSymbol = true),
+            StyleLayerDescriptor("place_label", isSymbol = true),
+            StyleLayerDescriptor("housenumber", isSymbol = true),
+            StyleLayerDescriptor(LANDMARK_LAYER_ID, isSymbol = true),
+            StyleLayerDescriptor(USER_ACCURACY_LAYER_ID, isSymbol = false),
+            StyleLayerDescriptor(USER_DOT_LAYER_ID, isSymbol = false),
+            StyleLayerDescriptor(PIN_LAYER_ID, isSymbol = true),
+        )
+
+        assertEquals("watername_ocean", resolveGeofenceAnchorLayerId(layers))
+    }
+
+    @Test
+    fun resolveGeofenceAnchorLayerId_selectsDarkMatterWaterwayLabelAfterBoundary() {
+        val layers = listOf(
+            StyleLayerDescriptor("background", isSymbol = false),
+            StyleLayerDescriptor("road_primary", isSymbol = false),
+            StyleLayerDescriptor("building", isSymbol = false),
+            StyleLayerDescriptor("boundary_country_inner", isSymbol = false),
+            StyleLayerDescriptor("waterway_label", isSymbol = true),
+            StyleLayerDescriptor("place_label", isSymbol = true),
+            StyleLayerDescriptor(PIN_LAYER_ID, isSymbol = true),
+        )
+
+        assertEquals("waterway_label", resolveGeofenceAnchorLayerId(layers))
+    }
+
+    @Test
+    fun resolveGeofenceAnchorLayerId_fallsBackThroughManagedOverlaysWhenNoTrailingBaseSymbolsExist() {
+        val baseWithoutTrailingSymbols = listOf(
+            StyleLayerDescriptor("background", isSymbol = false),
+            StyleLayerDescriptor("waterway_label", isSymbol = true),
+            StyleLayerDescriptor("road_primary", isSymbol = false),
+            StyleLayerDescriptor("building", isSymbol = false),
+            StyleLayerDescriptor(GEOFENCE_FILL_LAYER_ID, isSymbol = false),
+            StyleLayerDescriptor(GEOFENCE_STROKE_LAYER_ID, isSymbol = false),
+        )
+
+        assertEquals(
+            USER_ACCURACY_LAYER_ID,
+            resolveGeofenceAnchorLayerId(
+                baseWithoutTrailingSymbols + listOf(
+                    StyleLayerDescriptor(USER_ACCURACY_LAYER_ID, isSymbol = false),
+                    StyleLayerDescriptor(USER_DOT_LAYER_ID, isSymbol = false),
+                    StyleLayerDescriptor(PIN_LAYER_ID, isSymbol = true),
+                    StyleLayerDescriptor(LANDMARK_LAYER_ID, isSymbol = true),
+                ),
+            ),
+        )
+
+        assertEquals(
+            USER_DOT_LAYER_ID,
+            resolveGeofenceAnchorLayerId(
+                baseWithoutTrailingSymbols + listOf(
+                    StyleLayerDescriptor(USER_DOT_LAYER_ID, isSymbol = false),
+                    StyleLayerDescriptor(PIN_LAYER_ID, isSymbol = true),
+                    StyleLayerDescriptor(LANDMARK_LAYER_ID, isSymbol = true),
+                ),
+            ),
+        )
+
+        assertEquals(
+            PIN_LAYER_ID,
+            resolveGeofenceAnchorLayerId(
+                baseWithoutTrailingSymbols + listOf(
+                    StyleLayerDescriptor(PIN_LAYER_ID, isSymbol = true),
+                    StyleLayerDescriptor(LANDMARK_LAYER_ID, isSymbol = true),
+                ),
+            ),
+        )
+
+        assertEquals(
+            LANDMARK_LAYER_ID,
+            resolveGeofenceAnchorLayerId(
+                baseWithoutTrailingSymbols + listOf(
+                    StyleLayerDescriptor(LANDMARK_LAYER_ID, isSymbol = true),
+                ),
+            ),
+        )
+
+        assertNull(resolveGeofenceAnchorLayerId(baseWithoutTrailingSymbols))
+    }
+
+    @Test
+    fun resolveGeofenceAnchorLayerId_selectsFirstBaseSymbolWhenStyleContainsOnlySymbols() {
+        val symbolOnlyWithManagedOverlays = listOf(
+            StyleLayerDescriptor(PIN_LAYER_ID, isSymbol = true),
+            StyleLayerDescriptor("place_country", isSymbol = true),
+            StyleLayerDescriptor("place_city", isSymbol = true),
+            StyleLayerDescriptor(LANDMARK_LAYER_ID, isSymbol = true),
+        )
+
+        assertEquals("place_country", resolveGeofenceAnchorLayerId(symbolOnlyWithManagedOverlays))
+        assertNull(resolveGeofenceAnchorLayerId(emptyList()))
     }
 }

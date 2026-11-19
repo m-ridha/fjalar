@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -39,6 +40,7 @@ import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.ui.WindowInsetsLayoutHelper
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
+import com.muhammadridha.fjalar.ui.theme.FjalarStrings
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.fjalarString
@@ -52,7 +54,7 @@ fun LanguageDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val colors = LiquidGlassTheme.colors
-    val localeContentDesc = fjalarString(FjalarStringKey.HUD_LOCALE_LABEL)
+    val localeContentDesc = FjalarStrings.get(FjalarStringKey.HUD_LOCALE_LABEL, selectedLocale)
 
     Box(modifier = modifier) {
         Box(
@@ -74,6 +76,7 @@ fun LanguageDropdown(
                 text = "🌐 ${selectedLocale.name} ▾",
                 style = MaterialTheme.typography.labelMedium,
                 color = colors.textPrimary,
+                modifier = Modifier.clearAndSetSemantics {},
             )
         }
 
@@ -166,6 +169,7 @@ fun FloatingHudBar(
                         text = "🔍",
                         fontSize = 14.sp,
                         color = colors.textSecondary,
+                        modifier = Modifier.clearAndSetSemantics {},
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -174,6 +178,7 @@ fun FloatingHudBar(
                         color = colors.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clearAndSetSemantics {},
                     )
                 }
 
@@ -201,6 +206,7 @@ fun FloatingHudBar(
                     Text(
                         text = if (isDark) "🌙" else "☀️",
                         fontSize = 18.sp,
+                        modifier = Modifier.clearAndSetSemantics {},
                     )
                 }
             }

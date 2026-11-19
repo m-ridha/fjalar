@@ -325,6 +325,7 @@ fun MapPickerScreen(
                 Text(
                     text = "✓ ${FjalarStrings.get(FjalarStringKey.PICKER_CONFIRM, locale)}",
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.clearAndSetSemantics {},
                 )
             }
         }

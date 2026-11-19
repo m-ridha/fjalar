@@ -16,10 +16,11 @@ multiplatform release packaging:
   UI, day chips (`Mo..Su` / `Sn..Mg`), notifications, unsaved-changes discard dialog, and
   station search autocomplete.
 - **Accessibility & Contrast**: Live observation of OS reduce-transparency / high-contrast
-  settings on Android and iOS, falling back to 92% opaque tinted surfaces and >= 15:1 WCAG AAA
-  primary-text contrast. Semantic content descriptions and `>= 48 dp` touch targets cover
-  primary HUD, list, navigation, and editor controls (see notes on Snooze and glyph semantics
-  below).
+  settings on Android and iOS via Koin's `AccessibilityPort` singleton (with preview/test
+  fallback), falling back to 92% opaque tinted surfaces and >= 15:1 WCAG AAA primary-text
+  contrast. Semantic content descriptions (with decorative glyph nodes cleared) and
+  `>= 48 dp` touch targets cover primary HUD, list, navigation, editor, and ringing-alert
+  controls.
 - **iOS Background Refresh**: `BGAppRefreshTask` (`com.muhammadridha.fjalar.refresh`, `fetch`
   mode in `iosApp/src/Info.plist`) is implemented via `BackgroundSyncPort` /
   `IosBackgroundSyncAdapter`, registered at iOS launch (`shared/src@ios/di/IosModule.kt`), and
@@ -91,8 +92,11 @@ arranged in two center-aligned equal-width 5-column rows (sub-km in row 1; 1–3
 default to 100 m. The domain retains its 10 km maximum for saved alarms;
 `v0.3.1` adds no migration or clamping of existing values. Day chips use
 `Mo Tu We Th Fr Sa Su` and `Sn Sl Rb Km Jm Sb Mg` across two center-aligned equal-width 5-column
-rows (`Mo–Fr` / `Sn–Jm` in row 1; `Sa–Su` / `Sb–Mg` in row 2). Alarm-card Delete actions are
-trailing text-labeled outlined buttons without a trash icon, while Configure Alarm uses
+rows (`Mo–Fr` / `Sn–Jm` in row 1; `Sa–Su` / `Sb–Mg` in row 2). `AlarmCard` keeps compact metadata pills
+(`radius` and sound/vibration badges) in its metadata `FlowRow` and places the scheduled
+skip/completed control (`CARD_SKIP_TODAY` / `CARD_SKIPPED_TODAY`) and trailing `Delete` outlined
+button (without a trash icon) in a single shared bottom action row so toggling or skipping a
+scheduled alarm preserves card height without clipping `Delete`, while Configure Alarm uses
 a full-width centered danger-tinted pill.
 
 Both maps use a blue-dot GPS recenter button with a white ring. The compass appears
@@ -105,7 +109,14 @@ See `MapNavigationControls.kt` and `FloatingHudBar.kt` in
 ## Maps, location, and alarms
 
 Android uses `AndroidMapRendererAdapter` with MapLibre 11.5.1 and OSM-derived
-cartography. iOS uses `IosMapKitAdapter`. MapLibre is a renderer, not the OSM data
+cartography. `AndroidMapRendererAdapter.resolveGeofenceAnchorLayerId` inserts geofence
+fill and stroke layers below the base style's trailing symbol-label block (for example
+`watername_ocean` in Light `Carto Positron`—skipping the early `waterway_label` symbol layer
+positioned below tunnels, roads, and buildings—and `waterway_label` in Dark
+`Carto Dark Matter`), falling back below Fjalar overlay layers (`USER_ACCURACY_LAYER_ID`,
+`USER_DOT_LAYER_ID`, `PIN_LAYER_ID`, `LANDMARK_LAYER_ID`) when no trailing base symbol layer
+exists, so geofence overlays draw above roads, buildings, and borders while map labels stay
+readable on top. iOS uses `IosMapKitAdapter`. MapLibre is a renderer, not the OSM data
 provider. Neither platform provides turn-by-turn routing or a route ETA feature.
 Online maps request data for the viewed area from their provider. Centering on
 the user can disclose that area. Alarm records and distance calculations remain
@@ -191,9 +202,10 @@ not implement Gaussian backdrop blur or Haze. Reduced-transparency colors and
 string key `"accessibility_reduce_transparency"` (`AndroidAccessibilityAdapter.ACCESSIBILITY_REDUCE_TRANSPARENCY`)
 and API 36+ `AccessibilityManager.isHighContrastTextEnabled` on Android, and
 `UIAccessibilityIsReduceTransparencyEnabled()` plus
-`UIAccessibilityReduceTransparencyStatusDidChangeNotification` on iOS. Note that
-`isReduceTransparencyActive()` currently instantiates the platform adapter inside
-Compose `remember` rather than resolving Koin's `AccessibilityPort` singleton.
+`UIAccessibilityReduceTransparencyStatusDidChangeNotification` on iOS. `isReduceTransparencyActive()`
+first resolves Koin's `AccessibilityPort` singleton via `KoinPlatformTools.defaultContext()`
+and falls back to instantiating the platform adapter inside Compose `remember` only when
+Koin is uninitialized or omits an `AccessibilityPort` binding.
 Primary-text token contrast tests do not prove contrast over every live map.
 
 Screen-reader semantics for TalkBack (Android) and VoiceOver (iOS) are wired
@@ -203,12 +215,11 @@ unit tests (`AlarmCardSemanticsTest.kt`, `ConfigureAlarmSemanticsTest.kt`,
 semantics-tree assertions). Physical device screen-reader speech execution remains to
 be verified:
 - **Alarm Card (`AlarmCard`)**: Merges descendants (`mergeDescendants = true`) into a single natural speech description including alarm label, address, schedule/one-time trip, trigger radius, sound/vibration mode, and active/completed/disabled status. Action buttons (Delete, Skip Today) provide distinct, labeled announcements (`ACCESSIBLE_DELETE_ALARM`).
-- **HUD & Navigation Controls (`FloatingHudBar`, `MapNavigationControls`, `ArmedStatusPill`)**: `ArmedStatusPill` announces commute monitoring state (`ACCESSIBLE_ARMED_STATE`); `MapCompassControl` calculates dynamic speech descriptions with normalized integer bearings and cardinal/intercardinal direction names (`ACCESSIBLE_COMPASS_BEARING`); `MapRecenterControl` and the HUD Search Pill expose explicit `Role.Button` semantics and content descriptions (the HUD Search Pill `"🔍"` uses `.semantics` rather than `clearAndSetSemantics`, leaving the glyph text node in the merged tree).
+- **HUD & Navigation Controls (`FloatingHudBar`, `MapNavigationControls`, `ArmedStatusPill`)**: `ArmedStatusPill` announces commute monitoring state (`ACCESSIBLE_ARMED_STATE`); `MapCompassControl` calculates dynamic speech descriptions with normalized integer bearings and cardinal/intercardinal direction names (`ACCESSIBLE_COMPASS_BEARING`); `MapRecenterControl`, the HUD Search Pill, `LanguageDropdown`, and Theme Toggle keep `Role.Button` semantics and localized `contentDescription` on their clickable containers while clearing decorative/redundant child `Text` nodes (`"🔍"`, search placeholder text, `"🌐 EN ▾"`, `"🌙"` / `"☀️"`) with `clearAndSetSemantics {}` without stripping `OnClick` semantics.
 - **Alarm Editor (`ConfigureAlarmScreen`)**: Radius slider exposes natural content description (`ACCESSIBLE_RADIUS_SLIDER`) and tabular state description (`stateDescription`); radius presets use `Role.RadioButton`; day-of-week chips use `Role.Checkbox` with localized day abbreviations (`DAY_NAME_*`: `Mon..Sun` in EN, `Sn..Mg` in ID) and selection state descriptions (`ACCESSIBLE_DAY_SELECTED` / `ACCESSIBLE_DAY_NOT_SELECTED`).
-- **Map Picker (`MapPickerScreen`)**: Center crosshair clears child semantics (`clearAndSetSemantics`) to announce placement instructions; confirmation button exposes explicit `contentDescription` (`ACCESSIBLE_PICKER_CONFIRM`) via `.semantics` while retaining child `"✓ ..."` text.
-Primary HUD, navigation, card, and editor interactive controls enforce `>= 48 dp`
-touch targets, while the Snooze button in `RingingAlertOverlay.kt` uses padding
-(`horizontal = 20.dp, vertical = 10.dp`) without an explicit `heightIn(min = 48.dp)`.
+- **Map Picker & Ringing Alert (`MapPickerScreen`, `RingingAlertOverlay`)**: Map Picker's center crosshair clears child semantics (`clearAndSetSemantics`) to announce placement instructions, and its confirmation `Button` keeps `.semantics { role = Role.Button; contentDescription = ... }` (`ACCESSIBLE_PICKER_CONFIRM`) while clearing the child `"✓ ..."` `Text` node with `clearAndSetSemantics {}` so `OnClick` and `Disabled` semantics remain intact without speaking `"✓"` or duplicating the label. `RingingAlertOverlay` clears the decorative `"📍"` radar glyph via `clearAndSetSemantics {}`.
+Primary HUD, navigation, card, editor, and ringing-alert controls (including Snooze with
+`heightIn(min = 48.dp)`) enforce `>= 48 dp` minimum touch targets.
 
 ## Commute quick-picks and recent destinations
 
@@ -255,6 +266,7 @@ and exit codes.
 | Android API 37, 320 dp portrait at 1.3 font scale | English Light editor showed destination action, radius presets, and mode text inside the screenshot. The form remained scrollable. |
 | Android API 37, landscape at 1.3 font scale | Scrolling exposed the destination action and radius controls. The original size, font scale, and rotation settings were restored. |
 | Android API 37 Emulator (`Medium_Phone_API_37.0`, `5c87d42` debug APK) | External `adb shell am start -n com.muhammadridha.fjalar/.AlarmActivity` rejected with `SecurityException` (`not exported`). Live `uiautomator dump` verified `>= 48 dp` (`126 px` at `420 dpi`) touch targets and semantic `content-desc` labels across `SearchPlacesSheet`, `FrostedBottomNavigationBar`, `ConfigureAlarmScreen` (5-column radius/day rows), `MapPickerScreen`, and armed `MainActivity` HUD. With temporary PIN `1234` locked (`showing=true, inputRestricted=true`) and `USE_FULL_SCREEN_INTENT` granted via `appops`, simulated GPS entering the 500 m radius launched `AlarmActivity` in isolated task `t40` (`occluded=true`) with `FLAG_SECURE` (`SECURE`) and `VISIBILITY_PRIVATE` notification + generic `publicVersion`. `Recents` kept keyguard locked/occluded; rotation (`ROTATION_90` → `ROTATION_0`) kept `AlarmActivity` over keyguard. `Snooze (+2 min)` scheduled exact `RTC_WAKEUP` (`window=0`) in `AlarmManager`; re-locking with PIN `1234` and waiting 2 minutes automatically re-launched `AlarmActivity` (`t42`, `FLAG_SECURE`) over keyguard; single-tap on the Slide-to-Stop thumb did not dismiss. Temporary PIN was cleared afterward. |
+| Android API 37 Emulator (`Medium_Phone_API_37.0`, pre-v0.3.2 debug APK) | Visual inspection and `uiautomator dump` verified Light-mode (`Carto Positron`) 500 m geofence fill and stroke rendering over roads, rail lines, and building footprints north of Monas while street and place labels (`Jalan Medan Merdeka Utara`, `Jalan Veteran III`, `MONAS UTARA`), user halo/dot, and red destination pin remained legible on top. `RingingAlertOverlay` Snooze pill measured `126 px` (`48.0 dp` at `420 dpi`) with `"📍"` absent from accessibility nodes; HUD Search Pill, `LanguageDropdown`, and Theme Toggle exposed clean clickable `content-desc` labels (`Search places…` / `Cari tempat…`, `Language: English (EN)` / `Bahasa: Indonesia (ID)`, `Switch to light mode` / `Beralih ke mode gelap`) with zero emoji glyph nodes. `MapPickerScreen` Confirm button switched from `enabled=false` (`Pilih tujuan`) to `enabled=true, clickable=true` (`Konfirmasi tujuan -6.1726, 106.8272`) after panning without a `"✓"` child text node. `AlarmCard` kept identical card and downstream card bounds (`[42,273][1038,788]` / `[42,814][1038,1329]` at `420 dpi`) across Disabled, Enabled (`Skip next scheduled alarm`), and Skipped (`Done for this window`); at compact `320 dp` (`540 dpi`) and `1.3x` `font_scale`, `Lewati alarm berikutnya` wrapped cleanly to 2 lines beside unclipped `Hapus` (`162 px` / `48.0 dp` tall) before restoring `1080 × 2400`, `420 dpi`, and `1.0` `font_scale`. |
 | iPhone 17, iOS 27.0 | Fresh app showed Indonesian Dark and English Light maps/editors. Browse search moved the camera without selecting a destination. Picker search candidate canceled without draft change and confirmed into the draft. Toolbar Back created a valid alarm, returned from an unchanged editor, saved a changed radius, and showed the invalid-draft reason. A destination-selected blank-name draft and an existing edit with equal start/end times discarded with visible reasons; the existing list retained its original 07:00–09:30 window and 200 m radius. The 50 m preset and intermediate slider values changed on screen; exact slider maximum was not reached through the available coordinate input. |
 | iPhone 17 Simulator, iOS 27.0 (`5c87d42` Debug `.app`) | Confirmed `CFBundleIdentifier = com.muhammadridha.fjalar`, `UIBackgroundModes = [location, audio, fetch]`, `BGTaskSchedulerPermittedIdentifiers = [com.muhammadridha.fjalar.refresh]`, Dark Mode HUD rendering, notification prompt, and clean background (`com.apple.Preferences`) → foreground lifecycle on the same process without crashes. |
 | iPhone Duo, iOS 27.2 | Fresh app launched and rendered its primary display behind a first-run notification prompt. The second display capture was black; interactive layout checks were not completed. |

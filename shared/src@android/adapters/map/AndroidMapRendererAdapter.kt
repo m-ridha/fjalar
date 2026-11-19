@@ -333,43 +333,38 @@ class AndroidMapRendererAdapter(
         }
 
         val primaryColor = Color.parseColor(getPrimaryColorHex(isDarkTheme))
+        val needsFill = style.getLayer(GEOFENCE_FILL_LAYER_ID) == null
+        val needsStroke = style.getLayer(GEOFENCE_STROKE_LAYER_ID) == null
+        val anchor = if (needsFill || needsStroke) {
+            resolveGeofenceAnchorLayerId(
+                style.layers.map { StyleLayerDescriptor(id = it.id, isSymbol = it is SymbolLayer) },
+            )
+        } else {
+            null
+        }
 
-        if (style.getLayer(GEOFENCE_FILL_LAYER_ID) == null) {
+        if (needsFill) {
             val fillLayer = FillLayer(GEOFENCE_FILL_LAYER_ID, GEOFENCE_SOURCE_ID).withProperties(
                 PropertyFactory.fillColor(primaryColor),
                 PropertyFactory.fillOpacity(0.2f),
                 PropertyFactory.fillAntialias(true),
             )
-            val anchor = style.layers.firstOrNull {
-                it is SymbolLayer && it.id != PIN_LAYER_ID && it.id != LANDMARK_LAYER_ID
-            }?.id ?: when {
-                style.getLayer(USER_ACCURACY_LAYER_ID) != null -> USER_ACCURACY_LAYER_ID
-                style.getLayer(PIN_LAYER_ID) != null -> PIN_LAYER_ID
-                style.getLayer(LANDMARK_LAYER_ID) != null -> LANDMARK_LAYER_ID
-                else -> null
-            }
             if (anchor != null) style.addLayerBelow(fillLayer, anchor) else style.addLayer(fillLayer)
         }
 
-        if (style.getLayer(GEOFENCE_STROKE_LAYER_ID) == null) {
+        if (needsStroke) {
             val strokeLayer = LineLayer(GEOFENCE_STROKE_LAYER_ID, GEOFENCE_SOURCE_ID).withProperties(
                 PropertyFactory.lineColor(primaryColor),
                 PropertyFactory.lineWidth(2.5f),
                 PropertyFactory.lineOpacity(0.8f),
             )
-            val anchor = style.layers.firstOrNull {
-                it is SymbolLayer && it.id != PIN_LAYER_ID && it.id != LANDMARK_LAYER_ID
-            }?.id ?: when {
-                style.getLayer(USER_ACCURACY_LAYER_ID) != null -> USER_ACCURACY_LAYER_ID
-                style.getLayer(PIN_LAYER_ID) != null -> PIN_LAYER_ID
-                style.getLayer(LANDMARK_LAYER_ID) != null -> LANDMARK_LAYER_ID
-                else -> null
-            }
             if (anchor != null) style.addLayerBelow(strokeLayer, anchor) else style.addLayer(strokeLayer)
         }
     }
 
     companion object {
+        data class StyleLayerDescriptor(val id: String, val isSymbol: Boolean)
+
         const val LANDMARK_SOURCE_ID = "protomaps"
         const val LANDMARK_LAYER_ID = "fjalar-landmark-labels"
         const val LANDMARK_FILTER = """["all",["has","name"],["in",["get","kind"],["literal",["hospital","school","university","college","station","railway_station","bus_station","government"]]],["<=",["coalesce",["get","min_zoom"],0],["zoom"]]]"""
@@ -384,6 +379,40 @@ class AndroidMapRendererAdapter(
         const val GEOFENCE_SOURCE_ID = "fjalar-geofence-source"
         const val GEOFENCE_FILL_LAYER_ID = "fjalar-geofence-fill-layer"
         const val GEOFENCE_STROKE_LAYER_ID = "fjalar-geofence-stroke-layer"
+
+        private val MANAGED_OVERLAY_LAYER_IDS = setOf(
+            GEOFENCE_FILL_LAYER_ID,
+            GEOFENCE_STROKE_LAYER_ID,
+            USER_ACCURACY_LAYER_ID,
+            USER_DOT_LAYER_ID,
+            PIN_LAYER_ID,
+            LANDMARK_LAYER_ID,
+        )
+
+        private val FALLBACK_OVERLAY_ANCHOR_ORDER = listOf(
+            USER_ACCURACY_LAYER_ID,
+            USER_DOT_LAYER_ID,
+            PIN_LAYER_ID,
+            LANDMARK_LAYER_ID,
+        )
+
+        /**
+         * Selects the style layer ID immediately below which geofence fill and stroke layers
+         * should be inserted. Anchors below the base style's trailing symbol-label block so
+         * early in-geometry symbols (such as Positron's `waterway_label` below roads/buildings)
+         * do not trap geofence polygons underneath base geometry.
+         */
+        fun resolveGeofenceAnchorLayerId(layers: List<StyleLayerDescriptor>): String? {
+            val baseLayers = layers.filterNot { it.id in MANAGED_OVERLAY_LAYER_IDS }
+            val lastNonSymbolIndex = baseLayers.indexOfLast { !it.isSymbol }
+            val trailingSymbolAnchor = baseLayers.getOrNull(lastNonSymbolIndex + 1)?.id
+            if (trailingSymbolAnchor != null) {
+                return trailingSymbolAnchor
+            }
+
+            val presentLayerIds = layers.mapTo(HashSet()) { it.id }
+            return FALLBACK_OVERLAY_ANCHOR_ORDER.firstOrNull { it in presentLayerIds }
+        }
 
         const val MAP_STYLE_LIGHT = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
         const val MAP_STYLE_DARK = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"

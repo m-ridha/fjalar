@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -34,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -134,6 +136,7 @@ fun RingingAlertOverlay(
                             Text(
                                 text = "📍",
                                 fontSize = 24.sp,
+                                modifier = Modifier.clearAndSetSemantics {},
                             )
                         }
                     }
@@ -187,6 +190,7 @@ fun RingingAlertOverlay(
                 // Snooze Button
                 Box(
                     modifier = Modifier
+                        .heightIn(min = 48.dp)
                         .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                         .clickable(enabled = !isOperationPending, role = Role.Button) { onSnooze(alarm.id) }
                         .padding(horizontal = 20.dp, vertical = 10.dp),
