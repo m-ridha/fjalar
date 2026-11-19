@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -185,7 +186,7 @@ fun AlarmCard(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Pills Row: Radius, Sound & Vibration, Skip Today Action
+        // Metadata Pills Row: Radius, Sound & Vibration
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -225,60 +226,88 @@ fun AlarmCard(
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                 )
             }
-
-            // Skip Today control (for scheduled alarms)
-            if (alarm.schedule.type == ScheduleType.SCHEDULED) {
-                if (alarm.state == AlarmState.COMPLETED_FOR_WINDOW) {
-                    Text(
-                        text = fjalarString(FjalarStringKey.CARD_SKIPPED_TODAY),
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                        color = colors.textSecondary,
-                        modifier = Modifier
-                            .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                    )
-                } else if (alarm.isEnabled) {
-                    Text(
-                        text = fjalarString(FjalarStringKey.CARD_SKIP_TODAY),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = colors.primary,
-                        ),
-                        modifier = Modifier
-                            .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                            .clickable(role = Role.Button) { onSkipToday(alarm.id) }
-                            .semantics {
-                                role = Role.Button
-                                contentDescription = FjalarStrings.get(FjalarStringKey.CARD_SKIP_TODAY, locale)
-                            }
-                            .heightIn(min = 48.dp)
-                            .padding(horizontal = 12.dp, vertical = 14.dp),
-                    )
-                }
-            }
         }
-        if (onDelete != null) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                OutlinedButton(
-                    onClick = { onDelete(alarm) },
-                    modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .semantics {
-                            contentDescription = FjalarStrings.get(
-                                FjalarStringKey.ACCESSIBLE_DELETE_ALARM,
-                                locale,
-                                alarm.label,
-                            )
-                            role = Role.Button
-                        },
-                    shape = CircleShape,
-                    border = BorderStroke(1.dp, colors.danger),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = colors.danger.copy(alpha = 0.12f),
-                        contentColor = colors.danger,
-                    ),
+
+        val isScheduled = alarm.schedule.type == ScheduleType.SCHEDULED
+        val showCompletedBadge = isScheduled && alarm.state == AlarmState.COMPLETED_FOR_WINDOW
+        val showSkipAction = isScheduled && alarm.isEnabled && alarm.state != AlarmState.COMPLETED_FOR_WINDOW
+        val showActionRow = showCompletedBadge || showSkipAction || onDelete != null
+
+        if (showActionRow) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.CenterStart,
                 ) {
-                    Text(text = deleteLabel, style = MaterialTheme.typography.labelMedium)
+                    if (showCompletedBadge) {
+                        Text(
+                            text = FjalarStrings.get(FjalarStringKey.CARD_SKIPPED_TODAY, locale),
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                            color = colors.textSecondary,
+                            modifier = Modifier
+                                .glassSurface(level = GlassLevel.PILL, shape = RoundedCornerShape(24.dp))
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
+                    } else if (showSkipAction) {
+                        val skipLabel = FjalarStrings.get(FjalarStringKey.CARD_SKIP_TODAY, locale)
+                        Box(
+                            modifier = Modifier
+                                .heightIn(min = 48.dp)
+                                .glassSurface(level = GlassLevel.PILL, shape = RoundedCornerShape(24.dp))
+                                .clickable(role = Role.Button) { onSkipToday(alarm.id) }
+                                .semantics {
+                                    role = Role.Button
+                                    contentDescription = skipLabel
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = skipLabel,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.primary,
+                                ),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.clearAndSetSemantics {},
+                            )
+                        }
+                    }
+                }
+
+                if (onDelete != null) {
+                    OutlinedButton(
+                        onClick = { onDelete(alarm) },
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .semantics {
+                                contentDescription = FjalarStrings.get(
+                                    FjalarStringKey.ACCESSIBLE_DELETE_ALARM,
+                                    locale,
+                                    alarm.label,
+                                )
+                                role = Role.Button
+                            },
+                        shape = CircleShape,
+                        border = BorderStroke(1.dp, colors.danger),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = colors.danger.copy(alpha = 0.12f),
+                            contentColor = colors.danger,
+                        ),
+                    ) {
+                        Text(
+                            text = deleteLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
                 }
             }
         }

@@ -10,7 +10,12 @@ import com.muhammadridha.fjalar.adapters.accessibility.AndroidAccessibilityAdapt
 @Composable
 actual fun isReduceTransparencyActive(): Boolean {
     val context = LocalContext.current
-    val adapter = remember(context) { AndroidAccessibilityAdapter(context.applicationContext) }
-    val active by adapter.reduceTransparencyFlow.collectAsState(initial = adapter.isReduceTransparencyActive)
+    val koin = currentKoinOrNull()
+    val port = remember(context, koin) {
+        resolveAccessibilityPort(koin) {
+            AndroidAccessibilityAdapter(context.applicationContext ?: context)
+        }
+    }
+    val active by port.reduceTransparencyFlow.collectAsState(initial = port.isReduceTransparencyActive)
     return active
 }
