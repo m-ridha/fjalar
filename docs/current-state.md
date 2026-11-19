@@ -1,16 +1,16 @@
 # Current project state
 
-Source audit: 2026-11-19, based on main through v0.3.1 preparation (PRs #44–#48, commit
-`2f96b7d`). This records implemented behavior across Phases 1 through 10 and post-v0.3.0
-wiring, security, editor UX, and app icon updates. Notion requirements and historical Stitch
-mockups may include planned future enhancements.
+Source audit: 2026-11-20, based on main through v0.3.2 preparation (PRs #49–#53, commit
+`8047366`). This records implemented behavior across Phases 1 through 10 and post-v0.3.0
+wiring, security, editor UX, app icon updates, and Android map cartography. Notion
+requirements and historical Stitch mockups may include planned future enhancements.
 
-## Release readiness (v0.3.1)
+## Release readiness (v0.3.2)
 
-Fjalar v0.3.1 ships core domain logic, Liquid Glass UI, bilingual transit localization,
+Fjalar v0.3.2 ships core domain logic, Liquid Glass UI, bilingual transit localization,
 dynamic accessibility observation, wired background refresh and circular geofencing,
-explicit alarm editor save/discard confirmation, updated crowing-bolt app icons, and
-multiplatform release packaging:
+explicit alarm editor save/discard confirmation, updated crowing-bolt app icons,
+zoom-tiered Android map POI labeling, and multiplatform release packaging:
 
 - **Bilingual transit (`en` & `id`)**: Full English and Bahasa Indonesia catalog parity across
   UI, day chips (`Mo..Su` / `Sn..Mg`), notifications, unsaved-changes discard dialog, and
@@ -47,6 +47,12 @@ multiplatform release packaging:
   `Fjalar.app/Info.plist`) with SHA-256 checksums. Platform launcher icons and iOS 18 Light,
   Dark, and Tinted appearances are generated from the crowing-bolt master artwork via
   `scripts/generate_app_icons.py` within the 66 dp radial safe circle.
+- **Android Map POI Cartography**: Three zoom-gated `SymbolLayer` tiers read Carto's existing
+  `protomaps` -> `pois` vector tiles with zero extra tile requests, rendering themed vector
+  sprites and OSM place-name labels. Neighborhood labels anchor above minor alleys below
+  `roadname_sec` so dense streets no longer suppress mosques and schools at `z17+`, and exact
+  `15.0` camera targets settle at `15.05` so downward `z17+ -> z15` animations stay above
+  Carto's `z15` tile threshold.
 - **Security & Keyguard Isolation**: Non-exported `AlarmActivity` isolated with `FLAG_SECURE`,
   `excludeFromRecents="true"`, `launchMode="singleTask"`, separate `taskAffinity`,
   `setShowWhenLocked(true)`, `BackHandler` guarding while loading/ringing/pending, and
@@ -93,7 +99,7 @@ unchanged. The radius slider spans
 50 m to 3 km, with 50 m, 100 m, 200 m, 300 m, 500 m, 1 km, 2 km, and 3 km presets
 arranged in two center-aligned equal-width 5-column rows (sub-km in row 1; 1–3 km in row 2). New alarms
 default to 100 m. The domain retains its 10 km maximum for saved alarms;
-`v0.3.1` adds no migration or clamping of existing values. Day chips use
+`v0.3.2` adds no migration or clamping of existing values. Day chips use
 `Mo Tu We Th Fr Sa Su` and `Sn Sl Rb Km Jm Sb Mg` across two center-aligned equal-width 5-column
 rows (`Mo–Fr` / `Sn–Jm` in row 1; `Sa–Su` / `Sb–Mg` in row 2). `AlarmCard` keeps compact metadata pills
 (`radius` and sound/vibration badges) in its metadata `FlowRow` and places the scheduled

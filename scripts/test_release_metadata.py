@@ -10,7 +10,7 @@ from release_metadata import configure_android, release_metadata
 
 class ReleaseMetadataTest(unittest.TestCase):
     def test_stable_and_suffixed_versions(self):
-        for tag in ["v0.1.0", "v0.1.0-debug", "v0.3.0", "v0.3.0-rc.1", "v0.3.1", "v1.2.3-rc.1", "v1.2.3-test-build"]:
+        for tag in ["v0.1.0", "v0.1.0-debug", "v0.3.0", "v0.3.0-rc.1", "v0.3.1", "v0.3.2", "v1.2.3-rc.1", "v1.2.3-test-build"]:
             with self.subTest(tag=tag):
                 values = release_metadata(tag, 42)
                 self.assertEqual(values["tag"], tag)
