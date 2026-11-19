@@ -127,10 +127,13 @@ iOS schedules user-facing local notifications via `UNUserNotificationCenter` and
 declares `BGTaskScheduler` support with the permitted task identifier
 `com.muhammadridha.fjalar.refresh` (`fetch` background mode in `iosApp/src/Info.plist`).
 `IosBackgroundSyncAdapter` registers the task handler at launch
-(`shared/src@ios/di/IosModule.kt`), and `handleTask()` calls
-`SyncSchedulesPort.syncSchedules()` and reschedules with a 15-minute minimum delay once
-fired; however, no production entrypoint currently calls `scheduleBackgroundSync()` or
-`SynchronizeAlarmsUseCase` to submit an initial `BGAppRefreshTaskRequest`. Because
+(`shared/src@ios/di/IosModule.kt`). Once fired, `handleTask()` calls
+`SyncSchedulesPort.syncSchedules()` and attempts to reschedule with a 15-minute minimum
+delay only after `syncSchedules()` succeeds; if `syncSchedules()` fails, the task
+completes without rescheduling, and if submission fails, the error is caught without
+retry, so a fired task does not guarantee another request. No production entrypoint
+currently calls `scheduleBackgroundSync()` or `SynchronizeAlarmsUseCase` to submit an
+initial `BGAppRefreshTaskRequest`. Because
 `BGAppRefreshTask` execution timing is strictly best-effort and subject to iOS power
 heuristics, the app continues to resynchronize schedules when executed again in the
 foreground. `IosRegionGeofenceAdapter` (`CLCircularRegion`) is registered in Koin and

@@ -113,9 +113,10 @@ was rejected with Android's non-exported-component `SecurityException`. With a
 temporary secure PIN and lockdown enabled, launching `MainActivity` left the
 keyguard showing, input-restricted, and unoccluded (`deviceLocked=1`,
 `showing=true`, `inputRestricted=true`, `occluded=false`). The temporary PIN was
-removed afterward. In PR #40 (`v0.3.0`), deterministic source and state-machine
-regression tests (`scripts/test_android_alarm_security.py` and
-`AlarmStateTransitionTest.kt`) verified `FLAG_SECURE`, isolated task attributes,
-and locked-device ringing/snooze/dismiss transitions. Full physical-device
-locked-device ringing sequences and older API checks remain in the manual matrix
-above.
+removed afterward. In PR #40 (`v0.3.0`), `scripts/test_android_alarm_security.py`
+added source-text and manifest assertions for `FLAG_SECURE`, isolated task
+attributes, and `finishAndRemoveTask()`, while `AlarmStateTransitionTest.kt`
+covers pure domain ringing, snooze, and dismiss transitions without any lock
+state. Neither test verifies runtime locked-device behavior; locked-device
+ringing/dismiss/snooze sequences and older API checks remain unverified in the
+manual matrix above.
