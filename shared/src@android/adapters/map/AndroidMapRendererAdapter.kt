@@ -105,6 +105,7 @@ class AndroidMapRendererAdapter(
         } else {
             TOP_OVERLAY_ANCHOR_ORDER.firstOrNull { style.getLayer(it) != null }
         }
+        val neighborhoodAnchor = resolveNeighborhoodPoiAnchorLayerId(style.layers.map { it.id })
         val topOverlayAnchor = TOP_OVERLAY_ANCHOR_ORDER.firstOrNull { style.getLayer(it) != null }
 
         if (style.getLayer(POI_LOCAL_LAYER_ID) == null) {
@@ -129,7 +130,7 @@ class AndroidMapRendererAdapter(
                 style = style,
                 layer = createPoiLayer(
                     layerId = POI_NEIGHBORHOOD_LAYER_ID,
-                    minZoomLevel = 15f,
+                    minZoomLevel = 14.8f,
                     filterJson = POI_NEIGHBORHOOD_FILTER,
                     fontStack = POI_DETAIL_FONT,
                     iconScale = 0.36f,
@@ -137,7 +138,7 @@ class AndroidMapRendererAdapter(
                     textPaddingPx = 6f,
                     iconPaddingPx = 3f,
                 ),
-                anchorLayerId = belowMinorRoadAnchor,
+                anchorLayerId = neighborhoodAnchor,
             )
         }
 
@@ -307,7 +308,7 @@ class AndroidMapRendererAdapter(
         val update = CameraUpdateFactory.newCameraPosition(
             CameraPosition.Builder()
                 .target(target)
-                .zoom(zoom)
+                .zoom(resolveCameraZoom(zoom))
                 .build()
         )
         if (animate) {
@@ -470,6 +471,9 @@ class AndroidMapRendererAdapter(
         const val POI_SOURCE_ID = "protomaps"
         const val POI_SOURCE_LAYER = "pois"
         const val ROADNAME_MINOR_LAYER_ID = "roadname_minor"
+        const val ROADNAME_SEC_LAYER_ID = "roadname_sec"
+        const val ROADNAME_PRI_LAYER_ID = "roadname_pri"
+        const val ROADNAME_MAJOR_LAYER_ID = "roadname_major"
 
         const val POI_MAJOR_LAYER_ID = "fjalar-poi-major"
         const val POI_NEIGHBORHOOD_LAYER_ID = "fjalar-poi-neighborhood"
@@ -538,6 +542,32 @@ class AndroidMapRendererAdapter(
         )
 
         private val FALLBACK_OVERLAY_ANCHOR_IDS = FALLBACK_OVERLAY_ANCHOR_ORDER.toSet()
+
+        private val NEIGHBORHOOD_POI_ANCHOR_ORDER = listOf(
+            ROADNAME_SEC_LAYER_ID,
+            ROADNAME_PRI_LAYER_ID,
+            ROADNAME_MAJOR_LAYER_ID,
+            USER_ACCURACY_LAYER_ID,
+            USER_DOT_LAYER_ID,
+            PIN_LAYER_ID,
+        )
+
+        /**
+         * Biases exact `15.0` camera targets slightly above `15.0` (`15.05`, well below `16.0`)
+         * so downward animations from `z17+` do not settle just under Carto's `z15` tile threshold.
+         */
+        fun resolveCameraZoom(zoom: Double): Double =
+            if (zoom == 15.0) 15.05 else zoom
+
+        /**
+         * Anchors [POI_NEIGHBORHOOD_LAYER_ID] above `roadname_minor` so minor alleys do not
+         * crowd out neighborhood mosques and schools at `z17+`, while staying below secondary,
+         * primary, and major road labels and user/pin overlays.
+         */
+        fun resolveNeighborhoodPoiAnchorLayerId(layerIds: List<String>): String? {
+            val presentLayerIds = layerIds.toHashSet()
+            return NEIGHBORHOOD_POI_ANCHOR_ORDER.firstOrNull { it in presentLayerIds }
+        }
 
         /**
          * Selects the style layer ID immediately below which geofence fill and stroke layers

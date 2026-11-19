@@ -90,16 +90,19 @@ fun SearchPlacesSheet(
     locale: AppLocale = LiquidGlassTheme.locale,
 ) {
     val colors = LiquidGlassTheme.colors
+    val sheetShape = RoundedCornerShape(28.dp)
 
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
             .glassSurface(
                 level = GlassLevel.MODAL,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                shape = sheetShape,
             )
+            .clip(sheetShape)
             .verticalScroll(rememberScrollState())
-            .padding(top = 10.dp, bottom = 16.dp),
+            .padding(top = 10.dp, bottom = 12.dp),
     ) {
         // Top Grab Handle
         Box(
@@ -336,7 +339,7 @@ fun SearchPlacesSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 420.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             if (results.isEmpty() && query.isNotBlank() && !isLoading) {

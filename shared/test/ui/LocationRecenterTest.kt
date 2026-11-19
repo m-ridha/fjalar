@@ -5,6 +5,8 @@ import com.muhammadridha.fjalar.adapters.storage.PersistentPreferencesAdapter
 import com.muhammadridha.fjalar.domain.manggaraiAlarm
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
+import com.muhammadridha.fjalar.domain.model.PlaceCategory
+import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.domain.ports.inbound.DismissAlarmPort
 import com.muhammadridha.fjalar.domain.ports.inbound.ObserveAlarmsPort
@@ -283,4 +285,66 @@ class LocationRecenterTest {
         } finally { scope.cancel() }
     }
 
+    @Test
+    fun recenterThenBrowsePlaceSelected_cancelsPendingRecenterOnDelayedFix() = runTest {
+        val tracker = UiLocationTracker()
+        val (viewModel, _, vmScope) = createTestViewModel(locationTrackerPort = tracker)
+        try {
+            viewModel.onRecenterMap()
+            val browsedPlace = SearchResultPlace(
+                id = "st-gambir",
+                name = "Stasiun Gambir",
+                coordinates = GeoCoordinates(-6.1767, 106.8306),
+                category = PlaceCategory.TRAIN_STATION,
+            )
+            viewModel.onOpenSearch(PlaceSearchContext.BROWSE)
+            viewModel.onBrowsePlaceSelected(browsedPlace)
+
+            val delayedFix = GeoCoordinates(-6.2088, 106.8456)
+            tracker.emit(delayedFix)
+
+            assertEquals(delayedFix, viewModel.uiState.value.userLocation)
+            assertEquals(browsedPlace.coordinates, viewModel.uiState.value.mapViewportCenter)
+            assertEquals(15.0, viewModel.uiState.value.mapViewportZoom)
+        } finally { vmScope.cancel() }
+    }
+
+    @Test
+    fun recenterThenMapViewportBrowsed_cancelsPendingRecenterOnDelayedFix() = runTest {
+        val tracker = UiLocationTracker()
+        val (viewModel, _, vmScope) = createTestViewModel(locationTrackerPort = tracker)
+        try {
+            viewModel.onRecenterMap()
+            val browsedCenter = GeoCoordinates(-6.1754, 106.8272)
+            viewModel.onMapViewportBrowsed(browsedCenter, zoom = 14.2)
+
+            val delayedFix = GeoCoordinates(-6.2088, 106.8456)
+            tracker.emit(delayedFix)
+
+            assertEquals(delayedFix, viewModel.uiState.value.userLocation)
+            assertEquals(browsedCenter, viewModel.uiState.value.mapViewportCenter)
+            assertEquals(14.2, viewModel.uiState.value.mapViewportZoom)
+        } finally { vmScope.cancel() }
+    }
+
+    @Test
+    fun recenterThenOpenEditAlarm_cancelsPendingRecenterOnDelayedFix() = runTest {
+        val tracker = UiLocationTracker()
+        val alarm = manggaraiAlarm()
+        val (viewModel, _, vmScope) = createTestViewModel(
+            initialAlarms = listOf(alarm),
+            locationTrackerPort = tracker,
+        )
+        try {
+            viewModel.onRecenterMap()
+            viewModel.onOpenEditAlarm(alarm)
+
+            val delayedFix = GeoCoordinates(-6.1754, 106.8272)
+            tracker.emit(delayedFix)
+
+            assertEquals(delayedFix, viewModel.uiState.value.userLocation)
+            assertEquals(alarm.coordinates, viewModel.uiState.value.mapViewportCenter)
+            assertEquals(15.0, viewModel.uiState.value.mapViewportZoom)
+        } finally { vmScope.cancel() }
+    }
 }

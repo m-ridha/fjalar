@@ -72,8 +72,11 @@ The picker frames a visit from the draft destination, then the current fix, then
 the last map viewport the user browsed (center and zoom), then the route arguments.
 It uses zoom 15 for a destination or fix and the browsed zoom otherwise. The main
 map records settled user pans and zooms for that fallback. A recenter tapped before
-the first fix stays pending and consumes the first arriving fix. The picker counts
-as a visible map for map-only location tracking.
+the first fix stays pending and consumes the first arriving fix unless superseded by a
+browse search selection, user map pan/zoom, or opening an alarm editor. The picker counts
+as a visible map for map-only location tracking. `SearchPlacesSheet` renders as a 4-sided
+rounded floating glass modal (`RoundedCornerShape(28.dp)`) with outer spacing above the
+bottom navigation dock or picker edge and scroll content clipped inside its rounded border.
 
 Configure Alarm has an enabled toggle, applied when saving. Explicit `Save` validates
 in place, saves valid new or changed drafts, skips redundant repository writes for an
@@ -110,15 +113,20 @@ See `MapNavigationControls.kt` and `FloatingHudBar.kt` in
 
 Android uses `AndroidMapRendererAdapter` with MapLibre 11.5.1 and OSM-derived
 cartography (`Carto Positron` / `Carto Dark Matter`). Three zoom-gated OSM Carto-style POI
-`SymbolLayer` tiers (`fjalar-poi-major` at `z13+`, `fjalar-poi-neighborhood` at `z15+`, and
+`SymbolLayer` tiers (`fjalar-poi-major` at `z13+`, `fjalar-poi-neighborhood` at `14.8f+`, and
 `fjalar-poi-local` at `z16+`) read Carto's existing `protomaps` -> `pois` vector tiles with
 zero extra network tile requests, rendering 23 themed `48x48 px` vector sprites
 (`AndroidPoiIcons`) and color-coded category labels (`place_of_worship` split across
 `muslim` / `christian` / general worship, hospitals, clinics, pharmacies, rail/bus/ferry/airport
 hubs, schools, banks/ATMs, shops, petshops, food/cafes, parks, and civic landmarks) while
 excluding map noise (`administrative`, `tree`, `crossing`, `traffic_signals`, `construction`).
-`fjalar-poi-local` and `fjalar-poi-neighborhood` sit below `roadname_minor` so street names stay
-readable, while `fjalar-poi-major` sits above `roadname_*` and below user/pin overlays.
+`fjalar-poi-local` sits below `roadname_minor` so street names keep priority over dense local
+shops, `fjalar-poi-neighborhood` anchors via `resolveNeighborhoodPoiAnchorLayerId` below
+`roadname_sec` (falling back through `roadname_pri`, `roadname_major`, and user/pin overlays)
+so minor alleys do not suppress neighborhood mosques and schools at `z17+`, and `fjalar-poi-major`
+sits above `roadname_*` and below user/pin overlays. `AndroidMapRendererAdapter.resolveCameraZoom`
+biases exact `15.0` camera targets to `15.05` (well below `16.0`) so downward `z17+ -> z15`
+animations do not settle underneath Carto's `z15` tile threshold.
 `AndroidMapRendererAdapter.resolveGeofenceAnchorLayerId` inserts geofence
 fill and stroke layers below the base style's trailing symbol-label block (for example
 `watername_ocean` in Light `Carto Positron`—skipping the early `waterway_label` symbol layer
