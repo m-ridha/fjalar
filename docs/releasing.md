@@ -115,7 +115,7 @@ GitHub locks assets after an immutable release is published.
 An automated packaging pipeline is provided via `scripts/build_release_ios.sh`:
 
 ```sh
-RELEASE_TAG="v0.3.2" BUILD_NUMBER=1 bash scripts/build_release_ios.sh
+RELEASE_TAG="v0.3.3" BUILD_NUMBER=1 bash scripts/build_release_ios.sh
 ```
 
 This builds the physical device release app (`iosArm64` / `Release-iphoneos` by
