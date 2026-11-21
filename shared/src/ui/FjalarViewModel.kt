@@ -31,6 +31,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.PreferencesPort
 import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase
+import com.muhammadridha.fjalar.domain.service.HaversineCalculator
 import com.muhammadridha.fjalar.ui.screens.ConfigureAlarmDraft
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -85,6 +86,12 @@ data class FjalarUiState(
     val ringingOperationFailureId: Long = 0L,
     val snoozeDeliveryUnavailable: Boolean = false,
     val recentDestinations: List<RecentDestination> = emptyList(),
+    /**
+     * False until the first map viewport is known, so the map never renders at the neutral
+     * `0,0` fallback. Starts true when a previously observed position was restored from disk.
+     * See [FjalarViewModel.onLocationAccessChecked] and the startup timeout.
+     */
+    val isInitialViewportReady: Boolean = false,
 )
 
 /**
@@ -108,6 +115,7 @@ class FjalarViewModel(
     private val clock: Clock = Clock.System,
     private val recentDestinationsPort: RecentDestinationsPort? = null,
     private val synchronizeAlarmsUseCase: SynchronizeAlarmsUseCase? = null,
+    private val startupViewportTimeoutMillis: Long = STARTUP_VIEWPORT_TIMEOUT_MILLIS,
 ) : ViewModel() {
 
     internal val scope: CoroutineScope = coroutineScope ?: viewModelScope
@@ -117,7 +125,16 @@ class FjalarViewModel(
     private var editorPersistedId: String? = null
     private var editorNoticeSequence: Long = 0L
 
-    private val _uiState = MutableStateFlow(FjalarUiState())
+    private val storedViewportCenter: GeoCoordinates? = preferencesPort.peekLastKnownLocation()
+
+    private val _uiState = MutableStateFlow(
+        FjalarUiState(
+            themeMode = preferencesPort.peekThemeMode() ?: ThemeMode.SYSTEM,
+            mapViewportCenter = storedViewportCenter,
+            mapViewportZoom = if (storedViewportCenter != null) 15.0 else 2.0,
+            isInitialViewportReady = storedViewportCenter != null,
+        ),
+    )
     val uiState: StateFlow<FjalarUiState> = _uiState.asStateFlow()
 
     private var snoozeDeadlineJob: Job? = null
@@ -130,6 +147,16 @@ class FjalarViewModel(
     private var appForeground = false
     private var mapVisible = false
     private var pendingRecenter = false
+    private var alarmsLoaded = false
+    private var startupTimedOut = false
+    private var locationKnownUnavailable = false
+
+    /**
+     * True while the camera still shows the position restored from disk and no live fix or user
+     * gesture has claimed it yet. The first real fix then follows the user exactly once.
+     */
+    private var viewportFromStoredLocation = storedViewportCenter != null
+    private var lastPersistedLocation: GeoCoordinates? = storedViewportCenter
 
     fun onAppForegroundChanged(foreground: Boolean) {
         appForeground = foreground
@@ -193,6 +220,9 @@ class FjalarViewModel(
         scope.launch {
             locationTrackerPort?.observeAvailability()?.collect { availability ->
                 updateLocationDisplay { it.copy(locationAvailability = availability) }
+                if (availability == LocationAvailability.PERMISSION_DENIED) {
+                    onLocationAccessChecked(canLocate = false)
+                }
             }
         }
         scope.launch {
@@ -205,7 +235,15 @@ class FjalarViewModel(
                         activeRingingAlarm = ringing,
                     ).withLocationDistances()
                 }
+                alarmsLoaded = true
+                resolveStartupReadiness()
             }
+        }
+
+        scope.launch {
+            delay(startupViewportTimeoutMillis)
+            startupTimedOut = true
+            resolveStartupReadiness()
         }
 
         scope.launch {
@@ -239,6 +277,7 @@ class FjalarViewModel(
             return
         }
         updateLocationDisplay { it.copy(locationFix = fix) }
+        rememberLastKnownLocation(fix.coordinates)
         fixExpiryJob = scope.launch {
             // The boundary itself remains valid. Expire at the first millisecond after it.
             delay((30.seconds - age).inWholeMilliseconds + 1)
@@ -246,11 +285,24 @@ class FjalarViewModel(
         }
     }
 
+    /**
+     * Persists the newest fix only after meaningful movement, so startup has a real viewport
+     * without writing storage on every GPS tick.
+     */
+    private fun rememberLastKnownLocation(coordinates: GeoCoordinates) {
+        val previous = lastPersistedLocation
+        val movedEnough = previous == null ||
+            HaversineCalculator.distanceMeters(previous, coordinates) >= LAST_KNOWN_LOCATION_MOVE_METERS
+        if (!movedEnough) return
+        lastPersistedLocation = coordinates
+        preferencesPort.rememberLastKnownLocation(coordinates)
+    }
+
     private fun updateLocationDisplay(transform: (FjalarUiState) -> FjalarUiState) {
-        val recenterRequested = pendingRecenter
+        val followUserLocation = pendingRecenter || viewportFromStoredLocation
         _uiState.update { current ->
             val updated = transform(current).withLocationDistances()
-            if (updated.userLocation != null && (current.mapViewportCenter == null || recenterRequested)) {
+            if (updated.userLocation != null && (current.mapViewportCenter == null || followUserLocation)) {
                 updated.copy(
                     mapViewportCenter = updated.userLocation,
                     mapViewportZoom = 15.0,
@@ -258,10 +310,55 @@ class FjalarViewModel(
                 )
             } else updated
         }
-        if (recenterRequested && _uiState.value.userLocation != null) {
-            pendingRecenter = false
+        if (followUserLocation && _uiState.value.userLocation != null) {
+            clearViewportFollow()
             _uiState.value.userLocation?.let { mapRendererPort?.setViewport(it, zoom = 15.0) }
         }
+        resolveStartupReadiness()
+    }
+
+    /** Stops following the user's position; a user gesture or a camera command claimed the map. */
+    private fun clearViewportFollow() {
+        pendingRecenter = false
+        viewportFromStoredLocation = false
+    }
+
+    /**
+     * Platform report of whether this app can obtain a location right now (foreground permission
+     * granted and location services enabled). `false` lets startup finish without waiting for a fix.
+     */
+    fun onLocationAccessChecked(canLocate: Boolean) {
+        locationKnownUnavailable = !canLocate
+        resolveStartupReadiness()
+    }
+
+    /**
+     * Opens the startup gate on the first of: a known viewport (restored from disk or a first fix),
+     * a ringing alarm, known-unavailable location once alarms have loaded, or the startup timeout.
+     * Without a fix, the viewport falls back to a selected or saved alarm before the neutral default.
+     */
+    private fun resolveStartupReadiness() {
+        _uiState.update { current ->
+            if (current.isInitialViewportReady) return@update current
+            val viewportKnown = current.mapViewportCenter != null
+            val ringing = current.activeRingingAlarm != null
+            val noFixExpected = locationKnownUnavailable && alarmsLoaded
+            if (!viewportKnown && !ringing && !noFixExpected && !startupTimedOut) return@update current
+            withStartupFallbackViewport(current).copy(isInitialViewportReady = true)
+        }
+    }
+
+    private fun withStartupFallbackViewport(state: FjalarUiState): FjalarUiState {
+        if (state.mapViewportCenter != null || state.userLocation != null) return state
+        val fallback = state.selectedCoordinates
+            ?: state.nearestArmedAlarm?.coordinates
+            ?: state.alarms.firstOrNull()?.coordinates
+            ?: return state
+        return state.copy(
+            mapViewportCenter = fallback,
+            mapViewportZoom = 15.0,
+            viewportRequestId = state.viewportRequestId + 1L,
+        )
     }
 
     fun onOpenSearch(context: PlaceSearchContext = PlaceSearchContext.BROWSE) {
@@ -334,7 +431,7 @@ class FjalarViewModel(
 
     fun onBrowsePlaceSelected(place: SearchResultPlace) {
         if (_uiState.value.searchContext != PlaceSearchContext.BROWSE) return
-        pendingRecenter = false
+        clearViewportFollow()
         onDismissSearch()
         _uiState.update { current ->
             current.copy(
@@ -510,7 +607,7 @@ class FjalarViewModel(
     }
 
     fun onOpenEditAlarm(alarm: LocationAlarm) {
-        pendingRecenter = false
+        clearViewportFollow()
         _uiState.update { current ->
             current.copy(
                 selectedAlarmForEdit = alarm,
@@ -846,7 +943,7 @@ class FjalarViewModel(
      * Deliberately leaves [FjalarUiState.viewportRequestId] alone: this is a report, not a camera command.
      */
     fun onMapViewportBrowsed(center: GeoCoordinates, zoom: Double) {
-        pendingRecenter = false
+        clearViewportFollow()
         _uiState.update { it.copy(mapViewportCenter = center, mapViewportZoom = zoom) }
     }
 
@@ -860,6 +957,7 @@ class FjalarViewModel(
         val current = _uiState.value
         val knownTarget = current.userLocation
             ?: current.selectedCoordinates
+            ?: current.mapViewportCenter
         val target = knownTarget ?: GeoCoordinates(0.0, 0.0)
         val zoom = if (knownTarget == null) 2.0 else 15.0
         _uiState.update { state ->
@@ -874,5 +972,14 @@ class FjalarViewModel(
 
     companion object {
         const val SEARCH_DEBOUNCE_MILLIS: Long = 300L
+
+        /** Longest the startup gate waits for a first fix before showing the map anyway. */
+        const val STARTUP_VIEWPORT_TIMEOUT_MILLIS: Long = 2_500L
+
+        /**
+         * Minimum movement before the last known position is written again, so nearby GPS jitter
+         * never turns into a storage write on every fix.
+         */
+        const val LAST_KNOWN_LOCATION_MOVE_METERS: Double = 100.0
     }
 }

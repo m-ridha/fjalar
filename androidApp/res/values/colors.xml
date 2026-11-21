@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the light icon master canvas so the splash icon blends into its background. -->
+    <color name="fjalar_splash_background">#FFFFFF</color>
+</resources>

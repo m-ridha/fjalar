@@ -145,8 +145,10 @@ fjalar/
 │   └── test@ios/                # iOS-specific tests
 ├── scripts/                     # Asset, release, and verification scripts
 │   ├── generate_app_icons.py    # Generates all Android adaptive/legacy icons & iOS 18 asset catalog
+│   ├── generate_splash_assets.py # Derives Android/iOS launch artwork from the icon masters, inside the masked circle
 │   ├── generate_alarm_sound.py  # Generates bundled alarm.wav audio across assets, Android raw, and iOS bundle
 │   ├── test_generated_icons.py  # Unit tests for icon dimensions, bit depths, and safe-zone constraints
+│   ├── test_generated_splash_assets.py # Unit tests for launch artwork safe circle, backgrounds, and wiring
 │   ├── build_release_android.sh # Builds, aligns, signs, and verifies the release APK
 │   ├── build_release_ios.sh     # Builds and packages iosArm64 .xcarchive, unsigned .ipa, and SHA256SUMS-ios.txt
 │   ├── release_metadata.py      # Validates release tags and derives app versions
@@ -210,8 +212,14 @@ open iosApp/module.xcodeproj
 # Generate production Android mipmaps, adaptive layers, and iOS asset catalog
 python3 scripts/generate_app_icons.py
 
+# Regenerate native launch artwork from the approved icon masters
+python3 scripts/generate_splash_assets.py
+
 # Verify generated icon assets and safe-zone constraints
 python3 scripts/test_generated_icons.py
+
+# Verify launch artwork stays inside Android 12+'s masked circle and the platform wiring
+python3 scripts/test_generated_splash_assets.py
 ```
 
 For implemented behavior, platform limits, and source references, see [Current project state](docs/current-state.md).
