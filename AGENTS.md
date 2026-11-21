@@ -26,6 +26,7 @@ Preserve module `com.muhammadridha.fjalar`, Kotlin 2.x, Compose Multiplatform, a
 ./kotlin run androidApp                     # Run Android application debug build
 python3 scripts/test_string_catalogs.py     # Verify Compose and runtime localization catalog parity
 python3 scripts/test_generated_icons.py     # Verify icon assets and safe-zone constraints
+python3 scripts/test_generated_splash_assets.py  # Verify launch artwork, safe circle, and platform wiring
 python3 scripts/test_generated_audio.py     # Verify generated/bundled alarm.wav assets
 python3 scripts/test_android_alarm_security.py    # Verify AlarmActivity keyguard & task isolation
 python3 scripts/test_workflow_command_safety.py   # Verify CI workflow command & Xcode SDK safety
@@ -142,6 +143,7 @@ Read and strictly preserve these invariant behaviors:
      - Android adaptive foreground and monochrome layers must reside strictly inside the inner 66 dp (264 px / radius 132 px at xxxhdpi) safe center circle.
      - iOS 18 Asset Catalog must register Universal Light, Dark (`luminosity = dark`), and Tinted appearances in `Contents.json`.
    - Bundled fallback alarm audio (`alarm.wav`) is generated via `python3 scripts/generate_alarm_sound.py` into `assets/audio/alarm.wav`, `iosApp/src/alarm.wav`, and `androidApp/res/raw/alarm.wav`, and verified via `python3 scripts/test_generated_audio.py`.
+   - Native launch artwork is derived from the same icon masters via `python3 scripts/generate_splash_assets.py` (`androidApp/res/drawable[-night]-nodpi/ic_splash_icon.png`, `iosApp/src/Assets.xcassets/LaunchIcon.imageset`, `LaunchBackground.colorset`) and verified via `python3 scripts/test_generated_splash_assets.py`. Android 12+ paints only the central 192 dp of the 288 dp splash canvas inside a circular mask, so all artwork must stay inside a `size / 3` radius on every launch image.
 4. **Catalog Parity:**
    - Maintain automated tests asserting identical string keys and argument placeholders across `en` and `id` catalogs (`python3 scripts/test_string_catalogs.py` and `CatalogParityTest.kt`).
 

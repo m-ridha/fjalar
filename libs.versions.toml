@@ -8,6 +8,7 @@ kotlinx-datetime = "0.7.1"
 kotlinx-serialization = "1.7.3"
 maplibre = "11.5.1"
 androidx-window = "1.5.1"
+androidx-core-splashscreen = "1.2.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity-compose" }
@@ -19,6 +20,7 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 maplibre-android-sdk = { module = "org.maplibre.gl:android-sdk", version.ref = "maplibre" }
+androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "androidx-core-splashscreen" }
 androidx-window = { module = "androidx.window:window", version.ref = "androidx-window" }
 
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }

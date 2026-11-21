@@ -6,6 +6,7 @@ dependencies:
   - //shared
   - $libs.androidx.activity.compose
   - $libs.androidx.window
+  - $libs.androidx.core.splashscreen
   - $compose.preview
   - $compose.uiTooling
 

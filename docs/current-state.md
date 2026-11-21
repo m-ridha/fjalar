@@ -66,6 +66,37 @@ controls wrap for compact layouts. The Task 8 matrix below records observed
 portrait, landscape, font-scale, language, and theme combinations. Foldable
 postures and screen-reader speech remain unverified.
 
+On cold start, `FjalarUiState.isInitialViewportReady` gates `NavHost` and
+`PlatformMapView` until the initial viewport is known so the map never flashes
+the neutral `(0.0, 0.0)` origin. The gate opens on the first of: a position
+restored from disk, an arriving location fix, a ringing alarm,
+known-unavailable location access (denied permission or disabled location
+services) once alarms load, or a 2.5 s timeout
+(`STARTUP_VIEWPORT_TIMEOUT_MILLIS`). Every fresh fix is persisted in the
+device-local preference store as the last known position once it moves 100 m
+from the previous one (`LAST_KNOWN_LOCATION_MOVE_METERS`), so a returning user
+opens on their last area and the first live fix then moves the camera exactly
+once; a map gesture before that fix keeps the browsed viewport. When no fix
+arrives before opening,
+startup falls back to selected, nearest-armed, or first-saved alarm coordinates
+when available, and only a first launch without any position reaches the
+neutral origin. Android holds `androidx.core:splashscreen` via
+`setKeepOnScreenCondition` (with a 4 s hard cap) and fades out over 200 ms (or
+0 ms when animations are disabled). Both platforms render `StartupPlaceholder`
+over the canvas until ready, fading instantly when reduced transparency is
+active. Launch artwork is derived from the approved icon masters by
+`scripts/generate_splash_assets.py` and kept inside the 192 dp circle Android
+12+ paints, which `scripts/test_generated_splash_assets.py` verifies. Android
+reads the persisted `ThemeMode` synchronously before `installSplashScreen()` and
+syncs `UiModeManager.setApplicationNightMode` (API 31+) or wraps the activity
+base context (API 30-) so the native splash matches Light, Dark, or System mode
+and the first Compose frame seeds `themeMode` from `PreferencesPort.peekThemeMode()`.
+On iOS, `UILaunchScreen` follows system appearance through `LaunchIcon` and
+`LaunchBackground` light/dark assets, while `StartupPlaceholder` immediately
+matches the stored `ThemeMode` (a brief mismatch can occur when the stored
+theme differs from the iOS system appearance). `AlarmActivity` and receiver
+paths do not wait on the startup gate.
+
 The main map browses without selecting a destination. Taps and pans do not create
 an alarm or temporary marker; search results move the camera only. The nearest
 active alarm's destination and the user blue dot remain the map's markers. A new

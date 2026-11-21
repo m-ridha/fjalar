@@ -8,6 +8,8 @@ import android.net.Uri
 import android.provider.Settings
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
+import android.location.LocationManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -26,6 +28,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
+import androidx.core.location.LocationManagerCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -52,7 +56,35 @@ class MainActivity : ComponentActivity() {
             permissionPreferences.edit().putBoolean("background_request_completed", value).apply()
         }
 
+    // Written from composition once the shared startup gate opens; read by the native splash.
+    @Volatile
+    private var isStartupReady = false
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(StartupTheme.wrapBaseContext(newBase))
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Persist the current light/dark choice for the next cold start's system splash.
+        StartupTheme.syncApplicationNightMode(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        val launchedAt = SystemClock.elapsedRealtime()
+        val splashScreen = installSplashScreen()
+        // Never hold the splash past the hard cap, even if the shared gate cannot open.
+        splashScreen.setKeepOnScreenCondition {
+            !isStartupReady && SystemClock.elapsedRealtime() - launchedAt < SPLASH_HARD_CAP_MILLIS
+        }
+        splashScreen.setOnExitAnimationListener { splashScreenView ->
+            val fadeMillis = if (animationsDisabled()) 0L else SPLASH_FADE_MILLIS
+            splashScreenView.view.animate()
+                .alpha(0f)
+                .setDuration(fadeMillis)
+                .withEndAction { splashScreenView.remove() }
+                .start()
+        }
         // Draw edge-to-edge behind system status and navigation bars; safe insets are handled via WindowInsetsLayoutHelper
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -60,6 +92,7 @@ class MainActivity : ComponentActivity() {
             val viewModel: FjalarViewModel = koinViewModel()
 
             val permissionUiState by viewModel.uiState.collectAsState()
+            SideEffect { isStartupReady = permissionUiState.isInitialViewportReady }
             val isDarkTheme = resolveLiquidGlassColors(
                 themeMode = permissionUiState.themeMode,
                 systemInDark = isSystemInDarkTheme(),
@@ -199,6 +232,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun isLocationServiceEnabled(): Boolean {
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return false
+        return LocationManagerCompat.isLocationEnabled(locationManager)
+    }
+
+    private fun animationsDisabled(): Boolean =
+        Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+
     private fun hasForegroundLocationPermission(): Boolean =
         hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) ||
             hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -235,6 +276,7 @@ class MainActivity : ComponentActivity() {
         if (hasPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
             hasCompletedBackgroundPermissionRequest = false
         }
+        viewModel.onLocationAccessChecked(hasForegroundLocationPermission() && isLocationServiceEnabled())
         val granted = locationPermissionStep() == LocationPermissionStep.GRANTED
         val previouslyGranted = viewModel.uiState.value.hasLocationPermission
         // The alarm permission banner stays visible until both foreground and
@@ -250,5 +292,10 @@ class MainActivity : ComponentActivity() {
     ) {
         // Permission recovery/recenter refresh the existing owner, never open a second listener.
         viewModel.onAppForegroundChanged(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+    }
+
+    private companion object {
+        const val SPLASH_FADE_MILLIS = 200L
+        const val SPLASH_HARD_CAP_MILLIS = 4_000L
     }
 }

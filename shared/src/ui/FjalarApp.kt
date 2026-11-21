@@ -62,6 +62,7 @@ import com.muhammadridha.fjalar.ui.components.FloatingHudBar
 import com.muhammadridha.fjalar.ui.components.LocationPermissionBanner
 import com.muhammadridha.fjalar.ui.components.PlatformMapView
 import com.muhammadridha.fjalar.ui.components.RingingAlertOverlay
+import com.muhammadridha.fjalar.ui.components.StartupPlaceholder
 import com.muhammadridha.fjalar.ui.components.SearchPlacesSheet
 import com.muhammadridha.fjalar.ui.navigation.AlarmsRoute
 import com.muhammadridha.fjalar.ui.navigation.ConfigureRoute
@@ -162,7 +163,8 @@ fun FjalarApp(
                 .background(colors.canvas),
         ) {
             // Root Multiplatform Navigation Host
-            NavHost(
+            // The map (PlatformMapView) is never mounted before the first viewport is known.
+            if (uiState.isInitialViewportReady) NavHost(
                 navController = navController,
                 startDestination = MapRoute,
                 modifier = Modifier.fillMaxSize(),
@@ -536,6 +538,11 @@ fun FjalarApp(
                     onDockHeightChanged = { dockHeight = it },
                 )
             }
+
+            StartupPlaceholder(
+                visible = !uiState.isInitialViewportReady && uiState.activeRingingAlarm == null,
+                reducedTransparency = reducedTransparency,
+            )
 
             // Topmost Safety Layer: Invariant 3 (Sleepy-Eyes Dismissal Safety)
             val ringingAlarm = uiState.activeRingingAlarm
