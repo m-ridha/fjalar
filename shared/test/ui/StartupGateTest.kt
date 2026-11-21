@@ -251,6 +251,23 @@ class StartupGateTest {
     }
 
     @Test
+    fun openingTheEditorBeforeTheFirstFixStopsTheCameraFollowingTheFix() = runTest {
+        val tracker = UiLocationTracker()
+        val storedCenter = GeoCoordinates(-6.2, 106.8)
+        val h = harness(tracker = tracker, storage = seededStorage(storedCenter))
+        try {
+            h.viewModel.onStartConfiguringAlarm(
+                alarmId = null,
+                defaultCoordinates = GeoCoordinates(-6.9, 107.6),
+            )
+            tracker.emit(GeoCoordinates(51.5, -0.12))
+            // The editor owns the camera; the late fix only updates the dot.
+            assertEquals(storedCenter, h.viewModel.uiState.value.mapViewportCenter)
+            assertEquals(GeoCoordinates(51.5, -0.12), h.viewModel.uiState.value.userLocation)
+        } finally { h.scope.cancel() }
+    }
+
+    @Test
     fun freshFixesAreStoredOnlyAfterMeaningfulMovement() = runTest {
         val storage = InMemoryKeyValueStorage()
         val tracker = UiLocationTracker()

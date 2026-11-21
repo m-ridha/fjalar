@@ -640,6 +640,8 @@ class FjalarViewModel(
 
     fun onStartConfiguringAlarm(alarmId: String?, defaultCoordinates: GeoCoordinates? = null) {
         onDismissSearch()
+        // The editor owns the camera from here: a late first fix must not move it.
+        clearViewportFollow()
         draftRevision++
         editorPersistedId = alarmId
         val draft = if (alarmId != null) {
