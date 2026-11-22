@@ -15,6 +15,43 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
+private const val PHOTON_BIAS_ZOOM: Int = 12
+
+/**
+ * Builds the geocoder request URL.
+ *
+ * Photon supports location bias and a short language list; the Nominatim path is kept for a
+ * swapped base URL and never receives coordinates.
+ */
+internal fun buildRequestUrl(
+    baseUrl: String,
+    query: String,
+    locale: AppLocale,
+    proximity: GeoCoordinates?,
+    limit: Int,
+): String {
+    val base = if (baseUrl.endsWith("/")) baseUrl.dropLast(1) else baseUrl
+    val encodedQuery = URLEncoder.encode(query, "UTF-8")
+
+    if (!baseUrl.contains("photon")) {
+        // shortcut: no location bias on the Nominatim path, add viewbox if a Nominatim base URL is ever wired
+        return "$base/search?q=$encodedQuery&format=json&addressdetails=1&limit=$limit"
+    }
+
+    val url = StringBuilder(base)
+        .append("?q=").append(encodedQuery)
+        .append("&limit=").append(limit)
+    if (locale == AppLocale.EN) {
+        url.append("&lang=en")
+    }
+    if (proximity != null) {
+        url.append("&lat=").append(proximity.latitude)
+            .append("&lon=").append(proximity.longitude)
+            .append("&zoom=").append(PHOTON_BIAS_ZOOM)
+    }
+    return url.toString()
+}
+
 /**
  * Android implementation of [OnlineGeocodingEngine] backed by OpenStreetMap Nominatim.
  * Uses Android platform standard library (HttpURLConnection, org.json) with zero external networking dependencies.
@@ -39,17 +76,8 @@ class AndroidNominatimEngine(
         }
 
         try {
-            val encodedQuery = URLEncoder.encode(trimmed, "UTF-8")
             val langCode = locale.tag
-            val urlString = if (baseUrl.contains("photon")) {
-                val base = if (baseUrl.endsWith("/")) baseUrl.dropLast(1) else baseUrl
-                "$base?q=$encodedQuery&limit=$limit&lang=$langCode"
-            } else {
-                val base = if (baseUrl.endsWith("/")) baseUrl.dropLast(1) else baseUrl
-                "$base/search?q=$encodedQuery&format=json&addressdetails=1&limit=$limit"
-            }
-
-            val url = URL(urlString)
+            val url = URL(buildRequestUrl(baseUrl, trimmed, locale, proximity, limit))
             val connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = connectTimeoutMs
@@ -108,7 +136,6 @@ class AndroidNominatimEngine(
 
             val categoryClass = obj.optString("class", "")
             val type = obj.optString("type", "")
-            val category = resolveCategory(categoryClass, type)
 
             // Extract primary name (first token of display_name) and detail (subsequent tokens)
             val parts = displayName.split(",").map { it.trim() }.filter { it.isNotEmpty() }
@@ -118,6 +145,10 @@ class AndroidNominatimEngine(
             } else {
                 null
             }
+            val category = PlaceCategoryHeuristics.refine(
+                name,
+                resolveCategory(categoryClass, type),
+            )
 
             results.add(
                 SearchResultPlace(
@@ -162,7 +193,10 @@ class AndroidNominatimEngine(
 
             val osmKey = props.optString("osm_key", "")
             val osmValue = props.optString("osm_value", "")
-            val category = resolveCategory(osmKey, osmValue)
+            val category = PlaceCategoryHeuristics.refine(
+                name,
+                resolveCategory(osmKey, osmValue),
+            )
 
             val detailParts = listOfNotNull(
                 props.optString("city", "").takeIf { it.isNotEmpty() },
@@ -187,7 +221,7 @@ class AndroidNominatimEngine(
     private fun resolveCategory(categoryClass: String, type: String): PlaceCategory = when {
         type in listOf("subway", "subway_entrance", "metro_station") -> PlaceCategory.METRO_STATION
         categoryClass == "railway" -> PlaceCategory.TRAIN_STATION
-        categoryClass in listOf("aeroway", "bus_station") ||
+        categoryClass in listOf("aeroway", "bus_station", "public_transport") ||
             type in listOf("aerodrome", "bus_stop", "platform", "tram_stop", "ferry_terminal") -> PlaceCategory.TRANSIT_STOP
         categoryClass in listOf("tourism", "historic", "attraction") -> PlaceCategory.LANDMARK
         else -> PlaceCategory.GENERAL
