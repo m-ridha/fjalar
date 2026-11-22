@@ -1,9 +1,13 @@
 package com.muhammadridha.fjalar.fakes
 
+import com.muhammadridha.fjalar.adapters.search.OnlineGeocodingEngine
+import com.muhammadridha.fjalar.domain.model.AppLocale
+import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.GeofenceRegion
 import com.muhammadridha.fjalar.domain.model.GeofenceTransitionEvent
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.RecentDestination
+import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.ports.outbound.AccessibilityPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRepositoryPort
 import com.muhammadridha.fjalar.domain.ports.outbound.AlarmRingerPort
@@ -164,6 +168,32 @@ class FakeGeofenceAdapter : GeofencePort {
 
     suspend fun emitTransition(event: GeofenceTransitionEvent) {
         eventsFlow.emit(event)
+    }
+}
+
+class FakeOnlineGeocodingEngine : OnlineGeocodingEngine {
+    var queryCount = 0
+        private set
+    var lastQuery: String? = null
+    var lastLocale: AppLocale? = null
+    var lastProximity: GeoCoordinates? = null
+    var lastLimit: Int? = null
+    var places: List<SearchResultPlace> = emptyList()
+    var failure: Throwable? = null
+
+    override suspend fun geocode(
+        query: String,
+        locale: AppLocale,
+        proximity: GeoCoordinates?,
+        limit: Int,
+    ): List<SearchResultPlace> {
+        queryCount++
+        lastQuery = query
+        lastLocale = locale
+        lastProximity = proximity
+        lastLimit = limit
+        failure?.let { throw it }
+        return places
     }
 }
 
