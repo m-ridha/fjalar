@@ -3,6 +3,7 @@ package com.muhammadridha.fjalar.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.muhammadridha.fjalar.adapters.location.isFreshLocationFix
+import com.muhammadridha.fjalar.adapters.search.PlaceSearchAdapter
 import com.muhammadridha.fjalar.domain.model.AlarmState
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
@@ -401,13 +402,25 @@ class FjalarViewModel(
         searchSessionToken++
         val requestToken = searchSessionToken
         searchJob?.cancel()
+        searchJob = null
+        if (query.trim().length < PlaceSearchAdapter.MIN_QUERY_LENGTH) {
+            unfilteredSearchResults = emptyList()
+            _uiState.update {
+                it.copy(
+                    searchQuery = query,
+                    searchResults = emptyList(),
+                    isSearching = false,
+                )
+            }
+            return
+        }
         _uiState.update { it.copy(searchQuery = query, isSearching = true) }
         searchJob = scope.launch {
-            if (query.isNotBlank()) {
-                delay(SEARCH_DEBOUNCE_MILLIS)
-            }
+            delay(SEARCH_DEBOUNCE_MILLIS)
             val locale = _uiState.value.appLocale
-            val proximity = _uiState.value.userLocation ?: _uiState.value.selectedCoordinates
+            val proximity = _uiState.value.mapViewportCenter
+                ?: _uiState.value.userLocation
+                ?: _uiState.value.selectedCoordinates
             val places = searchPlacesPort?.searchPlaces(query, locale, proximity) ?: emptyList()
             if (requestToken != searchSessionToken) return@launch
             unfilteredSearchResults = places

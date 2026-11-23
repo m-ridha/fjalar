@@ -51,7 +51,7 @@ Follow strict **Hexagonal Architecture (Ports and Adapters)** (reference: Alista
    - **Outbound Ports (`domain/ports/outbound/`):** All 11 SPI contracts declared by the domain (`LocationTrackerPort`, `AlarmSchedulerPort`, `AlarmRingerPort`, `MapRendererPort`, `SearchPlacesPort`, `AlarmRepositoryPort`, `PreferencesPort`, `AccessibilityPort`, `BackgroundSyncPort`, `GeofencePort`, `RecentDestinationsPort`).
    - Do not create interfaces for every internal concrete class. Use ports at architectural boundaries.
 3. **Pluggable & Interchangeable Adapters (`adapters/`):**
-   - Platform mechanisms (OpenStreetMap/MapLibre, Apple MapKit, Android `LocationManager`, iOS `CLLocationManager`, `RingtoneManager`/bundled `alarm.wav`, `HybridPlaceSearchAdapter`, `SharedPreferences`/`NSUserDefaults`, `AndroidAccessibilityAdapter`/`IosAccessibilityAdapter`, `AndroidBackgroundSyncAdapter`/`IosBackgroundSyncAdapter`, `AndroidGeofenceAdapter`/`IosRegionGeofenceAdapter`, `PersistentRecentDestinationsAdapter`) live solely in adapters.
+   - Platform mechanisms (OpenStreetMap/MapLibre, Apple MapKit, Android `LocationManager`, iOS `CLLocationManager`, `RingtoneManager`/bundled `alarm.wav`, `PlaceSearchAdapter` with `AndroidNominatimEngine`/`IosAppleLocalSearchEngine`, `SharedPreferences`/`NSUserDefaults`, `AndroidAccessibilityAdapter`/`IosAccessibilityAdapter`, `AndroidBackgroundSyncAdapter`/`IosBackgroundSyncAdapter`, `AndroidGeofenceAdapter`/`IosRegionGeofenceAdapter`, `PersistentRecentDestinationsAdapter`) live solely in adapters.
    - Any adapter must be swappable without modifying domain entities, state machines, or unit tests.
 4. **Defensive Domain Validation:**
    - Validate coordinate bounds (`-90..90`, `-180..180`), radius limits (`50m..10,000m`), and minute ranges (`0..1439`) before dispatching to ports or persistence.
@@ -108,6 +108,7 @@ Read and strictly preserve these invariant behaviors:
 1. **100% On-Device Privacy:**
    - Location coordinates, saved places (home/office), and commute schedules stay strictly in on-device storage.
    - Zero remote tracking, zero analytics harvesting location coordinates, zero external server sync.
+   - Place search is the only outbound data path: each request sends the typed query and the map center rounded to 2 decimals (≈1 km) to the platform geocoder (OSM Photon on Android, Apple MapKit on iOS). Exact distances are computed locally, and provider results, queries, and coarse centers are never persisted.
 2. **0% Runaway GPS Battery Drain:**
    - Background GPS polling runs only for active alarm monitoring. A visible foreground Map may independently request location even without an armed alarm. Its map-only request must stop when the Map is hidden or the app backgrounds.
    - Outside active alarm monitoring or immediately after alarm dismissal, background location polling must stop completely.
@@ -133,10 +134,10 @@ Read and strictly preserve these invariant behaviors:
 ## Tests & Asset Validation
 
 1. **Test pure domain logic in `commonTest`:**
-   - Test `HaversineCalculator`, `ScheduleEvaluator`, `AlarmEvaluator`, `LocationTrackingPolicy`, `GeofenceRegion`, `SynchronizeAlarmsUseCase`, and `HybridPlaceSearchAdapter` thoroughly using pure Kotlin without mocks or platform SDKs.
+   - Test `HaversineCalculator`, `ScheduleEvaluator`, `AlarmEvaluator`, `LocationTrackingPolicy`, `GeofenceRegion`, `SynchronizeAlarmsUseCase`, `PlaceSearchAdapter`, and `PlaceCategoryHeuristics` thoroughly using pure Kotlin without mocks or platform SDKs.
    - Cover boundary conditions: midnight-crossing windows (e.g., `23:00–02:00`), leap years, weekend/weekday bitmasks, holiday skip logic, and GPS accuracy jitter.
 2. **Use Mock Adapters / Test Fakes:**
-   - Use shared fakes in `shared/test/fakes/FakeAdapters.kt` (`InMemoryAlarmRepository`, `FakeLocationTracker`, `FakeAlarmRinger`, `FakeAlarmScheduler`, `FakeClock`, `FakeAccessibilityAdapter`, `FakeRecentDestinationsAdapter`, `FakeBackgroundSyncAdapter`, `FakeGeofenceAdapter`), `InMemoryKeyValueStorage` (`shared/src/adapters/storage/KeyValueStorage.kt`), and `HybridPlaceSearchAdapter()` or local `FakeSearchPlacesPort` (`FjalarViewModelTest.kt`) for use case and ViewModel testing.
+   - Use shared fakes in `shared/test/fakes/FakeAdapters.kt` (`InMemoryAlarmRepository`, `FakeLocationTracker`, `FakeAlarmRinger`, `FakeAlarmScheduler`, `FakeClock`, `FakeAccessibilityAdapter`, `FakeRecentDestinationsAdapter`, `FakeBackgroundSyncAdapter`, `FakeGeofenceAdapter`, `FakeOnlineGeocodingEngine`), `InMemoryKeyValueStorage` (`shared/src/adapters/storage/KeyValueStorage.kt`), and `PlaceSearchAdapter` with `FakeOnlineGeocodingEngine` or a local `FakeSearchPlacesPort` (`FjalarViewModelTest.kt`) for use case and ViewModel testing.
    - Use fixed clocks / timestamps and deterministic coordinates to eliminate flaky test timing.
 3. **App Icon & Audio Asset Generation & Verification:**
    - All mobile launcher icons must be generated from `assets/icons/icon_master_*.png` via `python3 scripts/generate_app_icons.py` and verified with `python3 scripts/test_generated_icons.py`:

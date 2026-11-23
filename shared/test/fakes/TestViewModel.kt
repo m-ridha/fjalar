@@ -1,6 +1,6 @@
 package com.muhammadridha.fjalar.fakes
 
-import com.muhammadridha.fjalar.adapters.search.HybridPlaceSearchAdapter
+import com.muhammadridha.fjalar.adapters.search.PlaceSearchAdapter
 import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.PersistentAlarmRepository
 import com.muhammadridha.fjalar.adapters.storage.PersistentPreferencesAdapter
@@ -29,7 +29,7 @@ fun createTestViewModel(
         skipTodayPort = service,
         preferencesPort = PersistentPreferencesAdapter(keyValueStorage),
         syncSchedulesPort = service,
-        searchPlacesPort = HybridPlaceSearchAdapter(),
+        searchPlacesPort = PlaceSearchAdapter(FakeOnlineGeocodingEngine()),
         deleteAlarmPort = service,
         locationTrackerPort = tracker,
         snoozeAlarmPort = service,

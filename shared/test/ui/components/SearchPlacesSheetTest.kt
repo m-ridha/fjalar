@@ -41,6 +41,16 @@ class SearchPlacesSheetTest {
     }
 
     @Test
+    fun shouldShowEmptySearchResults_requiresAtLeastThreeNonWhitespaceChars() {
+        assertFalse(shouldShowEmptySearchResults(emptyList(), "", isLoading = false))
+        assertFalse(shouldShowEmptySearchResults(emptyList(), "M", isLoading = false))
+        assertFalse(shouldShowEmptySearchResults(emptyList(), "Ma", isLoading = false))
+        assertFalse(shouldShowEmptySearchResults(emptyList(), " Ma ", isLoading = false))
+        assertFalse(shouldShowEmptySearchResults(emptyList(), "Man", isLoading = true))
+        assertTrue(shouldShowEmptySearchResults(emptyList(), "Man", isLoading = false))
+    }
+
+    @Test
     fun quickPickContentDescription_formatsCorrectlyInBothLocales() {
         val recent = sampleRecent(name = "Gambir")
 

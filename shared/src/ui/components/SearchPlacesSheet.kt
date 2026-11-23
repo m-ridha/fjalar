@@ -61,6 +61,12 @@ import kotlin.math.roundToInt
 internal fun shouldShowQuickPicks(query: String, recentDestinations: List<RecentDestination>): Boolean =
     query.isBlank() && recentDestinations.isNotEmpty()
 
+internal fun shouldShowEmptySearchResults(
+    results: List<SearchResultPlace>,
+    query: String,
+    isLoading: Boolean,
+): Boolean = results.isEmpty() && query.trim().length >= 3 && !isLoading
+
 internal fun quickPickContentDescription(destination: RecentDestination, locale: AppLocale): String =
     FjalarStrings.get(FjalarStringKey.SEARCH_QUICK_PICK_CONTENT_DESC, locale, destination.name)
 
@@ -342,7 +348,7 @@ fun SearchPlacesSheet(
             contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            if (results.isEmpty() && query.isNotBlank() && !isLoading) {
+            if (shouldShowEmptySearchResults(results, query, isLoading)) {
                 item {
                     Column(
                         modifier = Modifier

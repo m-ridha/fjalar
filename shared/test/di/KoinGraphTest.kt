@@ -1,7 +1,7 @@
 package com.muhammadridha.fjalar.di
 
 import androidx.lifecycle.ViewModelStore
-import com.muhammadridha.fjalar.adapters.search.HybridPlaceSearchAdapter
+import com.muhammadridha.fjalar.adapters.search.PlaceSearchAdapter
 import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.PersistentAlarmRepository
@@ -28,7 +28,7 @@ internal fun fakePlatformModule() = module {
     single<LocationTrackerPort> { FakeLocationTracker() }
     single<AlarmSchedulerPort> { FakeAlarmScheduler() }
     single<AlarmRingerPort> { FakeAlarmRinger() }
-    single<SearchPlacesPort> { HybridPlaceSearchAdapter() }
+    single<SearchPlacesPort> { PlaceSearchAdapter(FakeOnlineGeocodingEngine()) }
     single<BackgroundSyncPort> { FakeBackgroundSyncAdapter() }
     single<GeofencePort> { FakeGeofenceAdapter() }
 }

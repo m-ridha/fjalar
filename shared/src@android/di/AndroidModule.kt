@@ -6,7 +6,7 @@ import com.muhammadridha.fjalar.adapters.location.AndroidFusedLocationAdapter
 import com.muhammadridha.fjalar.adapters.ringer.AndroidSystemAlarmRingerAdapter
 import com.muhammadridha.fjalar.adapters.scheduler.AndroidAlarmManagerSchedulerAdapter
 import com.muhammadridha.fjalar.adapters.search.AndroidNominatimEngine
-import com.muhammadridha.fjalar.adapters.search.HybridPlaceSearchAdapter
+import com.muhammadridha.fjalar.adapters.search.PlaceSearchAdapter
 import com.muhammadridha.fjalar.adapters.storage.PersistentPreferencesAdapter
 import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.SharedPreferencesKeyValueStorage
@@ -38,7 +38,7 @@ val androidPlatformModule = module {
         AndroidFusedLocationAdapter(androidContext(), updatePortProvider = { get() })
     } onClose { it?.close() }
     single<LocationTrackerPort> { get<AndroidFusedLocationAdapter>() }
-    single<SearchPlacesPort> { HybridPlaceSearchAdapter(onlineEngine = AndroidNominatimEngine()) }
+    single<SearchPlacesPort> { PlaceSearchAdapter(onlineEngine = AndroidNominatimEngine()) }
     single<BackgroundSyncPort> { AndroidBackgroundSyncAdapter() }
     single { AndroidGeofenceAdapter(androidContext(), transitionPortProvider = { get() }) } onClose { it?.close() }
     single<GeofencePort> { get<AndroidGeofenceAdapter>() }
