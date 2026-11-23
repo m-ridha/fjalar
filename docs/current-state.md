@@ -305,14 +305,17 @@ taps keep working.
 
 The map picker and place search also support recent destination quick-picks
 via `RecentDestinationsPort` backed by `PersistentRecentDestinationsAdapter` in
-platform key-value storage. Confirmed destinations recorded by `FjalarViewModel` (which
-drives `MapPickerScreen` in `FjalarApp.kt`) are stored in an LRU list capped at 5 entries,
+platform key-value storage. Destinations recorded from main-map browse selection
+(`onBrowsePlaceSelected`), picker search selection (`onPickerPlaceSelected`), or
+confirmed picker placement (`FjalarViewModel` driving `MapPickerScreen` in
+`FjalarApp.kt`) are stored in an LRU list capped at 5 entries,
 deduplicated by ID, case-insensitive trimmed name, and coordinate proximity within 50 meters.
 In `SearchPlacesSheet`, when the query is blank and recent destinations exist,
-horizontal quick-pick chips render station/place icons, destination names, and
-accessible content descriptions. Tapping a quick-pick centers the map picker,
-focuses the marker, and enables confirmation. All destination coordinates and history
-remain 100% on-device.
+a vertical scrollable list renders full-width destination rows with category icons,
+single-line ellipsized names, optional distance pills, dividers, and
+accessible content descriptions. Tapping a recent row centers the map (or
+focuses the picker marker and enables confirmation) while keeping all coordinates
+and history 100% on-device without persisting raw typed search queries.
 
 ## Architecture and distribution
 

@@ -92,6 +92,7 @@ fun MapPickerScreen(
     modifier: Modifier = Modifier,
     recentDestinations: List<RecentDestination> = emptyList(),
     onSelectRecentDestination: (RecentDestination) -> Unit = {},
+    onRecordSearchResult: ((SearchResultPlace) -> Unit)? = null,
     onConfirmDestination: ((GeoCoordinates, String?, PlaceCategory) -> Unit)? = null,
     locale: AppLocale = LiquidGlassTheme.locale,
     initialZoom: Double = 15.0,
@@ -357,6 +358,7 @@ fun MapPickerScreen(
                     cameraZoom = 15.0
                     preserveZoom = false
                     viewportRequestId++
+                    onRecordSearchResult?.invoke(place)
                     onDismissSearch()
                 },
                 onDismiss = onDismissSearch,
