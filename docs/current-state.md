@@ -1,16 +1,20 @@
 # Current project state
 
-Source audit: 2026-11-20, based on main through v0.3.2 preparation (PRs #49–#53, commit
-`8047366`). This records implemented behavior across Phases 1 through 10 and post-v0.3.0
-wiring, security, editor UX, app icon updates, and Android map cartography. Notion
+Source audit: 2026-11-23, based on main through v0.4.0 preparation (PRs #55–#59, commit
+`93d4746`). This records implemented behavior across Phases 1 through 10 and post-v0.3.0
+wiring, security, editor UX, app icon updates, Android map cartography, native splash
+gating, worldwide online place search, Liquid Glass v2 tokens, and E2E bugfixes. Notion
 requirements and historical Stitch mockups may include planned future enhancements.
 
-## Release readiness (v0.3.2)
+## Release readiness (v0.4.0)
 
-Fjalar v0.3.2 ships core domain logic, Liquid Glass UI, bilingual transit localization,
-dynamic accessibility observation, wired background refresh and circular geofencing,
-explicit alarm editor save/discard confirmation, updated crowing-bolt app icons,
-zoom-tiered Android map POI labeling, and multiplatform release packaging:
+Fjalar v0.4.0 ships core domain logic, Liquid Glass v2 UI (`#F2F3F8` Light canvas and
+`1 dp` pill rims), native startup splash with last-known-location viewport gating,
+worldwide online place search (`PlaceSearchAdapter` with OSM Photon and Apple MapKit
+`MKLocalSearch`), bilingual transit localization, dynamic accessibility observation,
+wired background refresh and circular geofencing, explicit alarm editor save/discard
+confirmation, updated crowing-bolt app icons, zoom-tiered Android map POI labeling,
+and multiplatform release packaging:
 
 - **Bilingual transit (`en` & `id`)**: Full English and Bahasa Indonesia catalog parity across
   UI, day chips (`Mo..Su` / `Sn..Mg`), notifications, unsaved-changes discard dialog, and
@@ -129,8 +133,8 @@ Compact or large-font layouts use numeric input. Cancel leaves the draft time
 unchanged. The radius slider spans
 50 m to 3 km, with 50 m, 100 m, 200 m, 300 m, 500 m, 1 km, 2 km, and 3 km presets
 arranged in two center-aligned equal-width 5-column rows (sub-km in row 1; 1–3 km in row 2). New alarms
-default to 100 m. The domain retains its 10 km maximum for saved alarms;
-`v0.3.2` adds no migration or clamping of existing values. Day chips use
+default to 100 m. The domain retains its 10 km maximum for saved alarms.
+`v0.4.0` adds no migration or clamping of existing values. Day chips use
 `Mo Tu We Th Fr Sa Su` and `Sn Sl Rb Km Jm Sb Mg` across two center-aligned equal-width 5-column
 rows (`Mo–Fr` / `Sn–Jm` in row 1; `Sa–Su` / `Sb–Mg` in row 2). `AlarmCard` keeps compact metadata pills
 (`radius` and sound/vibration badges) in its metadata `FlowRow` and places the scheduled
@@ -349,6 +353,7 @@ and exit codes.
 | iPhone Duo, iOS 27.2 | Fresh app launched and rendered its primary display behind a first-run notification prompt. The second display capture was black; interactive layout checks were not completed. |
 | Android API 34 (Cloud Device, 720 × 1616) | Verified PR #33 debug APK via Ramus: foreground location and notification permissions accepted; background location rationale dismissed. MapLibre canvas edge-to-edge; Light mode and Dark mode tokens toggled cleanly. Real-time language switch between English and Bahasa Indonesia verified across HUD, navigation, and day chips (`Sn Sl Rb Km Jm Sb Mg`). The earlier offline station autocomplete and Metro/MRT filtering claim was superseded by worldwide online search (verified on the local API 37 emulator row below); current builds return no search results without network. MapPicker pin placement confirmed destination; alarm created with 200m preset and custom label; alarm card rendered with active badge; skip today transitioned to `COMPLETED_FOR_WINDOW` once-per-window state; alarm delete confirmation dialog cancelled and confirmed cleanly with safe empty-state return. |
 | Android API 37 Emulator (`Medium_Phone_API_37.0`, worldwide-search debug APK) | Blank `SearchPlacesSheet` showed only category chips, with no results panel and no recent quick-picks after app data was cleared. `Manggarai` returned four Jakarta station rows with on-device distances (`1.6 km`); selecting the Train chip kept them. `Shibuya Station` returned `Shibuya, Tokyo, Japan` (`5782 km`) and `Berlin Hauptbahnhof` returned Berlin Hbf rows (`10790.2–10790.3 km`) while Train stayed selected, confirming worldwide results and best-effort category filtering. With Wi-Fi and mobile data disabled, `Manggarai` showed the `No places found` panel without a crash. Cancelling during a query left no result list behind. Recent quick-picks and picker map taps were not re-exercised in this pass because app data had been cleared. |
+| Android API 37 Emulator (`Medium_Phone_API_37.0`, PR #59 debug APK) | Visually verified live Dark-to-Light Carto style reload (`Carto Dark Matter` to `Carto Positron`), Light `ConfigureAlarmScreen` `#F2F3F8` canvas with `1 dp` glass rims on unselected radius presets and day chips, soft keyboard open on `ConfigureAlarmScreen` with `FrostedBottomNavigationBar` hidden in both screenshot and `uiautomator dump`, and Dark cold-start splash release into the settled map view. |
 
 These observations do not establish map-bearing rotation or reproduce the earlier
 missing-pin report. Still unverified on Android: completing the locked-screen
