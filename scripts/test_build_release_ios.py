@@ -28,7 +28,7 @@ class BuildReleaseIosTest(unittest.TestCase):
         self.assertNotEqual(0, res.returncode)
         self.assertIn("Missing release tag", res.stderr)
 
-        env["RELEASE_TAG"] = "v0.4.0"
+        env["RELEASE_TAG"] = "v0.4.1"
         env.pop("BUILD_NUMBER", None)
         res = subprocess.run(["bash", str(BUILD_SCRIPT)], env=env, capture_output=True, text=True)
         self.assertNotEqual(0, res.returncode)
@@ -65,7 +65,7 @@ class BuildReleaseIosTest(unittest.TestCase):
             kotlin_stub.chmod(0o755)
 
             env = os.environ.copy()
-            env["RELEASE_TAG"] = "v0.4.0"
+            env["RELEASE_TAG"] = "v0.4.1"
             env["BUILD_NUMBER"] = "42"
             env.pop("IOS_TARGET_PLATFORM", None)
 
@@ -80,8 +80,8 @@ class BuildReleaseIosTest(unittest.TestCase):
             self.assertEqual(0, res.returncode)
 
             dist_dir = temp_path / "dist"
-            archive_dir = dist_dir / "fjalar-v0.4.0.xcarchive"
-            ipa_path = dist_dir / "fjalar-v0.4.0-ios-unsigned.ipa"
+            archive_dir = dist_dir / "fjalar-v0.4.1.xcarchive"
+            ipa_path = dist_dir / "fjalar-v0.4.1-ios-unsigned.ipa"
             checksum_path = dist_dir / "SHA256SUMS-ios.txt"
 
             # Verify intermediate build/tasks Fjalar.app/Info.plist was not mutated
@@ -97,13 +97,13 @@ class BuildReleaseIosTest(unittest.TestCase):
             self.assertTrue((archive_dir / "Products/Applications/Fjalar.app/Fjalar").is_file())
             with open(archive_dir / "Info.plist", "rb") as f:
                 loaded_archive_plist = plistlib.load(f)
-            self.assertEqual("0.4.0", loaded_archive_plist["ApplicationProperties"]["CFBundleShortVersionString"])
+            self.assertEqual("0.4.1", loaded_archive_plist["ApplicationProperties"]["CFBundleShortVersionString"])
             self.assertEqual("42", loaded_archive_plist["ApplicationProperties"]["CFBundleVersion"])
             self.assertEqual("com.muhammadridha.fjalar", loaded_archive_plist["ApplicationProperties"]["CFBundleIdentifier"])
 
             with open(archive_dir / "Products/Applications/Fjalar.app/Info.plist", "rb") as f:
                 loaded_embedded_archive_plist = plistlib.load(f)
-            self.assertEqual("0.4.0", loaded_embedded_archive_plist["CFBundleShortVersionString"])
+            self.assertEqual("0.4.1", loaded_embedded_archive_plist["CFBundleShortVersionString"])
             self.assertEqual("42", loaded_embedded_archive_plist["CFBundleVersion"])
 
             # Verify .ipa zip structure and embedded Payload/Fjalar.app/Info.plist versions
@@ -113,14 +113,14 @@ class BuildReleaseIosTest(unittest.TestCase):
                 self.assertIn("Payload/Fjalar.app/Fjalar", names)
                 self.assertIn("Payload/Fjalar.app/Info.plist", names)
                 loaded_ipa_plist = plistlib.loads(zf.read("Payload/Fjalar.app/Info.plist"))
-            self.assertEqual("0.4.0", loaded_ipa_plist["CFBundleShortVersionString"])
+            self.assertEqual("0.4.1", loaded_ipa_plist["CFBundleShortVersionString"])
             self.assertEqual("42", loaded_ipa_plist["CFBundleVersion"])
 
             # Verify SHA256SUMS-ios.txt matches actual .ipa hash
             self.assertTrue(checksum_path.is_file())
             expected_sha = hashlib.sha256(ipa_path.read_bytes()).hexdigest()
             checksum_content = checksum_path.read_text().strip()
-            self.assertEqual(f"{expected_sha}  fjalar-v0.4.0-ios-unsigned.ipa", checksum_content)
+            self.assertEqual(f"{expected_sha}  fjalar-v0.4.1-ios-unsigned.ipa", checksum_content)
 
 
 if __name__ == "__main__":

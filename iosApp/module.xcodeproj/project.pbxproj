@@ -153,7 +153,7 @@
 				INFOPLIST_FILE = src/Info.plist;
 				KOTLIN_CLI_WRAPPER_PATH = "$(SRCROOT)/../kotlin";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				MARKETING_VERSION = 0.4.0;
+				MARKETING_VERSION = 0.4.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.muhammadridha.fjalar";
 				PRODUCT_MODULE_NAME = app;
 				PRODUCT_NAME = "Fjalar";
@@ -183,7 +183,7 @@
 				INFOPLIST_FILE = src/Info.plist;
 				KOTLIN_CLI_WRAPPER_PATH = "$(SRCROOT)/../kotlin";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				MARKETING_VERSION = 0.4.0;
+				MARKETING_VERSION = 0.4.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.muhammadridha.fjalar";
 				PRODUCT_MODULE_NAME = app;
 				PRODUCT_NAME = "Fjalar";
