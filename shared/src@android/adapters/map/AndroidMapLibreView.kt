@@ -64,6 +64,7 @@ fun AndroidMapLibreView(
     val currentOnPinDrag by rememberUpdatedState(onPinDrag)
     val currentPinLocation by rememberUpdatedState(pinLocation)
     val currentOnBearingChanged by rememberUpdatedState(onBearingChanged)
+    val currentIsDarkTheme by rememberUpdatedState(isDarkTheme)
 
     // MapView creation and lifecycle observer setup
     val mapView = remember(context) {
@@ -225,15 +226,17 @@ fun AndroidMapLibreView(
                 }
             }
 
-            map.setStyle(targetStyleUrl) { style ->
-                currentStyleUrl = targetStyleUrl
+            val initialStyleUrl = AndroidMapRendererAdapter.getMapStyleUrl(currentIsDarkTheme)
+            adapter.updateTheme(currentIsDarkTheme)
+            map.setStyle(initialStyleUrl) { style ->
+                currentStyleUrl = initialStyleUrl
                 adapter.onStyleLoaded(style)
             }
         }
     }
 
     // React to theme changes and update style
-    LaunchedEffect(isDarkTheme, mapLibreMap) {
+    LaunchedEffect(targetStyleUrl, mapLibreMap) {
         val map = mapLibreMap ?: return@LaunchedEffect
         adapter.updateTheme(isDarkTheme)
         if (currentStyleUrl != targetStyleUrl) {

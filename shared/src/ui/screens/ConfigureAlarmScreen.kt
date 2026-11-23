@@ -475,12 +475,17 @@ fun ConfigureAlarmScreen(
                         ) {
                             for (preset in rowPresets) {
                                 val isSelected = draft.radiusMeters == preset.meters
+                                val pillSurface = if (isSelected) {
+                                    Modifier.background(color = colors.primary, shape = CircleShape)
+                                } else {
+                                    Modifier.glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                                }
                                 Box(
                                     modifier = Modifier
                                         .width(pillWidth)
                                         .heightIn(min = 48.dp)
+                                        .then(pillSurface)
                                         .clip(CircleShape)
-                                        .background(if (isSelected) colors.primary else colors.glassPill)
                                         .clickable(role = Role.RadioButton, enabled = !isOperationPending) {
                                             onDraftChange(draft.copy(radiusMeters = preset.meters))
                                         }
@@ -657,12 +662,17 @@ fun ConfigureAlarmScreen(
                                 for (i in rowIndices) {
                                     val bit = 1 shl i
                                     val isDayActive = (draft.daysOfWeekMask and bit) != 0
+                                    val daySurface = if (isDayActive) {
+                                        Modifier.background(color = colors.primary, shape = CircleShape)
+                                    } else {
+                                        Modifier.glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                                    }
                                     Box(
                                         modifier = Modifier
                                             .width(pillWidth)
                                             .heightIn(min = 48.dp)
+                                            .then(daySurface)
                                             .clip(CircleShape)
-                                            .background(if (isDayActive) colors.primary else colors.glassPill)
                                             .clickable(role = Role.Checkbox, enabled = !isOperationPending) {
                                                 val toggled = draft.daysOfWeekMask xor bit
                                                 if (toggled != 0) {

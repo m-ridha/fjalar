@@ -21,7 +21,7 @@ class LiquidGlassThemeTest {
         val colors = LightLiquidGlassColors
 
         assertFalse(colors.isDark)
-        assertEquals(Color(0xFFFAF9FE), colors.canvas)
+        assertEquals(Color(0xFFF2F3F8), colors.canvas)
         assertEquals(Color(0xFF007AFF), colors.primary)
         assertEquals(Color.White, colors.onPrimary)
         assertEquals(Color(0xFF34C759), colors.armed)
@@ -29,12 +29,12 @@ class LiquidGlassThemeTest {
         assertEquals(Color(0xFF1A1B1F), colors.textPrimary)
         assertEquals(Color(0xFF414755), colors.textSecondary)
 
-        assertEquals(Color(0xFFFFFFFF).copy(alpha = 0.65f), colors.glassPill)
-        assertEquals(Color(0xFFFFFFFF).copy(alpha = 0.78f), colors.glassSheet)
-        assertEquals(Color(0xFFFFFFFF).copy(alpha = 0.88f), colors.glassModal)
+        assertEquals(Color(0xFFFFFFFF).copy(alpha = 0.88f), colors.glassPill)
+        assertEquals(Color(0xFFFFFFFF).copy(alpha = 0.88f), colors.glassSheet)
+        assertEquals(Color(0xFFFFFFFF).copy(alpha = 0.92f), colors.glassModal)
 
-        assertEquals(Color(0xFFFFFFFF).copy(alpha = 0.85f), colors.rimHighlight)
-        assertEquals(Color(0xFFFFFFFF).copy(alpha = 0.65f), colors.borderSubtle)
+        assertEquals(Color(0xFFFFFFFF).copy(alpha = 0.92f), colors.rimHighlight)
+        assertEquals(Color(0xFF1A1B1F).copy(alpha = 0.12f), colors.borderSubtle)
     }
 
     @Test
@@ -50,12 +50,12 @@ class LiquidGlassThemeTest {
         assertEquals(Color(0xFFFFFFFF), colors.textPrimary)
         assertEquals(Color(0xFF94A3B8), colors.textSecondary)
 
-        assertEquals(Color(0xFF14161E).copy(alpha = 0.72f), colors.glassPill)
-        assertEquals(Color(0xFF14161E).copy(alpha = 0.78f), colors.glassSheet)
-        assertEquals(Color(0xFF14161E).copy(alpha = 0.88f), colors.glassModal)
+        assertEquals(Color(0xFF1E2330).copy(alpha = 0.80f), colors.glassPill)
+        assertEquals(Color(0xFF181C26).copy(alpha = 0.82f), colors.glassSheet)
+        assertEquals(Color(0xFF181C26).copy(alpha = 0.90f), colors.glassModal)
 
-        assertEquals(Color(0xFFFFFFFF).copy(alpha = 0.18f), colors.rimHighlight)
-        assertEquals(Color(0xFFFFFFFF).copy(alpha = 0.08f), colors.borderSubtle)
+        assertEquals(Color(0xFFFFFFFF).copy(alpha = 0.28f), colors.rimHighlight)
+        assertEquals(Color(0xFFFFFFFF).copy(alpha = 0.14f), colors.borderSubtle)
     }
 
     @Test
@@ -251,7 +251,7 @@ class LiquidGlassThemeTest {
             reducedTransparency = false,
         )
         assertFalse(standardLight.isReducedTransparency)
-        assertEquals(0.65f, standardLight.glassPill.alpha, 0.01f)
+        assertEquals(0.88f, standardLight.glassPill.alpha, 0.01f)
 
         // Dynamic transition to true: 92% opaque tinted surface
         val reducedLight = resolveLiquidGlassColors(

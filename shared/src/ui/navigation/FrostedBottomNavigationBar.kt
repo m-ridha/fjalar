@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -188,6 +189,7 @@ private fun NavTabItem(
         Text(
             text = iconEmoji,
             fontSize = 20.sp,
+            modifier = Modifier.clearAndSetSemantics {},
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
@@ -195,6 +197,7 @@ private fun NavTabItem(
             color = accentColor,
             fontSize = 12.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            modifier = Modifier.clearAndSetSemantics {},
         )
     }
 }

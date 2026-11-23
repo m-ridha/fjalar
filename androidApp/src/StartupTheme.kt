@@ -52,10 +52,15 @@ internal object StartupTheme {
     }
 
     /** API 31+: store the user's choice as the per-app night mode for the next launch. */
-    fun syncApplicationNightMode(context: Context) {
+    fun syncApplicationNightMode(
+        context: Context,
+        themeMode: ThemeMode = readStoredThemeMode(context),
+    ) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
         val uiModeManager = context.getSystemService(UiModeManager::class.java) ?: return
-        val desired = applicationNightMode(readStoredThemeMode(context))
-        uiModeManager.setApplicationNightMode(desired)
+        val desired = applicationNightMode(themeMode)
+        if (uiModeManager.nightMode != desired) {
+            uiModeManager.setApplicationNightMode(desired)
+        }
     }
 }
