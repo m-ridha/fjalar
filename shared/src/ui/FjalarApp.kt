@@ -482,6 +482,15 @@ fun FjalarApp(
                         onSelectCategory = viewModel::onSelectCategoryFilter,
                         onDismissSearch = viewModel::onDismissSearch,
                         recentDestinations = uiState.recentDestinations,
+                        onSelectRecentDestination = { recent ->
+                            viewModel.onConfirmDestination(
+                                coordinates = recent.coordinates,
+                                label = recent.name,
+                                category = recent.category,
+                                destinationId = recent.id,
+                            )
+                        },
+                        onRecordSearchResult = viewModel::onPickerPlaceSelected,
                         onConfirmCoordinates = { coords ->
                             viewModel.onDismissSearch()
                             viewModel.onDraftCoordinatesChanged(coords)

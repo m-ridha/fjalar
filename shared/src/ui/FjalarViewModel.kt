@@ -444,6 +444,7 @@ class FjalarViewModel(
 
     fun onBrowsePlaceSelected(place: SearchResultPlace) {
         if (_uiState.value.searchContext != PlaceSearchContext.BROWSE) return
+        recordSearchSelection(place)
         clearViewportFollow()
         onDismissSearch()
         _uiState.update { current ->
@@ -455,6 +456,20 @@ class FjalarViewModel(
             )
         }
         mapRendererPort?.setViewport(place.coordinates, zoom = 15.0)
+    }
+
+    /** Records a user-selected search result into on-device recent destinations without storing raw queries. */
+    fun onPickerPlaceSelected(place: SearchResultPlace) {
+        recordSearchSelection(place)
+    }
+
+    private fun recordSearchSelection(place: SearchResultPlace) {
+        onConfirmDestination(
+            coordinates = place.coordinates,
+            label = place.name,
+            category = place.category,
+            destinationId = place.id,
+        )
     }
 
     private fun applyCategoryFilter(

@@ -1807,6 +1807,53 @@ class FjalarViewModelTest {
     }
 
     @Test
+    fun browseAndPickerPlaceSelectionsRecordIntoRecentDestinationsInLruOrder() = runTest {
+        val fakeRecentsPort = com.muhammadridha.fjalar.fakes.FakeRecentDestinationsAdapter()
+        val (viewModel, _, vmScope) = createTestViewModel(recentDestinationsPort = fakeRecentsPort)
+        try {
+            val manggarai = SearchResultPlace(
+                id = "osm_manggarai",
+                name = "Stasiun Manggarai",
+                coordinates = GeoCoordinates(-6.20988, 106.85016),
+                category = PlaceCategory.TRAIN_STATION,
+            )
+            val shibuya = SearchResultPlace(
+                id = "mk_shibuya",
+                name = "Shibuya Station",
+                coordinates = GeoCoordinates(35.65858, 139.70144),
+                category = PlaceCategory.TRAIN_STATION,
+            )
+
+            // Guard check: browse handler does nothing outside BROWSE context
+            viewModel.onOpenSearch(PlaceSearchContext.PICKER)
+            viewModel.onBrowsePlaceSelected(manggarai)
+            assertTrue(viewModel.uiState.value.recentDestinations.isEmpty())
+
+            // Picker search selection records directly
+            viewModel.onPickerPlaceSelected(manggarai)
+            assertEquals(listOf("osm_manggarai"), viewModel.uiState.value.recentDestinations.map { it.id })
+
+            // Main map browse selection records and promotes most recent first
+            viewModel.onOpenSearch(PlaceSearchContext.BROWSE)
+            viewModel.onBrowsePlaceSelected(shibuya)
+            assertEquals(
+                listOf("mk_shibuya", "osm_manggarai"),
+                viewModel.uiState.value.recentDestinations.map { it.id },
+            )
+
+            // Selecting an earlier place again moves it to the top of the LRU list
+            viewModel.onOpenSearch(PlaceSearchContext.BROWSE)
+            viewModel.onBrowsePlaceSelected(manggarai)
+            assertEquals(
+                listOf("osm_manggarai", "mk_shibuya"),
+                viewModel.uiState.value.recentDestinations.map { it.id },
+            )
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
     fun syncSchedulesAndMutationsReconcileBackgroundSyncViaUseCase() = runTest {
         val repository = com.muhammadridha.fjalar.fakes.InMemoryAlarmRepository()
         val tracker = com.muhammadridha.fjalar.fakes.FakeLocationTracker()

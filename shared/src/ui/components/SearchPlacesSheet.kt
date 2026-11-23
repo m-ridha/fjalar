@@ -2,9 +2,10 @@ package com.muhammadridha.fjalar.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -264,66 +265,6 @@ fun SearchPlacesSheet(
             )
         }
 
-        // Quick-Pick Carousel (when query is blank and recents are present)
-        if (shouldShowQuickPicks(query, recentDestinations)) {
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = fjalarString(FjalarStringKey.SEARCH_QUICK_PICKS_TITLE),
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = colors.textPrimary,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                recentDestinations.forEach { recent ->
-                    val contentDesc = quickPickContentDescription(recent, locale)
-                    Box(
-                        modifier = Modifier
-                            .heightIn(min = 48.dp)
-                            .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                            .clip(CircleShape)
-                            .clickable(
-                                role = Role.Button,
-                                onClick = { onRecentSelect(recent) },
-                            )
-                            .semantics { contentDescription = contentDesc }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = categoryEmoji(recent.category),
-                                fontSize = 15.sp,
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = recent.name,
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = colors.textPrimary,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
         Spacer(modifier = Modifier.height(6.dp))
 
         // Loading Indicator
@@ -340,7 +281,7 @@ fun SearchPlacesSheet(
             Spacer(modifier = Modifier.height(7.dp))
         }
 
-        // Results List
+        // Results & Recent Destinations List
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -348,7 +289,40 @@ fun SearchPlacesSheet(
             contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            if (shouldShowEmptySearchResults(results, query, isLoading)) {
+            if (shouldShowQuickPicks(query, recentDestinations)) {
+                item(key = "quick_picks_header") {
+                    Text(
+                        text = fjalarString(FjalarStringKey.SEARCH_QUICK_PICKS_TITLE),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = colors.textPrimary,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                    )
+                }
+
+                itemsIndexed(recentDestinations, key = { _, recent -> "recent_${recent.id}" }) { index, recent ->
+                    val contentDesc = quickPickContentDescription(recent, locale)
+                    PlaceListRow(
+                        name = recent.name,
+                        detail = null,
+                        category = recent.category,
+                        coordinates = recent.coordinates,
+                        userLocation = userLocation,
+                        distanceCalculator = distanceCalculator,
+                        onClick = { onRecentSelect(recent) },
+                        colors = colors,
+                        locale = locale,
+                        rowContentDescription = contentDesc,
+                    )
+
+                    if (index < recentDestinations.lastIndex) {
+                        HorizontalDivider(
+                            color = colors.textSecondary.copy(alpha = 0.1f),
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(start = 52.dp, end = 8.dp),
+                        )
+                    }
+                }
+            } else if (shouldShowEmptySearchResults(results, query, isLoading)) {
                 item {
                     Column(
                         modifier = Modifier
@@ -378,8 +352,11 @@ fun SearchPlacesSheet(
                 }
             } else {
                 itemsIndexed(results, key = { _, place -> place.id }) { index, place ->
-                    SearchResultRow(
-                        place = place,
+                    PlaceListRow(
+                        name = place.name,
+                        detail = place.detail,
+                        category = place.category,
+                        coordinates = place.coordinates,
                         userLocation = userLocation,
                         distanceCalculator = distanceCalculator,
                         onClick = { onPlaceSelect(place) },
@@ -433,28 +410,40 @@ private fun CategoryChip(
 }
 
 @Composable
-private fun SearchResultRow(
-    place: SearchResultPlace,
+private fun PlaceListRow(
+    name: String,
+    detail: String?,
+    category: PlaceCategory,
+    coordinates: GeoCoordinates,
     userLocation: GeoCoordinates?,
     distanceCalculator: DistanceCalculator,
     onClick: () -> Unit,
     colors: LiquidGlassColors,
     locale: AppLocale,
+    rowContentDescription: String? = null,
 ) {
-    val distanceMeters = remember(place.coordinates, userLocation) {
+    val distanceMeters = remember(coordinates, userLocation) {
         userLocation?.let {
-            distanceCalculator.calculateDistanceMeters(it, place.coordinates).roundToInt()
+            distanceCalculator.calculateDistanceMeters(it, coordinates).roundToInt()
         }
+    }
+
+    val semanticsModifier = if (rowContentDescription != null) {
+        Modifier.semantics { contentDescription = rowContentDescription }
+    } else {
+        Modifier
     }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable(
                 role = Role.Button,
                 onClick = onClick,
             )
+            .then(semanticsModifier)
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -466,7 +455,7 @@ private fun SearchResultRow(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = categoryEmoji(place.category),
+                text = categoryEmoji(category),
                 fontSize = 18.sp,
             )
         }
@@ -478,16 +467,16 @@ private fun SearchResultRow(
             modifier = Modifier.weight(1f),
         ) {
             Text(
-                text = place.name,
+                text = name,
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (!place.detail.isNullOrBlank()) {
+            if (!detail.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = place.detail,
+                    text = detail,
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textSecondary,
                     maxLines = 1,
