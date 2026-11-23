@@ -289,7 +289,7 @@ types. A query returns at most 8 candidates after deduplication within 50 meters
 Every provider request sends the typed query plus the map center rounded to 2 decimal
 places (roughly 1 km), never the precise position. Ranking uses the exact unrounded
 coordinates on-device with `HaversineCalculator`. Provider results, the query, and the
-coarse coordinates are never persisted. Category chips (Train, Metro, Bus, Transit) are
+coarse coordinates are never persisted. Category chips (All, Train, Metro, Transit) are
 best-effort client-side filters driven by provider categories plus
 `PlaceCategoryHeuristics`; places without matching metadata stay in the general or
 transit-stop bucket. Offline, a non-blank query returns no results while recents and map

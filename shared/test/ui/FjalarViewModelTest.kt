@@ -724,10 +724,15 @@ class FjalarViewModelTest {
                 viewModel.onStartConfiguringAlarm(null)
                 val originalDraft = viewModel.uiState.value.activeDraft
                 viewModel.onOpenSearch(PlaceSearchContext.PICKER)
+                viewModel.onSearchQueryChanged("Old")
+                testScheduler.advanceTimeBy(FjalarViewModel.SEARCH_DEBOUNCE_MILLIS)
+                testScheduler.runCurrent()
                 if (nextContext == null) {
                     viewModel.onDismissSearch()
                 } else {
                     viewModel.onOpenSearch(nextContext)
+                    viewModel.onSearchQueryChanged("Current")
+                    testScheduler.advanceUntilIdle()
                 }
                 response.complete(listOf(oldPlace))
                 testScheduler.runCurrent()
@@ -959,9 +964,9 @@ class FjalarViewModelTest {
             viewModel.onOpenSearch()
             assertTrue(viewModel.uiState.value.isSearchSheetVisible)
             assertFalse(viewModel.uiState.value.isConfigureSheetVisible, "Opening search must dismiss configure sheet")
-            assertEquals(1, fakeSearchPort.searchCallCount)
-            assertEquals("", fakeSearchPort.lastQuery)
-            assertEquals(1, viewModel.uiState.value.searchResults.size)
+            assertFalse(viewModel.uiState.value.isSearching)
+            assertEquals(0, fakeSearchPort.searchCallCount)
+            assertTrue(viewModel.uiState.value.searchResults.isEmpty())
 
             viewModel.onDismissSearch()
             assertFalse(viewModel.uiState.value.isSearchSheetVisible)
@@ -1010,23 +1015,27 @@ class FjalarViewModelTest {
             name = "Stasiun Manggarai",
             coordinates = GeoCoordinates(-6.20988, 106.85016),
             category = PlaceCategory.TRAIN_STATION,
+            aliases = listOf("jakarta"),
         )
         val metro = SearchResultPlace(
             id = "mrt_bundaran_hi",
             name = "Bundaran HI",
             coordinates = GeoCoordinates(-6.19277, 106.82302),
             category = PlaceCategory.METRO_STATION,
+            aliases = listOf("jakarta"),
         )
         val transit = SearchResultPlace(
             id = "tj_harmoni",
             name = "Harmoni Central Busway",
             coordinates = GeoCoordinates(-6.16611, 106.82056),
             category = PlaceCategory.TRANSIT_STOP,
+            aliases = listOf("jakarta"),
         )
         val fakeSearchPort = FakeSearchPlacesPort(places = listOf(train, metro, transit))
         val (viewModel, _, vmScope) = createTestViewModel(searchPlacesPort = fakeSearchPort)
         try {
-            viewModel.onSearchQueryChanged("")
+            viewModel.onSearchQueryChanged("jakarta")
+            testScheduler.advanceUntilIdle()
             assertEquals(3, viewModel.uiState.value.searchResults.size)
 
             viewModel.onSelectCategoryFilter(PlaceCategory.TRAIN_STATION)
@@ -1042,6 +1051,59 @@ class FjalarViewModelTest {
             viewModel.onSelectCategoryFilter(null)
             assertNull(viewModel.uiState.value.selectedCategoryFilter)
             assertEquals(3, viewModel.uiState.value.searchResults.size)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun shortSearchQueriesDoNotStartSearchingOrCallPort() = runTest {
+        val fakeSearchPort = FakeSearchPlacesPort(
+            places = listOf(
+                SearchResultPlace(
+                    id = "krl_sud",
+                    name = "Stasiun Sudirman",
+                    coordinates = GeoCoordinates(-6.20235, 106.82365),
+                    category = PlaceCategory.TRAIN_STATION,
+                ),
+            ),
+        )
+        val (viewModel, _, vmScope) = createTestViewModel(searchPlacesPort = fakeSearchPort)
+        try {
+            viewModel.onSearchQueryChanged("Sud")
+            testScheduler.advanceUntilIdle()
+            assertEquals(1, fakeSearchPort.searchCallCount)
+            assertEquals(1, viewModel.uiState.value.searchResults.size)
+
+            for (shortQuery in listOf("", "  ", "S", "Su", " Su ")) {
+                viewModel.onSearchQueryChanged(shortQuery)
+                assertFalse(viewModel.uiState.value.isSearching)
+                assertTrue(viewModel.uiState.value.searchResults.isEmpty())
+                testScheduler.advanceUntilIdle()
+                assertEquals(1, fakeSearchPort.searchCallCount)
+            }
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun searchUsesMapViewportCenterAsProximityWhenAvailable() = runTest {
+        val tracker = UiLocationTracker()
+        val fakeSearchPort = FakeSearchPlacesPort()
+        val (viewModel, _, vmScope) = createTestViewModel(
+            locationTrackerPort = tracker,
+            searchPlacesPort = fakeSearchPort,
+        )
+        try {
+            tracker.emit(GeoCoordinates(-6.2088, 106.8456))
+            val pannedCenter = GeoCoordinates(51.5072, -0.1276)
+            viewModel.onMapViewportBrowsed(pannedCenter, zoom = 14.0)
+
+            viewModel.onSearchQueryChanged("Paddington")
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(pannedCenter, fakeSearchPort.lastProximity)
         } finally {
             vmScope.cancel()
         }

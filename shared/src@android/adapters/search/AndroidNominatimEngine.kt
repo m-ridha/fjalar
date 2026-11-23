@@ -4,6 +4,7 @@ import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.PlaceCategory
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -108,6 +109,8 @@ class AndroidNominatimEngine(
             } finally {
                 connection.disconnect()
             }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
         } catch (_: Throwable) {
             emptyList()
         }
