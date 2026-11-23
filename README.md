@@ -33,7 +33,7 @@ Contributor and agent development guidelines, architecture contracts, UI design 
 - **Explicit Save & Unsaved-Changes Guard:** `Save` validates in place, returns after a successful save, and keeps invalid or failed drafts open with a reason for correction/retry. Toolbar Back and Android system Back never auto-save: clean drafts exit immediately, while unsaved changes open a 2-action confirmation dialog (`Keep editing` / `Discard`). Picker and search navigation do not save the draft.
 - **Smaller trigger radii:** New alarms start at 100 m. The editor offers 50, 100, 200, 300, 500, 1,000, 2,000, and 3,000 m presets and a 50 m–3 km slider. The domain still accepts existing radii up to 10 km.
 - **One-Off & Recurring Scheduled Alarms:** Set a quick one-off alarm for an unfamiliar stop, or schedule recurring commute windows (e.g., *Office, Mon-Fri, 07:00-09:30*). Background GPS tracking runs only for active alarm monitoring. The visible foreground Map can independently request location.
-- **Curated Transit & Station Search:** Instant, privacy-preserving station autocomplete across Greater Jakarta (113 stations across KRL Commuter Line, MRT Jakarta, LRT, and airport terminals) with online geocoding fallback (OSM Photon on Android, Apple CLGeocoder on iOS).
+- **Worldwide Place Search:** Search any station, stop, landmark, or address on Earth with OSM Photon on Android and Apple MapKit `MKLocalSearch` on iOS. Recent destinations remain the offline quick-pick path; no transit dataset is bundled.
 - **Hexagonal Architecture (Ports & Adapters):** Core domain logic is 100% pure Kotlin with zero platform SDK imports. Map providers, location trackers, audio ringers, place search, and persistence can be swapped without touching domain code.
 - **iPhone-Inspired Liquid Glass UI:** Translucent tinted surfaces with specular borders floating over full-bleed maps, with instant **Light (`Daylight Glass`)** and **Dark (`Nocturnal Obsidian Glass`)** mode switching.
 - **Accessibility & Dynamic Reduce Transparency:** Translucent glass surfaces automatically adapt when OS reduce-transparency / high-contrast settings are enabled (observed via Android `Settings.Secure` / API 36+ `AccessibilityManager` and iOS `UIAccessibility`), switching to 92% opaque tinted surfaces (`#F4F3F8` Light / `#191B22` Dark) with 1.5 dp rim borders and >= 15:1 WCAG AAA primary-text contrast.
@@ -42,7 +42,7 @@ Contributor and agent development guidelines, architecture contracts, UI design 
 - **Bilingual Localization (`English` & `Bahasa Indonesia`):** Shared UI and app-owned notification text use the saved app language, with `Mo–Su` and `Sn–Mg` day chips. Launcher names (*"Wake Me at"* / *"Bangunkan Saya di"*) and platform permission prompts use system localization.
 - **Sleepy-Eyes Dismissal Safety:** Android presents a restricted `AlarmActivity` (`FLAG_SECURE`, separate non-exported task) over the keyguard with high-contrast pulsing alerts and a tactile **Slide to Stop Alarm** (`Geser untuk mematikan alarm`) track, preventing accidental pocket touches or sleepy dismissals.
 - **Automated App Icon Pipeline:** Single reproducible command (`python3 scripts/generate_app_icons.py`) exports all Android adaptive densities (strictly preserving the 66 dp safe circle), Material You monochrome layer, Google Play 512×512 master, and iOS 18 Asset Catalog (`AppIcon.appiconset` with Light, Dark, and Tinted appearances).
-- **On-Device Alarms & Privacy:** No accounts, no sign-in, and no telemetry. Alarm records and distance calculations stay on your device. Online map requests can reveal the viewed area to the map provider. Eligible place searches can send the typed query to the geocoder when fewer than five offline stations match.
+- **On-Device Alarms & Privacy:** No accounts, no sign-in, and no telemetry. Alarm records and distance calculations stay on your device. Online map requests can reveal the viewed area to the map provider. Place searches send the typed query and a 2-decimal (≈1 km) approximate center to the geocoder; exact distances are computed on-device. Recent destinations and alarm records stay on your device.
 - **Free & Open Cartography:** Android uses **MapLibre** to render CARTO styles with OpenStreetMap-derived data. iOS uses native **Apple MapKit**.
 
 ---
@@ -97,7 +97,7 @@ flowchart TD
         A_Sched["AndroidAlarmManagerSchedulerAdapter\nIosBackgroundSchedulerAdapter"]
         A_Ring["AndroidSystemAlarmRingerAdapter\nIosCriticalAudioRingerAdapter"]
         A_Map["AndroidMapRendererAdapter\nIosMapKitAdapter"]
-        A_Search["HybridPlaceSearchAdapter\n(TransitCatalog + Photon/CLGeocoder)"]
+        A_Search["PlaceSearchAdapter\n(Photon / MKLocalSearch)"]
         A_Repo["PersistentAlarmRepository\n(JSON in platform key-value storage)"]
         A_Pref["PersistentPreferencesAdapter\n(SharedPreferences / NSUserDefaults)"]
         A_A11y["AndroidAccessibilityAdapter\nIosAccessibilityAdapter"]
@@ -136,9 +136,9 @@ fjalar/
 │   │   ├── di/                  # Koin modules and application bootstrap
 │   │   ├── localization/        # Shared English & Indonesian string catalog (FjalarStrings.kt)
 │   │   ├── ui/                  # Compose Multiplatform UI (FjalarApp, screens/, navigation/, components/, accessibility/, alarm/, theme/)
-│   │   └── adapters/            # Shared implementations (location streams, map helper, hybrid search, JSON storage/preferences/recents)
+│   │   └── adapters/            # Shared implementations (location streams, map helper, place search, JSON storage/preferences/recents)
 │   ├── src@android/             # Android-specific adapters (Accessibility, Geofence, LocationManager, AlarmManager, MapLibre, Photon, Ringer, Sync)
-│   ├── src@ios/                 # iOS-specific adapters (Accessibility, CLCircularRegion, CLLocation, IosBackgroundSchedulerAdapter, MapKit, CLGeocoder, Sync)
+│   ├── src@ios/                 # iOS-specific adapters (Accessibility, CLCircularRegion, CLLocation, IosBackgroundSchedulerAdapter, MapKit, MKLocalSearch, Sync)
 │   ├── composeResources/        # Multiplatform strings (values, values-in, values-id) & drawables
 │   ├── test/                    # Shared tests and fakes
 │   ├── test@android/            # Android-specific tests

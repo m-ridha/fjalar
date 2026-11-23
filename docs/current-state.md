@@ -14,7 +14,7 @@ zoom-tiered Android map POI labeling, and multiplatform release packaging:
 
 - **Bilingual transit (`en` & `id`)**: Full English and Bahasa Indonesia catalog parity across
   UI, day chips (`Mo..Su` / `Sn..Mg`), notifications, unsaved-changes discard dialog, and
-  station search autocomplete.
+  worldwide place search.
 - **Accessibility & Contrast**: Live observation of OS reduce-transparency / high-contrast
   settings on Android and iOS via Koin's `AccessibilityPort` singleton (with preview/test
   fallback), falling back to 92% opaque tinted surfaces and >= 15:1 WCAG AAA primary-text
@@ -276,9 +276,26 @@ be verified:
 Primary HUD, navigation, card, editor, and ringing-alert controls (including Snooze with
 `heightIn(min = 48.dp)`) enforce `>= 48 dp` minimum touch targets.
 
-## Commute quick-picks and recent destinations
+## Worldwide place search and recent destinations
 
-The map picker and place search support offline-first recent destination quick-picks
+Place search is worldwide and online-only through `PlaceSearchAdapter`:
+`AndroidNominatimEngine` queries the public OSM Photon endpoint, and
+`IosAppleLocalSearchEngine` uses Apple MapKit `MKLocalSearch`. No transit dataset is
+bundled and no search-result cache is kept. Queries shorter than 3 characters (including
+a blank query) return immediately without a network request. A blank query shows recent
+destination quick-picks only, so the sheet has no empty-results panel until the user
+types. A query returns at most 8 candidates after deduplication within 50 meters.
+
+Every provider request sends the typed query plus the map center rounded to 2 decimal
+places (roughly 1 km), never the precise position. Ranking uses the exact unrounded
+coordinates on-device with `HaversineCalculator`. Provider results, the query, and the
+coarse coordinates are never persisted. Category chips (Train, Metro, Bus, Transit) are
+best-effort client-side filters driven by provider categories plus
+`PlaceCategoryHeuristics`; places without matching metadata stay in the general or
+transit-stop bucket. Offline, a non-blank query returns no results while recents and map
+taps keep working.
+
+The map picker and place search also support recent destination quick-picks
 via `RecentDestinationsPort` backed by `PersistentRecentDestinationsAdapter` in
 platform key-value storage. Confirmed destinations recorded by `FjalarViewModel` (which
 drives `MapPickerScreen` in `FjalarApp.kt`) are stored in an LRU list capped at 5 entries,
@@ -326,7 +343,8 @@ and exit codes.
 | iPhone 17, iOS 27.0 | Fresh app showed Indonesian Dark and English Light maps/editors. Browse search moved the camera without selecting a destination. Picker search candidate canceled without draft change and confirmed into the draft. Toolbar Back created a valid alarm, returned from an unchanged editor, saved a changed radius, and showed the invalid-draft reason. A destination-selected blank-name draft and an existing edit with equal start/end times discarded with visible reasons; the existing list retained its original 07:00–09:30 window and 200 m radius. The 50 m preset and intermediate slider values changed on screen; exact slider maximum was not reached through the available coordinate input. |
 | iPhone 17 Simulator, iOS 27.0 (`5c87d42` Debug `.app`) | Confirmed `CFBundleIdentifier = com.muhammadridha.fjalar`, `UIBackgroundModes = [location, audio, fetch]`, `BGTaskSchedulerPermittedIdentifiers = [com.muhammadridha.fjalar.refresh]`, Dark Mode HUD rendering, notification prompt, and clean background (`com.apple.Preferences`) → foreground lifecycle on the same process without crashes. |
 | iPhone Duo, iOS 27.2 | Fresh app launched and rendered its primary display behind a first-run notification prompt. The second display capture was black; interactive layout checks were not completed. |
-| Android API 34 (Cloud Device, 720 × 1616) | Verified PR #33 debug APK via Ramus: foreground location and notification permissions accepted; background location rationale dismissed. MapLibre canvas edge-to-edge; Light mode and Dark mode tokens toggled cleanly. Real-time language switch between English and Bahasa Indonesia verified across HUD, navigation, and day chips (`Sn Sl Rb Km Jm Sb Mg`). Offline station search and Metro/MRT category filtering loaded without network requests. MapPicker pin placement confirmed destination; alarm created with 200m preset and custom label; alarm card rendered with active badge; skip today transitioned to `COMPLETED_FOR_WINDOW` once-per-window state; alarm delete confirmation dialog cancelled and confirmed cleanly with safe empty-state return. |
+| Android API 34 (Cloud Device, 720 × 1616) | Verified PR #33 debug APK via Ramus: foreground location and notification permissions accepted; background location rationale dismissed. MapLibre canvas edge-to-edge; Light mode and Dark mode tokens toggled cleanly. Real-time language switch between English and Bahasa Indonesia verified across HUD, navigation, and day chips (`Sn Sl Rb Km Jm Sb Mg`). The earlier offline station autocomplete and Metro/MRT filtering claim was superseded by worldwide online search (verified on the local API 37 emulator row below); current builds return no search results without network. MapPicker pin placement confirmed destination; alarm created with 200m preset and custom label; alarm card rendered with active badge; skip today transitioned to `COMPLETED_FOR_WINDOW` once-per-window state; alarm delete confirmation dialog cancelled and confirmed cleanly with safe empty-state return. |
+| Android API 37 Emulator (`Medium_Phone_API_37.0`, worldwide-search debug APK) | Blank `SearchPlacesSheet` showed only category chips, with no results panel and no recent quick-picks after app data was cleared. `Manggarai` returned four Jakarta station rows with on-device distances (`1.6 km`); selecting the Train chip kept them. `Shibuya Station` returned `Shibuya, Tokyo, Japan` (`5782 km`) and `Berlin Hauptbahnhof` returned Berlin Hbf rows (`10790.2–10790.3 km`) while Train stayed selected, confirming worldwide results and best-effort category filtering. With Wi-Fi and mobile data disabled, `Manggarai` showed the `No places found` panel without a crash. Cancelling during a query left no result list behind. Recent quick-picks and picker map taps were not re-exercised in this pass because app data had been cleared. |
 
 These observations do not establish map-bearing rotation or reproduce the earlier
 missing-pin report. Still unverified on Android: completing the locked-screen
@@ -334,7 +352,9 @@ Slide-to-Stop swipe gesture, physical TalkBack speech audio, foldable postures,
 map-bearing rotation, device injection of persistence failure, and older Android
 APIs (API 26–33). Still unverified on iOS: physical iPhone `CLCircularRegion`
 background wakeups, real OS `BGAppRefreshTask` heuristics, soft-keyboard insets
-inside forms, and VoiceOver speech audio. The failure and ringing exit semantics
+inside forms, VoiceOver speech audio, and live `MKLocalSearch` result quality
+(only the simulator build and the shared adapter tests were run for worldwide
+search). The failure and ringing exit semantics
 have deterministic source-level tests, which are separate from native-device
 evidence.
 
