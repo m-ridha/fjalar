@@ -6,7 +6,7 @@ import com.muhammadridha.fjalar.adapters.location.IosCLLocationAdapter
 import com.muhammadridha.fjalar.adapters.ringer.IosCriticalAudioRingerAdapter
 import com.muhammadridha.fjalar.adapters.scheduler.IosBackgroundSchedulerAdapter
 import com.muhammadridha.fjalar.adapters.search.PlaceSearchAdapter
-import com.muhammadridha.fjalar.adapters.search.IosAppleGeocoderEngine
+import com.muhammadridha.fjalar.adapters.search.IosAppleLocalSearchEngine
 import com.muhammadridha.fjalar.adapters.storage.PersistentPreferencesAdapter
 import com.muhammadridha.fjalar.adapters.storage.KeyValueStorage
 import com.muhammadridha.fjalar.adapters.storage.UserDefaultsKeyValueStorage
@@ -33,7 +33,7 @@ val iosPlatformModule = module {
     single { IosCLLocationAdapter(updatePortProvider = { get() }) } onClose { it?.close() }
     single { IosSystemEvents(get()) } onClose { it?.close() }
     single<LocationTrackerPort> { get<IosCLLocationAdapter>() }
-    single<SearchPlacesPort> { PlaceSearchAdapter(onlineEngine = IosAppleGeocoderEngine()) }
+    single<SearchPlacesPort> { PlaceSearchAdapter(onlineEngine = IosAppleLocalSearchEngine()) }
     single { IosBackgroundSyncAdapter(syncSchedulesPortProvider = { get() }) } onClose { it?.close() }
     single<BackgroundSyncPort> { get<IosBackgroundSyncAdapter>() }
     single { IosRegionGeofenceAdapter(transitionPortProvider = { get() }) } onClose { it?.close() }
