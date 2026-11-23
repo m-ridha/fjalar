@@ -12,6 +12,10 @@ import kotlinx.coroutines.*
 import platform.CoreLocation.*
 import platform.Foundation.*
 import platform.darwin.NSObject
+import platform.darwin.dispatch_async
+import platform.darwin.dispatch_get_global_queue
+import platform.darwin.dispatch_get_main_queue
+import platform.posix.QOS_CLASS_UTILITY
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.time.TimeSource
@@ -218,13 +222,22 @@ private class NativeIosLocationGateway : IosLocationGateway {
             manager.stopUpdatingLocation()
             running = false
             onAvailability(LocationAvailability.PERMISSION_DENIED)
-        } else if (!CLLocationManager.locationServicesEnabled()) {
-            manager.stopUpdatingLocation()
-            running = false
-            onAvailability(LocationAvailability.PROVIDER_UNAVAILABLE)
-        } else if (status != kCLAuthorizationStatusNotDetermined && !running) {
-            manager.startUpdatingLocation()
-            running = true
+            return
+        }
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY.toLong(), 0u)) {
+            val servicesEnabled = CLLocationManager.locationServicesEnabled()
+            dispatch_async(dispatch_get_main_queue()) {
+                if (!requested) return@dispatch_async
+                val currentStatus = manager.authorizationStatus
+                if (!servicesEnabled) {
+                    manager.stopUpdatingLocation()
+                    running = false
+                    onAvailability(LocationAvailability.PROVIDER_UNAVAILABLE)
+                } else if (currentStatus != kCLAuthorizationStatusNotDetermined && !running) {
+                    manager.startUpdatingLocation()
+                    running = true
+                }
+            }
         }
     }
 

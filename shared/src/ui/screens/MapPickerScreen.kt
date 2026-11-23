@@ -361,7 +361,7 @@ fun MapPickerScreen(
                 },
                 onDismiss = onDismissSearch,
                 isLoading = isSearching,
-                userLocation = userPosition?.coordinates,
+                userLocation = userPosition?.coordinates ?: cameraTarget,
                 locale = locale,
                 modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(
                     Modifier.align(Alignment.BottomCenter),

@@ -82,8 +82,8 @@ Follow the [Product and UI Design Specification](https://app.notion.com/p/4030ee
    - Map is the living canvas filling 100% of the viewport edge-to-edge.
    - Use layered translucent frosted-glass surfaces with `1 dp` specular top/left rim highlights.
    - Official tokens (`shared/src/ui/theme/LiquidGlassTokens.kt`):
-     - **Light Mode (`Daylight Glass`):** Canvas `#FAF9FE`, Primary `#007AFF`, Secondary `#34C759`, Text `#1A1B1F`.
-     - **Dark Mode (`Nocturnal Obsidian Glass`):** Canvas `#0C0E14`, glass surfaces `#14161E`, Primary `#00D2FF`, Secondary `#00E676`, Text `#FFFFFF`.
+     - **Light Mode (`Daylight Glass`):** Canvas `#F2F3F8`, Primary `#007AFF`, Secondary `#34C759`, Text `#1A1B1F`.
+     - **Dark Mode (`Nocturnal Obsidian Glass`):** Canvas `#0C0E14`, glass surfaces `#181C26`/`#1E2330`, Primary `#00D2FF`, Secondary `#00E676`, Text `#FFFFFF`.
 2. **Accessibility & Reduce Transparency Fallback:**
    - `Modifier.glassSurface` currently draws tinted backgrounds and gradient borders, without Gaussian backdrop blur. Live OS reduce-transparency / high-contrast observation is wired via `AccessibilityPort`, `AndroidAccessibilityAdapter`, `IosAccessibilityAdapter`, and `expect/actual isReduceTransparencyActive()` (`shared/src/ui/accessibility/ReduceTransparency.kt`, consumed in `App.kt`, `FjalarApp.kt`, and `LiquidGlassTheme.kt`) to switch to 92% opaque tinted surfaces:
      - `ReducedTransparencyLightLiquidGlassColors`: `#F4F3F8` @ 92% with 1.5 dp high-contrast border.

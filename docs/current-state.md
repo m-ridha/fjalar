@@ -250,7 +250,9 @@ can apply to the next scheduled window, including one starting the next day.
 
 ## Material and accessibility
 
-`glassSurface` draws translucent tinted backgrounds and gradient borders. It does
+`glassSurface` draws translucent tinted backgrounds (`Liquid Glass v2` tokens) and
+gradient borders (1 dp standard, 1.5 dp reduced transparency), including unselected
+trigger-radius presets and day chips in `ConfigureAlarmScreen`. It does
 not implement Gaussian backdrop blur or Haze. Reduced-transparency colors and
 1.5 dp high-contrast borders react to live OS accessibility settings via
 `AccessibilityPort` and `isReduceTransparencyActive()`: observing `Settings.Secure`
@@ -270,7 +272,7 @@ unit tests (`AlarmCardSemanticsTest.kt`, `ConfigureAlarmSemanticsTest.kt`,
 semantics-tree assertions). Physical device screen-reader speech execution remains to
 be verified:
 - **Alarm Card (`AlarmCard`)**: Merges descendants (`mergeDescendants = true`) into a single natural speech description including alarm label, address, schedule/one-time trip, trigger radius, sound/vibration mode, and active/completed/disabled status. Action buttons (Delete, Skip Today) provide distinct, labeled announcements (`ACCESSIBLE_DELETE_ALARM`).
-- **HUD & Navigation Controls (`FloatingHudBar`, `MapNavigationControls`, `ArmedStatusPill`)**: `ArmedStatusPill` announces commute monitoring state (`ACCESSIBLE_ARMED_STATE`); `MapCompassControl` calculates dynamic speech descriptions with normalized integer bearings and cardinal/intercardinal direction names (`ACCESSIBLE_COMPASS_BEARING`); `MapRecenterControl`, the HUD Search Pill, `LanguageDropdown`, and Theme Toggle keep `Role.Button` semantics and localized `contentDescription` on their clickable containers while clearing decorative/redundant child `Text` nodes (`"🔍"`, search placeholder text, `"🌐 EN ▾"`, `"🌙"` / `"☀️"`) with `clearAndSetSemantics {}` without stripping `OnClick` semantics.
+- **HUD & Navigation Controls (`FloatingHudBar`, `MapNavigationControls`, `ArmedStatusPill`, `FrostedBottomNavigationBar`)**: `ArmedStatusPill` announces commute monitoring state (`ACCESSIBLE_ARMED_STATE`); `MapCompassControl` calculates dynamic speech descriptions with normalized integer bearings and cardinal/intercardinal direction names (`ACCESSIBLE_COMPASS_BEARING`); `MapRecenterControl`, the HUD Search Pill, `LanguageDropdown`, and Theme Toggle keep `Role.Button` semantics and localized `contentDescription` on their clickable containers while clearing decorative/redundant child `Text` nodes (`"🔍"`, search placeholder text, `"🌐 EN ▾"`, `"🌙"` / `"☀️"`) with `clearAndSetSemantics {}` without stripping `OnClick` semantics. `FrostedBottomNavigationBar` clears inner emoji and duplicate label `Text` semantics on `NavTabItem` (`Role.Tab`) and only mounts on verified `MapRoute` or `AlarmsRoute` destinations so soft-keyboard resizing never surfaces it on `ConfigureRoute`.
 - **Alarm Editor (`ConfigureAlarmScreen`)**: Radius slider exposes natural content description (`ACCESSIBLE_RADIUS_SLIDER`) and tabular state description (`stateDescription`); radius presets use `Role.RadioButton`; day-of-week chips use `Role.Checkbox` with localized day abbreviations (`DAY_NAME_*`: `Mon..Sun` in EN, `Sn..Mg` in ID) and selection state descriptions (`ACCESSIBLE_DAY_SELECTED` / `ACCESSIBLE_DAY_NOT_SELECTED`).
 - **Map Picker & Ringing Alert (`MapPickerScreen`, `RingingAlertOverlay`)**: Map Picker's center crosshair clears child semantics (`clearAndSetSemantics`) to announce placement instructions, and its confirmation `Button` keeps `.semantics { role = Role.Button; contentDescription = ... }` (`ACCESSIBLE_PICKER_CONFIRM`) while clearing the child `"✓ ..."` `Text` node with `clearAndSetSemantics {}` so `OnClick` and `Disabled` semantics remain intact without speaking `"✓"` or duplicating the label. `RingingAlertOverlay` clears the decorative `"📍"` radar glyph via `clearAndSetSemantics {}`.
 Primary HUD, navigation, card, editor, and ringing-alert controls (including Snooze with
@@ -288,7 +290,9 @@ types. A query returns at most 8 candidates after deduplication within 50 meters
 
 Every provider request sends the typed query plus the map center rounded to 2 decimal
 places (roughly 1 km), never the precise position. Ranking uses the exact unrounded
-coordinates on-device with `HaversineCalculator`. Provider results, the query, and the
+coordinates on-device with `HaversineCalculator` (falling back to the current map
+viewport center when a live 30 s location fix expires so search distance badges stay
+visible). Provider results, the query, and the
 coarse coordinates are never persisted. Category chips (All, Train, Metro, Transit) are
 best-effort client-side filters driven by provider categories plus
 `PlaceCategoryHeuristics`; places without matching metadata stay in the general or

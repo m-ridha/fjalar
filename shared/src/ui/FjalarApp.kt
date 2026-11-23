@@ -277,7 +277,7 @@ fun FjalarApp(
                                     )
                                 },
                                 isLoading = uiState.isSearching,
-                                userLocation = uiState.userLocation,
+                                userLocation = uiState.userLocation ?: uiState.mapViewportCenter,
                                 locale = uiState.appLocale,
                                 modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier()
                                     .imePadding()
@@ -499,6 +499,11 @@ fun FjalarApp(
                 }
             }
 
+            val showBottomBar = uiState.isInitialViewportReady && (
+                navBackStackEntry?.destination?.hasRoute<MapRoute>() == true ||
+                    navBackStackEntry?.destination?.hasRoute<AlarmsRoute>() == true
+                )
+
             SnackbarHost(
                 hostState = editorSnackbarHostState,
                 modifier = Modifier
@@ -506,11 +511,11 @@ fun FjalarApp(
                     .then(WindowInsetsLayoutHelper.sheetBottomPaddingModifier())
                     .imePadding()
                     .padding(horizontal = 16.dp)
-                    .padding(bottom = if (isBottomBarVisible(currentRoute)) dockHeight + 8.dp else 16.dp),
+                    .padding(bottom = if (showBottomBar) dockHeight + 8.dp else 16.dp),
             )
 
             // Anchored Frosted Bottom Navigation Dock (Visible on top-level tabs)
-            if (isBottomBarVisible(currentRoute)) {
+            if (showBottomBar) {
                 FrostedBottomNavigationBar(
                     currentRoute = currentRoute,
                     onNavigateToMap = {

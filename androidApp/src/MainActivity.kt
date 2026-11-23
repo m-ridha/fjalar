@@ -77,6 +77,10 @@ class MainActivity : ComponentActivity() {
         splashScreen.setKeepOnScreenCondition {
             !isStartupReady && SystemClock.elapsedRealtime() - launchedAt < SPLASH_HARD_CAP_MILLIS
         }
+        window.decorView.postDelayed(
+            { window.decorView.invalidate() },
+            SPLASH_HARD_CAP_MILLIS + 50L,
+        )
         splashScreen.setOnExitAnimationListener { splashScreenView ->
             val fadeMillis = if (animationsDisabled()) 0L else SPLASH_FADE_MILLIS
             splashScreenView.view.animate()
@@ -92,7 +96,16 @@ class MainActivity : ComponentActivity() {
             val viewModel: FjalarViewModel = koinViewModel()
 
             val permissionUiState by viewModel.uiState.collectAsState()
-            SideEffect { isStartupReady = permissionUiState.isInitialViewportReady }
+            SideEffect {
+                val ready = permissionUiState.isInitialViewportReady
+                if (ready && !isStartupReady) {
+                    isStartupReady = true
+                    window.decorView.invalidate()
+                }
+            }
+            LaunchedEffect(permissionUiState.themeMode) {
+                StartupTheme.syncApplicationNightMode(this@MainActivity, permissionUiState.themeMode)
+            }
             val isDarkTheme = resolveLiquidGlassColors(
                 themeMode = permissionUiState.themeMode,
                 systemInDark = isSystemInDarkTheme(),
