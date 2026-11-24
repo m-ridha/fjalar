@@ -15,6 +15,7 @@ import platform.MapKit.MKPointAnnotation
 import platform.MapKit.addOverlay
 import platform.MapKit.removeOverlay
 import platform.UIKit.UIColor
+import platform.UIKit.UIEdgeInsetsMake
 import kotlin.math.PI
 import kotlin.math.ln
 import kotlin.math.pow
@@ -49,6 +50,9 @@ class IosMapKitAdapter(
     var currentGeofence: Pair<GeoCoordinates, TriggerRadius>? = null
         private set
 
+    var currentBottomOverlayClearancePoints: Double = 0.0
+        private set
+
     private var userAnnotation: FjalarUserPositionAnnotation? = null
     private var accuracyOverlay: MKCircle? = null
     private var activeAnnotation: MKPointAnnotation? = null
@@ -62,6 +66,7 @@ class IosMapKitAdapter(
         this.activeMap = map
         map.showsUserLocation = false
         map.showsCompass = false
+        applyBottomOverlayClearance(map)
 
         currentViewport?.let { (center, zoom) ->
             applyViewport(center, zoom, animate = false)
@@ -101,6 +106,34 @@ class IosMapKitAdapter(
             currentGeofence?.let { (center, radius) ->
                 applyGeofence(center, radius)
             }
+        }
+    }
+
+    /**
+     * Raises MapKit's bottom attribution margin by [clearancePoints] above the bottom safe area
+     * while applying an equal top margin so the focal center remains aligned with view bounds center.
+     */
+    fun updateBottomOverlayClearance(clearancePoints: Double) {
+        val sanitized = clearancePoints.coerceAtLeast(0.0)
+        currentBottomOverlayClearancePoints = sanitized
+        activeMap?.let(::applyBottomOverlayClearance)
+    }
+
+    /** Re-applies layout margins when safe area insets change after entering a window. */
+    fun refreshBottomOverlayClearance() {
+        activeMap?.let(::applyBottomOverlayClearance)
+    }
+
+    private fun applyBottomOverlayClearance(map: MKMapView) {
+        val clearance = currentBottomOverlayClearancePoints
+        if (clearance > 0.0) {
+            val bottomSafeArea = map.safeAreaInsets.useContents { bottom }
+            val verticalMargin = bottomSafeArea + clearance
+            map.insetsLayoutMarginsFromSafeArea = false
+            map.layoutMargins = UIEdgeInsetsMake(verticalMargin, 0.0, verticalMargin, 0.0)
+        } else {
+            map.insetsLayoutMarginsFromSafeArea = true
+            map.layoutMargins = UIEdgeInsetsMake(0.0, 0.0, 0.0, 0.0)
         }
     }
 

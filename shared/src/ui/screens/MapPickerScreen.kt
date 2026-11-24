@@ -31,6 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -57,6 +59,8 @@ import com.muhammadridha.fjalar.ui.theme.GlassLevel
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
 import kotlin.math.roundToInt
+
+internal fun shouldShowMapPickerControls(isSearchVisible: Boolean): Boolean = !isSearchVisible
 
 fun mapPickerConfirmSemanticDescription(
     selectionName: String?,
@@ -102,9 +106,11 @@ fun MapPickerScreen(
     geofenceRadius: TriggerRadius = TriggerRadius.DEFAULT,
 ) {
     SearchBackHandler(enabled = isSearchVisible, onBack = onDismissSearch)
+    val density = LocalDensity.current
     val colors = LiquidGlassTheme.colors
     val isDarkTheme = LiquidGlassTheme.themeMode == ThemeMode.DARK ||
         (LiquidGlassTheme.themeMode == ThemeMode.SYSTEM && isSystemInDarkTheme())
+    var confirmBarHeight by remember { mutableStateOf(84.dp) }
 
     var selection by remember(initialCoordinates, hasInitialSelection) {
         mutableStateOf(MapPickerSelection(initialCoordinates.takeIf { hasInitialSelection }))
@@ -174,6 +180,7 @@ fun MapPickerScreen(
             // Selection follows gestures without issuing a camera reset to initialZoom.
             viewportRequestId = viewportRequestId,
             preserveZoomOnViewportRequest = preserveZoom,
+            bottomOverlayClearance = if (shouldShowMapPickerControls(isSearchVisible)) confirmBarHeight else 0.dp,
             modifier = Modifier.fillMaxSize(),
         )
 
@@ -205,129 +212,131 @@ fun MapPickerScreen(
             }
         }
 
-        // Header and map controls share the fold/cutout-safe scroll rectangle.
-        Column(
-            modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier)
-                .fillMaxWidth()
-                .padding(bottom = 100.dp)
-                .verticalScroll(rememberScrollState()),
-        ) {
-            Row(
-                modifier = WindowInsetsLayoutHelper
-                    .hudTopPaddingModifier(Modifier)
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+        if (shouldShowMapPickerControls(isSearchVisible)) {
+            // Header and map controls share the fold/cutout-safe scroll rectangle.
+            Column(
+                modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier)
+                    .fillMaxWidth()
+                    .padding(bottom = 100.dp)
+                    .verticalScroll(rememberScrollState()),
             ) {
-                // Back Button
+                Row(
+                    modifier = WindowInsetsLayoutHelper
+                        .hudTopPaddingModifier(Modifier)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // Back Button
+                    Row(
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                            .clickable(role = Role.Button, onClick = onBack)
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = FjalarStrings.get(FjalarStringKey.NAV_BACK, locale),
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.textPrimary,
+                            ),
+                        )
+                    }
+
+                    // Hint Pill
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = FjalarStrings.get(FjalarStringKey.PICKER_HINT, locale),
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                            color = colors.textPrimary,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+
                 Row(
                     modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .fillMaxWidth()
                         .heightIn(min = 48.dp)
                         .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                        .clickable(role = Role.Button, onClick = {
-                            if (isSearchVisible) onDismissSearch() else onBack()
-                        })
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .clickable(role = Role.Button, onClick = onOpenSearch)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = FjalarStrings.get(FjalarStringKey.NAV_BACK, locale),
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            color = colors.textPrimary,
-                        ),
+                        text = FjalarStrings.get(FjalarStringKey.HUD_SEARCH_PLACEHOLDER, locale),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.textPrimary,
                     )
                 }
 
-                // Hint Pill
-                Box(
+                MapNavigationControls(
+                    onRecenter = {
+                        val fix = userPosition?.coordinates
+                        cameraTarget = fix ?: selection.coordinates ?: GeoCoordinates(0.0, 0.0)
+                        cameraZoom = if (fix != null || selection.coordinates != null) 15.0 else 2.0
+                        preserveZoom = false
+                        viewportRequestId++
+                        // Tapping recenter before the first fix keeps waiting for it.
+                        awaitingFirstFix = fix == null && selection.coordinates == null
+                    },
+                    bearing = mapBearing,
+                    onResetNorth = { northRequestId++ },
+                    modifier = Modifier.align(Alignment.End).padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+
+            // Layer 4: Safe-Area Bottom Floating Action Pill (Confirm)
+            Box(
+                modifier = WindowInsetsLayoutHelper
+                    .navigationBottomPaddingModifier(Modifier.align(Alignment.BottomCenter))
+                    .onSizeChanged { size ->
+                        confirmBarHeight = with(density) { size.height.toDp() }
+                    }
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+            ) {
+                Button(
+                    onClick = {
+                        selection.coordinates?.let { coords ->
+                            onConfirmCoordinates(coords)
+                            onConfirmDestination?.invoke(coords, selectedPlaceName, selectedPlaceCategory)
+                        }
+                    },
+                    enabled = selection.coordinates != null,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.primary,
+                        contentColor = colors.onPrimary,
+                    ),
+                    shape = CircleShape,
                     modifier = Modifier
-                        .weight(1f)
-                        .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center,
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = mapPickerConfirmSemanticDescription(
+                                selectedPlaceName,
+                                selection.coordinates,
+                                locale,
+                            )
+                        },
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
                 ) {
                     Text(
-                        text = FjalarStrings.get(FjalarStringKey.PICKER_HINT, locale),
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                        color = colors.textPrimary,
-                        textAlign = TextAlign.Center,
+                        text = "✓ ${FjalarStrings.get(FjalarStringKey.PICKER_CONFIRM, locale)}",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.clearAndSetSemantics {},
                     )
                 }
-            }
-
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp)
-                    .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                    .clickable(role = Role.Button, onClick = onOpenSearch)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = FjalarStrings.get(FjalarStringKey.HUD_SEARCH_PLACEHOLDER, locale),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.textPrimary,
-                )
-            }
-
-            MapNavigationControls(
-                onRecenter = {
-                    val fix = userPosition?.coordinates
-                    cameraTarget = fix ?: selection.coordinates ?: GeoCoordinates(0.0, 0.0)
-                    cameraZoom = if (fix != null || selection.coordinates != null) 15.0 else 2.0
-                    preserveZoom = false
-                    viewportRequestId++
-                    // Tapping recenter before the first fix keeps waiting for it.
-                    awaitingFirstFix = fix == null && selection.coordinates == null
-                },
-                bearing = mapBearing,
-                onResetNorth = { northRequestId++ },
-                modifier = Modifier.align(Alignment.End).padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-        }
-
-        // Layer 4: Safe-Area Bottom Floating Action Pill (Confirm)
-        Box(
-            modifier = WindowInsetsLayoutHelper
-                .navigationBottomPaddingModifier(Modifier)
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-        ) {
-            Button(
-                onClick = {
-                    selection.coordinates?.let { coords ->
-                        onConfirmCoordinates(coords)
-                        onConfirmDestination?.invoke(coords, selectedPlaceName, selectedPlaceCategory)
-                    }
-                },
-                enabled = selection.coordinates != null && !isSearchVisible,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.primary,
-                    contentColor = colors.onPrimary,
-                ),
-                shape = CircleShape,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 52.dp)
-                    .semantics {
-                        role = Role.Button
-                        contentDescription = mapPickerConfirmSemanticDescription(
-                            selectedPlaceName,
-                            selection.coordinates,
-                            locale,
-                        )
-                    },
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
-            ) {
-                Text(
-                    text = "✓ ${FjalarStrings.get(FjalarStringKey.PICKER_CONFIRM, locale)}",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.clearAndSetSemantics {},
-                )
             }
         }
 

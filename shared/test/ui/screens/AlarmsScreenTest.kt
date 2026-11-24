@@ -71,9 +71,9 @@ class AlarmsScreenTest {
         val idBody = FjalarStrings.get(FjalarStringKey.ALARMS_EMPTY_BODY, AppLocale.ID)
 
         assertEquals("No Alarms Yet", enTitle)
-        assertEquals("Tap + Add to set your first wake-up alarm.", enBody)
+        assertEquals("Tap + Add Alarm to set your first wake-up alarm.", enBody)
         assertEquals("Belum ada alarm", idTitle)
-        assertEquals("Ketuk + Tambah untuk membuat alarm pertama.", idBody)
+        assertEquals("Ketuk + Tambah alarm untuk membuat alarm pertama.", idBody)
     }
 
     @Test

@@ -4,10 +4,18 @@ import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class MapPickerSemanticsTest {
 
     private val sampleCoordinates = GeoCoordinates(-6.2088, 106.8456)
+
+    @Test
+    fun shouldShowMapPickerControls_hidesControlsWhenSearchSheetIsOpen() {
+        assertTrue(shouldShowMapPickerControls(isSearchVisible = false))
+        assertFalse(shouldShowMapPickerControls(isSearchVisible = true))
+    }
 
     @Test
     fun confirmSemanticDescription_whenCoordinatesAreNull_returnsChooseDestination() {

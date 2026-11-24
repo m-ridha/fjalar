@@ -8,6 +8,7 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import platform.MapKit.overlays
 import platform.MapKit.MKMapView
+import platform.CoreGraphics.CGPointMake
 import platform.CoreGraphics.CGRectMake
 import kotlin.math.abs
 import kotlin.test.Test
@@ -357,5 +358,43 @@ class IosMapKitAdapterTest {
 
         adapter.detachMap()
         assertNull(adapter.activeMap)
+    }
+
+    @Test
+    fun bottomOverlayClearanceSetsSymmetricMarginsAndKeepsCenterAligned() {
+        val adapter = IosMapKitAdapter()
+        val map = MKMapView(frame = CGRectMake(0.0, 0.0, 390.0, 844.0))
+        adapter.attachMap(map)
+
+        val target = GeoCoordinates(-6.2088, 106.8456)
+        adapter.setViewport(target, 15.0)
+        adapter.updateBottomOverlayClearance(100.0)
+        map.layoutIfNeeded()
+
+        val bottomSafeArea = map.safeAreaInsets.useContents { bottom }
+        val expectedVerticalMargin = bottomSafeArea + 100.0
+        assertFalse(map.insetsLayoutMarginsFromSafeArea)
+        map.layoutMargins.useContents {
+            assertEquals(expectedVerticalMargin, top, 0.001)
+            assertEquals(expectedVerticalMargin, bottom, 0.001)
+            assertEquals(0.0, left, 0.001)
+            assertEquals(0.0, right, 0.001)
+        }
+
+        val geometricCenterCoord = map.convertPoint(
+            CGPointMake(195.0, 422.0),
+            toCoordinateFromView = map,
+        ).toGeoCoordinates()
+        val reportedCenter = map.centerCoordinate.toGeoCoordinates()
+        assertEquals(geometricCenterCoord.latitude, reportedCenter.latitude, 1e-5)
+        assertEquals(geometricCenterCoord.longitude, reportedCenter.longitude, 1e-5)
+
+        adapter.updateBottomOverlayClearance(0.0)
+        assertTrue(map.insetsLayoutMarginsFromSafeArea)
+        map.layoutMargins.useContents {
+            assertEquals(0.0, top, 0.001)
+            assertEquals(0.0, bottom, 0.001)
+        }
+        adapter.detachMap()
     }
 }

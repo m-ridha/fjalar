@@ -2,6 +2,7 @@ package com.muhammadridha.fjalar.ui.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import com.muhammadridha.fjalar.adapters.map.IosMapKitView
 import com.muhammadridha.fjalar.adapters.map.MapUserPosition
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
@@ -25,6 +26,7 @@ actual fun PlatformMapView(
     userPosition: MapUserPosition?,
     onBearingChanged: (Double) -> Unit,
     northRequestId: Long,
+    bottomOverlayClearance: Dp,
     modifier: Modifier,
 ) {
     IosMapKitView(
@@ -44,6 +46,7 @@ actual fun PlatformMapView(
         userPosition = userPosition,
         onBearingChanged = onBearingChanged,
         northRequestId = northRequestId,
+        bottomOverlayClearance = bottomOverlayClearance,
         modifier = modifier,
     )
 }
