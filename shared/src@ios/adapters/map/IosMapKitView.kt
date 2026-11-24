@@ -7,6 +7,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.UIKitView
 import com.muhammadridha.fjalar.adapters.map.IosMapKitAdapter.Companion.toGeoCoordinates
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
@@ -185,6 +187,16 @@ private class MapTapHandler(
     }
 }
 
+@OptIn(ExperimentalForeignApi::class)
+private class FjalarMKMapView(
+    private val onSafeAreaChanged: () -> Unit,
+) : MKMapView(frame = CGRectMake(0.0, 0.0, 0.0, 0.0)) {
+    override fun safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+        onSafeAreaChanged()
+    }
+}
+
 /**
  * Composable hosting Apple MapKit [MKMapView] via UIKitView.
  *
@@ -210,10 +222,13 @@ fun IosMapKitView(
     userPosition: MapUserPosition? = null,
     onBearingChanged: (Double) -> Unit = {},
     northRequestId: Long = 0L,
+    bottomOverlayClearance: Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
     val adapter = remember { IosMapKitAdapter(isDarkTheme = isDarkTheme) }
-    val mapView = remember { MKMapView() }
+    val mapView: MKMapView = remember(adapter) {
+        FjalarMKMapView { adapter.refreshBottomOverlayClearance() }
+    }
 
     val currentOnCameraCenterChanged by rememberUpdatedState(onCameraCenterChanged)
     val currentOnUserCameraIdle by rememberUpdatedState(onUserCameraIdle)
@@ -305,6 +320,10 @@ fun IosMapKitView(
         if (northRequestId > 0L) adapter.resetNorth()
     }
 
+    LaunchedEffect(bottomOverlayClearance) {
+        adapter.updateBottomOverlayClearance(bottomOverlayClearance.value.toDouble())
+    }
+
     LaunchedEffect(pinLocation) {
         if (pinLocation != null) {
             adapter.placePin(pinLocation)
@@ -330,6 +349,7 @@ fun IosMapKitView(
             } else {
                 UIUserInterfaceStyle.UIUserInterfaceStyleLight
             }
+            adapter.updateBottomOverlayClearance(bottomOverlayClearance.value.toDouble())
         },
     )
 }

@@ -192,6 +192,7 @@ fun FjalarApp(
                             destinationEditingEnabled = false,
                             onUserCameraIdle = viewModel::onMapViewportBrowsed,
                             viewportRequestId = uiState.viewportRequestId,
+                            bottomOverlayClearance = dockHeight,
                             modifier = Modifier.fillMaxSize(),
                         )
 

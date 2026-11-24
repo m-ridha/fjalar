@@ -118,7 +118,7 @@
 
     <!-- Empty alarms list -->
     <string name="alarms_empty_title">Belum ada alarm</string>
-    <string name="alarms_empty_body">Ketuk + Tambah untuk membuat alarm pertama.</string>
+    <string name="alarms_empty_body">Ketuk + Tambah alarm untuk membuat alarm pertama.</string>
 
     <!-- Languages -->
     <string name="lang_english">English (EN)</string>

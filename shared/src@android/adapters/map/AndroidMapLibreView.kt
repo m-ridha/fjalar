@@ -10,6 +10,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -44,6 +46,8 @@ fun AndroidMapLibreView(
     userPosition: MapUserPosition? = null,
     onBearingChanged: (Double) -> Unit = {},
     northRequestId: Long = 0L,
+    // MapLibre attribution already renders cleanly below the dock and CTA on Android.
+    @Suppress("UNUSED_PARAMETER") bottomOverlayClearance: Dp = 0.dp,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current

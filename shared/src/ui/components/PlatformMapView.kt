@@ -2,6 +2,8 @@ package com.muhammadridha.fjalar.ui.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.muhammadridha.fjalar.adapters.map.MapUserPosition
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
@@ -26,5 +28,6 @@ expect fun PlatformMapView(
     userPosition: MapUserPosition? = null,
     onBearingChanged: (Double) -> Unit = {},
     northRequestId: Long = 0L,
+    bottomOverlayClearance: Dp = 0.dp,
     modifier: Modifier = Modifier,
 )
