@@ -58,9 +58,17 @@ internal object StartupTheme {
     ) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
         val uiModeManager = context.getSystemService(UiModeManager::class.java) ?: return
-        val desired = applicationNightMode(themeMode)
-        if (uiModeManager.nightMode != desired) {
-            uiModeManager.setApplicationNightMode(desired)
-        }
+        syncApplicationNightMode(themeMode, uiModeManager::setApplicationNightMode)
+    }
+
+    /**
+     * Always applies [applicationNightMode] for [themeMode] without comparing against the
+     * system-wide `UiModeManager.nightMode`, which does not reflect the per-app override.
+     */
+    internal fun syncApplicationNightMode(
+        themeMode: ThemeMode,
+        applyNightMode: (Int) -> Unit,
+    ) {
+        applyNightMode(applicationNightMode(themeMode))
     }
 }
