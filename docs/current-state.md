@@ -1,19 +1,22 @@
 # Current project state
 
-Source audit: 2026-11-23, based on main through v0.4.1 preparation (PRs #57 and #61, commit
-`e1116ae`). This records implemented behavior across Phases 1 through 10 and post-v0.3.0
+Source audit: 2026-11-24, based on main through v0.4.2 preparation (PRs #63 and #64, commit
+`1f920fa`). This records implemented behavior across Phases 1 through 10 and post-v0.3.0
 wiring, security, editor UX, app icon updates, Android map cartography, native splash
-gating, worldwide online place search, Liquid Glass v2 tokens, E2E bugfixes, and
-vertical recent destinations. Notion requirements and historical Stitch mockups may
-include planned future enhancements.
+gating, worldwide online place search, Liquid Glass v2 tokens, E2E bugfixes,
+vertical recent destinations, cold-start splash night-mode sync, and picker,
+attribution, and empty-state UI polish. Notion requirements and historical Stitch
+mockups may include planned future enhancements.
 
-## Release readiness (v0.4.1)
+## Release readiness (v0.4.2)
 
-Fjalar v0.4.1 ships core domain logic, Liquid Glass v2 UI (`#F2F3F8` Light canvas and
-`1 dp` pill rims), native startup splash with last-known-location viewport gating,
-worldwide online place search (`PlaceSearchAdapter` with OSM Photon and Apple MapKit
-`MKLocalSearch`), vertical recent destinations in `SearchPlacesSheet` with browse/picker
-selection recording in `FjalarViewModel`, bilingual transit localization, dynamic
+Fjalar v0.4.2 ships core domain logic, Liquid Glass v2 UI (`#F2F3F8` Light canvas and
+`1 dp` pill rims), native startup splash with last-known-location viewport gating and
+unconditional API 31+ per-app night-mode sync, worldwide online place search
+(`PlaceSearchAdapter` with OSM Photon and Apple MapKit `MKLocalSearch`), vertical
+recent destinations in `SearchPlacesSheet` with browse/picker selection recording in
+`FjalarViewModel`, search-aware picker controls, symmetric-margin iOS map attribution
+clearance, bilingual transit localization with aligned empty-state copy, dynamic
 accessibility observation, wired background refresh and circular geofencing, explicit
 alarm editor save/discard confirmation, updated crowing-bolt app icons, zoom-tiered
 Android map POI labeling, and multiplatform release packaging:
@@ -94,9 +97,12 @@ active. Launch artwork is derived from the approved icon masters by
 `scripts/generate_splash_assets.py` and kept inside the 192 dp circle Android
 12+ paints, which `scripts/test_generated_splash_assets.py` verifies. Android
 reads the persisted `ThemeMode` synchronously before `installSplashScreen()` and
-syncs `UiModeManager.setApplicationNightMode` (API 31+) or wraps the activity
-base context (API 30-) so the native splash matches Light, Dark, or System mode
-and the first Compose frame seeds `themeMode` from `PreferencesPort.peekThemeMode()`.
+unconditionally syncs `UiModeManager.setApplicationNightMode(...)` (API 31+) in
+`StartupTheme.syncApplicationNightMode` without comparing against the system-wide
+`uiModeManager.nightMode` (so switching back to match the OS theme never skips
+updating the cold-start splash), or wraps the activity base context (API 30-) so the
+native splash matches Light, Dark, or System mode and the first Compose frame seeds
+`themeMode` from `PreferencesPort.peekThemeMode()`.
 On iOS, `UILaunchScreen` follows system appearance through `LaunchIcon` and
 `LaunchBackground` light/dark assets, while `StartupPlaceholder` immediately
 matches the stored `ThemeMode` (a brief mismatch can occur when the stored
@@ -117,7 +123,11 @@ It uses zoom 15 for a destination or fix and the browsed zoom otherwise. The mai
 map records settled user pans and zooms for that fallback. A recenter tapped before
 the first fix stays pending and consumes the first arriving fix unless superseded by a
 browse search selection, user map pan/zoom, or opening an alarm editor. The picker counts
-as a visible map for map-only location tracking. `SearchPlacesSheet` renders as a 4-sided
+as a visible map for map-only location tracking. `shouldShowMapPickerControls(isSearchVisible)`
+in `MapPickerScreen` hides the top HUD pills (Back, hint pill, search bar),
+`MapNavigationControls`, and bottom `Choose destination` CTA while `SearchPlacesSheet`
+is open (keeping `SearchBackHandler` active), preventing controls from bleeding through
+behind the translucent search modal. `SearchPlacesSheet` renders as a 4-sided
 rounded floating glass modal (`RoundedCornerShape(28.dp)`) with outer spacing above the
 bottom navigation dock or picker edge and scroll content clipped inside its rounded border.
 
@@ -136,7 +146,7 @@ unchanged. The radius slider spans
 50 m to 3 km, with 50 m, 100 m, 200 m, 300 m, 500 m, 1 km, 2 km, and 3 km presets
 arranged in two center-aligned equal-width 5-column rows (sub-km in row 1; 1–3 km in row 2). New alarms
 default to 100 m. The domain retains its 10 km maximum for saved alarms.
-`v0.4.1` adds no migration or clamping of existing values. Day chips use
+`v0.4.2` adds no migration or clamping of existing values. Day chips use
 `Mo Tu We Th Fr Sa Su` and `Sn Sl Rb Km Jm Sb Mg` across two center-aligned equal-width 5-column
 rows (`Mo–Fr` / `Sn–Jm` in row 1; `Sa–Su` / `Sb–Mg` in row 2). `AlarmCard` keeps compact metadata pills
 (`radius` and sound/vibration badges) in its metadata `FlowRow` and places the scheduled
@@ -177,7 +187,15 @@ positioned below tunnels, roads, and buildings—and `waterway_label` in Dark
 `Carto Dark Matter`), falling back below Fjalar overlay layers (`USER_ACCURACY_LAYER_ID`,
 `USER_DOT_LAYER_ID`, `PIN_LAYER_ID`, and the 3 POI tiers) when no trailing base symbol layer
 exists, so geofence overlays draw above roads, buildings, and borders while map and POI labels
-stay readable on top. iOS uses `IosMapKitAdapter`. MapLibre is a renderer, not the OSM data
+stay readable on top. `PlatformMapView` accepts `bottomOverlayClearance: Dp = 0.dp`
+(no-op on Android where MapLibre attribution renders below floating bottom controls),
+wired to `dockHeight` on `MapRoute` (`FjalarApp.kt`) and measured `confirmBarHeight`
+(`0.dp` when search is open) on `MapPickerScreen`. iOS uses `IosMapKitAdapter`, where
+`updateBottomOverlayClearance` and `FjalarMKMapView.safeAreaInsetsDidChange()` apply
+symmetric vertical `MKMapView.layoutMargins` (`bottomSafeArea + clearance` with
+`insetsLayoutMarginsFromSafeArea = false`) so ` Maps Legal` clears floating bottom
+overlays without shifting `centerCoordinate` from geometric bounds center. MapLibre
+is a renderer, not the OSM data
 provider. Neither platform provides turn-by-turn routing or a route ETA feature.
 Online maps request data for the viewed area from their provider. Centering on
 the user can disclose that area. Alarm records and distance calculations remain
@@ -360,16 +378,17 @@ and exit codes.
 | Android API 37 Emulator (`Medium_Phone_API_37.0`, worldwide-search debug APK) | Blank `SearchPlacesSheet` showed only category chips, with no results panel and no recent quick-picks after app data was cleared. `Manggarai` returned four Jakarta station rows with on-device distances (`1.6 km`); selecting the Train chip kept them. `Shibuya Station` returned `Shibuya, Tokyo, Japan` (`5782 km`) and `Berlin Hauptbahnhof` returned Berlin Hbf rows (`10790.2–10790.3 km`) while Train stayed selected, confirming worldwide results and best-effort category filtering. With Wi-Fi and mobile data disabled, `Manggarai` showed the `No places found` panel without a crash. Cancelling during a query left no result list behind. Recent quick-picks and picker map taps were not re-exercised in this pass because app data had been cleared. |
 | Android API 37 Emulator (`Medium_Phone_API_37.0`, PR #59 debug APK) | Visually verified live Dark-to-Light Carto style reload (`Carto Dark Matter` to `Carto Positron`), Light `ConfigureAlarmScreen` `#F2F3F8` canvas with `1 dp` glass rims on unselected radius presets and day chips, soft keyboard open on `ConfigureAlarmScreen` with `FrostedBottomNavigationBar` hidden in both screenshot and `uiautomator dump`, and Dark cold-start splash release into the settled map view. |
 | Ramus Cloud Android (`main` @ `e1116ae`) | Verified live cloud E2E: foreground location (`Precise`) and notification permissions granted, background-location prompt dismissed, live OSM Photon search (`Manggarai`, `Shibuya Station`) with on-device distances (`13820.3 km`, `8130.3 km`), vertical `Recent destinations` list populated from Main Map browse selections, `MapPickerScreen` recent selection and `Commute Test` (`200 m`) saved, `AlarmCard` `Skip next scheduled alarm` transition to `Done for this window` without layout shift, Delete confirmation returning to `No Alarms Yet` (`0 Active`), and zero `AndroidRuntime` crashes. |
+| Android CLI (`Medium_Phone_API_37.0`, `main` @ `9b76516` debug APK, 2026-11-24) | Verified 4/4 OS × App cold-start splash matrix after PR #63 (`OS Light × App Light/Dark`, `OS Dark × App Light/Dark` visually inspected across force-stops), live Carto Positron / Dark Matter style and `EN <-> ID` HUD toggle, OSM Photon worldwide search with vertical `Recent destinations`, `ConfigureAlarmScreen` (`FrostedBottomNavigationBar` absent from `uiautomator dump` with IME open), and `Alarms` tab Skip (`0 px` `Delete` button vertical shift), edit discard confirmation guard, and Delete flow. |
+| Ramus Cloud Android (`main` @ `9b76516` debug APK, 2026-11-24) | Verified end-to-end cloud Scenarios A–D: `EN <-> ID` switch, Carto Light <-> Dark live reload, `"Ma"` `<3` char gate, `"Manggarai"` and `"Shibuya Station"` search + `Metro / MRT` filter + `"zzzzqqqq"` empty state, vertical `Recent destinations` synced across Main Map and `MapPickerScreen`, geofence over streets/buildings, `200m` preset, `0 px` `Delete` shift on Skip, edit discard confirmation guard, alarm switch toggle, Delete returning to `No Alarms Yet`, and `0` `AndroidRuntime` crashes in `android_logcat`. |
+| `iPhone 17` Simulator (`iOS 27.2`, `main` @ `9b76516` & PR #64 `c6e18f3` debug `.app`, 2026-11-24) | Verified `LaunchScreen` Light/Dark appearances, live `MKLocalSearch` (`Manggarai`, `Stasiun Manggarai`, `Shibuya Station`, `Station`, `Train` filter, `"zxqjvkwp99123"` empty state), vertical `Recent destinations` synced across Main Map and `MapPickerScreen`, keyboard-open form layout on `ConfigureAlarmScreen` with bottom dock hidden, `200m` preset & scheduled day chips, `Alarms` Skip (`0.0 px` `Delete` shift), and edit discard guard on `9b76516`; visually confirmed on PR #64 (`c6e18f3`) that ` Maps Legal` clears above `FrostedBottomNavigationBar` (Light/Dark) and `✓ Choose destination` with centered crosshair/pin, `MapPickerScreen` HUD/CTA stay hidden behind `SearchPlacesSheet`, and `Saved Alarms` empty-state subtitle matches `+ Add Alarm` / `+ Tambah alarm`. |
 
 These observations do not establish map-bearing rotation or reproduce the earlier
 missing-pin report. Still unverified on Android: completing the locked-screen
 Slide-to-Stop swipe gesture, physical TalkBack speech audio, foldable postures,
 map-bearing rotation, device injection of persistence failure, and older Android
 APIs (API 26–33). Still unverified on iOS: physical iPhone `CLCircularRegion`
-background wakeups, real OS `BGAppRefreshTask` heuristics, soft-keyboard insets
-inside forms, VoiceOver speech audio, and live `MKLocalSearch` result quality
-(only the simulator build and the shared adapter tests were run for worldwide
-search). The failure and ringing exit semantics
+background wakeups, real OS `BGAppRefreshTask` heuristics, and VoiceOver speech
+audio. The failure and ringing exit semantics
 have deterministic source-level tests, which are separate from native-device
 evidence.
 
