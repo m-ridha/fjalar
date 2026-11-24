@@ -34,4 +34,30 @@ class StartupThemeTest {
         assertEquals(UiModeManager.MODE_NIGHT_YES, StartupTheme.applicationNightMode(ThemeMode.DARK))
         assertEquals(UiModeManager.MODE_NIGHT_AUTO, StartupTheme.applicationNightMode(ThemeMode.SYSTEM))
     }
+
+    @Test
+    fun syncApplicationNightModeAppliesEveryChoiceWithoutSkippingMatchingOsMode() {
+        val appliedModes = mutableListOf<Int>()
+
+        listOf(
+            ThemeMode.DARK,
+            ThemeMode.LIGHT,
+            ThemeMode.LIGHT,
+            ThemeMode.DARK,
+            ThemeMode.SYSTEM,
+        ).forEach { mode ->
+            StartupTheme.syncApplicationNightMode(mode, appliedModes::add)
+        }
+
+        assertEquals(
+            listOf(
+                UiModeManager.MODE_NIGHT_YES,
+                UiModeManager.MODE_NIGHT_NO,
+                UiModeManager.MODE_NIGHT_NO,
+                UiModeManager.MODE_NIGHT_YES,
+                UiModeManager.MODE_NIGHT_AUTO,
+            ),
+            appliedModes,
+        )
+    }
 }
