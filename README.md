@@ -120,7 +120,7 @@ fjalar/
 ├── androidApp/                  # Android application shell (Amper module)
 │   ├── src/                     # MainActivity, AlarmActivity, RestrictedAlarmViewModel, FjalarApplication, StartupTheme,
 │   │                            # FjalarLocationService, receivers, FoldAwareControls, FoldControlInsets, LocationPermissions, di/, AndroidManifest.xml
-│   └── res/                     # Adaptive launcher mipmaps, drawables, raw/alarm.wav, & values strings
+│   └── res/                     # Adaptive launcher mipmaps, drawables, raw/alarm.wav, raw/keep.xml, & native strings
 ├── iosApp/                      # iOS application shell (Amper module & Xcode wrapper)
 │   ├── src/                     # iosApp.swift, ViewController.kt, ControlSafeArea.swift, alarm.wav,
 │   │                            # Info.plist, localized InfoPlist.strings, & Assets.xcassets
@@ -139,14 +139,13 @@ fjalar/
 │   │   └── adapters/            # Shared implementations (location streams, map helper, place search, JSON storage/preferences/recents)
 │   ├── src@android/             # Android-specific adapters (Accessibility, Geofence, LocationManager, AlarmManager, MapLibre, Photon, Ringer, Sync)
 │   ├── src@ios/                 # iOS-specific adapters (Accessibility, CLCircularRegion, CLLocation, IosBackgroundSchedulerAdapter, MapKit, MKLocalSearch, Sync)
-│   ├── composeResources/        # Multiplatform strings (values, values-in, values-id) & drawables
-│   ├── test/                    # Shared tests and fakes
+│   ├── test/                    # Shared tests (including CatalogParityTest.kt), InMemoryKeyValueStorage, and fakes
 │   ├── test@android/            # Android-specific tests
 │   └── test@ios/                # iOS-specific tests
 ├── scripts/                     # Asset, release, and verification scripts
 │   ├── generate_app_icons.py    # Generates all Android adaptive/legacy icons & iOS 18 asset catalog
 │   ├── generate_splash_assets.py # Derives Android VectorDrawable & iOS SVG launch artwork from the SVG masters
-│   ├── generate_alarm_sound.py  # Generates bundled alarm.wav audio across assets, Android raw, and iOS bundle
+│   ├── generate_alarm_sound.py  # Generates bundled 22.05 kHz mono alarm.wav across assets, Android raw, and iOS bundle
 │   ├── test_generated_icons.py  # Unit tests for icon dimensions, bit depths, and safe-zone constraints
 │   ├── test_generated_splash_assets.py # Unit tests for launch artwork safe circle, backgrounds, and wiring
 │   ├── build_release_android.sh # Builds, aligns, signs, and verifies the release APK
@@ -234,7 +233,7 @@ for Android signing secrets, publication steps, and the current iOS signing limi
 ## Testing Standards
 
 - **Core domain is verified in `commonTest`:** Pure Kotlin unit tests run fast without Android emulators or iOS simulators.
-- **Test Doubles:** Use the shared in-memory fakes in `shared/test/fakes/FakeAdapters.kt` (`InMemoryAlarmRepository`, `FakeLocationTracker`, `FakeAlarmRinger`, `FakeAlarmScheduler`, `FakeClock`, `FakeAccessibilityAdapter`, `FakeRecentDestinationsAdapter`, `FakeBackgroundSyncAdapter`, `FakeGeofenceAdapter`, `FakeOnlineGeocodingEngine`), `InMemoryKeyValueStorage` (`shared/src/adapters/storage/KeyValueStorage.kt`), and the local `FakeSearchPlacesPort` double in `FjalarViewModelTest.kt` rather than mocking frameworks.
+- **Test Doubles:** Use the shared in-memory fakes in `shared/test/fakes/FakeAdapters.kt` (`InMemoryAlarmRepository`, `FakeLocationTracker`, `FakeAlarmRinger`, `FakeAlarmScheduler`, `FakeClock`, `FakeAccessibilityAdapter`, `FakeRecentDestinationsAdapter`, `FakeBackgroundSyncAdapter`, `FakeGeofenceAdapter`, `FakeOnlineGeocodingEngine`), `InMemoryKeyValueStorage` (`shared/test/adapters/storage/InMemoryKeyValueStorage.kt`), and the local `FakeSearchPlacesPort` double in `FjalarViewModelTest.kt` rather than mocking frameworks.
 - **Boundary Verification:** Tests explicitly cover midnight-crossing commute windows (`23:00–02:00`), leap years, accuracy jitter, and ringer failure rollbacks.
 
 ---

@@ -221,10 +221,6 @@ open class DefaultAndroidRingerPlatformGateway(
         lock = mediaLock,
     )
 
-    init {
-        createNotificationChannelIfNeeded()
-    }
-
     override fun startAudio(volume: Float) {
         synchronized(mediaLock) {
             stopAudio()

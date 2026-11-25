@@ -24,9 +24,9 @@ The same toolchain is selected in PR checks. Xcode 16 lacks required frameworks.
 After the signed Android build and multiplatform verification both pass, the
 workflow attaches these files to the existing release:
 
-- `fjalar-vX.Y.Z[-suffix]-android.apk`: aligned, release-signed Android APK.
+- `fjalar-vX.Y.Z[-suffix]-android.apk`: aligned, release-signed `arm64-v8a` Android APK (with `DebugProbesKt.bin` excluded and R8 shrinking guided by `androidApp/res/raw/keep.xml`).
 - `SHA256SUMS.txt`: SHA-256 checksum of the APK.
-- `fjalar-vX.Y.Z[-suffix]-ios-unsigned.ipa`: unsigned physical-device iOS IPA (`iosArm64` / `Release-iphoneos`).
+- `fjalar-vX.Y.Z[-suffix]-ios-unsigned.ipa`: unsigned physical-device iOS IPA (`iosArm64` / `Release-iphoneos`, symbol-stripped Mach-O binary and `ViewController.kt` excluded from bundle resources).
 - `SHA256SUMS-ios.txt`: SHA-256 checksum of the unsigned iOS IPA.
 
 The exact commit associated with the release event is checked out for validation,

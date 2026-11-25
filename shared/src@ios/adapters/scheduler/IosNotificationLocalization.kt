@@ -1,9 +1,6 @@
 package com.muhammadridha.fjalar.adapters.scheduler
 
-import com.muhammadridha.fjalar.resources.Res
-import com.muhammadridha.fjalar.resources.app_name
 import kotlinx.coroutines.CancellationException
-import org.jetbrains.compose.resources.getString
 import platform.Foundation.NSBundle
 
 /**
@@ -15,7 +12,7 @@ interface IosNotificationTitleResolver {
 }
 
 open class DefaultIosNotificationTitleResolver(
-    private val appNameResourceProvider: (suspend () -> String) = { getString(Res.string.app_name) },
+    private val appNameResourceProvider: (suspend () -> String) = { resolveSystemBundleTitle() },
     private val localizedBundleResolver: (languageCode: String?) -> String? = { resolveLocalizedBundleTitle(it) },
 ) : IosNotificationTitleResolver {
 
@@ -40,15 +37,29 @@ open class DefaultIosNotificationTitleResolver(
         } catch (e: CancellationException) {
             throw e
         } catch (_: Throwable) {
-            (NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleDisplayName") as? String)
-                ?: (NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleName") as? String)
-                ?: ENGLISH_APP_NAME
+            resolveSystemBundleTitle()
         }
     }
 
     companion object {
         const val ENGLISH_APP_NAME = "Wake Me at"
         const val INDONESIAN_APP_NAME = "Bangunkan Saya di"
+
+        fun resolveSystemBundleTitle(): String {
+            val preferred = NSBundle.mainBundle.preferredLocalizations
+                .filterIsInstance<String>()
+                .firstOrNull()
+                ?.lowercase()
+                ?.split('-', '_')
+                ?.firstOrNull()
+            val localized = resolveLocalizedBundleTitle(preferred)
+            if (!localized.isNullOrBlank()) {
+                return localized
+            }
+            return (NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleDisplayName") as? String)
+                ?: (NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleName") as? String)
+                ?: ENGLISH_APP_NAME
+        }
 
         fun resolveLocalizedBundleTitle(
             languageCode: String?,

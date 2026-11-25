@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Unit tests for the bundled alarm audio assets in Fjalar.
-Verifies WAV file integrity, 44.1 kHz 16-bit PCM stereo format, non-clipping peak, and duration.
+Verifies WAV file integrity, 22.05 kHz 16-bit PCM mono format, non-clipping peak, and duration.
 """
 
 import os
@@ -45,11 +45,22 @@ class GeneratedAlarmAudioTest(unittest.TestCase):
                 nframes = w.getnframes()
                 duration = nframes / framerate
 
-                self.assertEqual(channels, 2, f"Expected stereo (2 channels) for {path}")
+                self.assertEqual(channels, 1, f"Expected mono (1 channel) for {path}")
                 self.assertEqual(sampwidth, 2, f"Expected 16-bit PCM (2 bytes/sample) for {path}")
-                self.assertEqual(framerate, 44100, f"Expected 44.1 kHz sample rate for {path}")
+                self.assertEqual(framerate, 22050, f"Expected 22.05 kHz sample rate for {path}")
                 self.assertGreaterEqual(duration, 3.0, f"Audio too short (<3.0s): {duration}s")
                 self.assertLessEqual(duration, 5.0, f"Audio too long (>5.0s): {duration}s")
+
+    def test_android_keep_xml_retains_alarm_raw(self) -> None:
+        from pathlib import Path
+        import xml.etree.ElementTree as ET
+
+        keep_path = Path(__file__).resolve().parent.parent / "androidApp" / "res" / "raw" / "keep.xml"
+        self.assertTrue(keep_path.is_file(), f"Missing keep.xml: {keep_path}")
+        root = ET.parse(keep_path).getroot()
+        keep_attr = root.attrib.get("{http://schemas.android.com/tools}keep", "")
+        keep_entries = {item.strip() for item in keep_attr.split(",") if item.strip()}
+        self.assertIn("@raw/alarm", keep_entries)
 
 
 if __name__ == "__main__":

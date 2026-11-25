@@ -235,6 +235,8 @@ Android ongoing monitoring notifications feature a context-aware action: "Skip T
 for scheduled alarms or "Stop Monitoring" for one-time alarms; Snooze is offered in the
 restricted full-screen ringing `AlarmActivity`. Android uses AlarmManager wakeups, a
 restricted `FLAG_SECURE` alarm activity, and the bundled `androidApp/res/raw/alarm.wav`
+(`22.05 kHz` 16-bit mono PCM, explicitly preserved through R8 shrinking via
+`androidApp/res/raw/keep.xml` alongside dynamically resolved notification string keys)
 as its final fallback ringtone after system default and installed `TYPE_ALARM` tones. See
 [Security](security.md) for the keyguard boundary and device verification matrix.
 
@@ -347,9 +349,11 @@ classes stay constructor-injected. Persistence is JSON in platform key-value
 storage. See [Dependency injection](dependency-injection.md).
 
 For published releases with valid version tags, the `android` job builds a
-signed APK and the `verify` job runs multiplatform verification (`./kotlin test`,
+signed `arm64-v8a` APK (with R8 shrinking guided by `androidApp/res/raw/keep.xml` and
+`DebugProbesKt.bin` excluded) and the `verify` job runs multiplatform verification (`./kotlin test`,
 `./kotlin check`) plus unsigned physical-device iOS packaging
-(`scripts/build_release_ios.sh`). After both jobs pass, the `publish` job verifies
+(`scripts/build_release_ios.sh`, stripping Mach-O symbols with `xcrun strip -rSTx`, excluding
+`ViewController.kt` from app bundle resources, and disabling Release SwiftUI previews). After both jobs pass, the `publish` job verifies
 and attaches the signed Android APK (`fjalar-<tag>-android.apk`), `SHA256SUMS.txt`,
 unsigned iOS IPA (`fjalar-<tag>-ios-unsigned.ipa`), and `SHA256SUMS-ios.txt` via
 `scripts/upload_release_assets.py`. Signed App Store / TestFlight distribution is not
