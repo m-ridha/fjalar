@@ -58,15 +58,12 @@ data class FjalarUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val appLocale: AppLocale = AppLocale.EN,
     val activeRingingAlarm: LocationAlarm? = null,
-    val selectedAlarmForEdit: LocationAlarm? = null,
-    val isConfigureSheetVisible: Boolean = false,
     val searchQuery: String = "",
     val isSearchSheetVisible: Boolean = false,
     val searchContext: PlaceSearchContext? = null,
     val searchResults: List<SearchResultPlace> = emptyList(),
     val isSearching: Boolean = false,
     val selectedCategoryFilter: PlaceCategory? = null,
-    val initialAlarmLabel: String? = null,
     val locationFix: LocationFix? = null,
     val locationAvailability: LocationAvailability = LocationAvailability.PROVIDER_UNAVAILABLE,
     val userLocation: GeoCoordinates? = null,
@@ -368,7 +365,6 @@ class FjalarViewModel(
             it.copy(
                 searchContext = context,
                 isSearchSheetVisible = true,
-                isConfigureSheetVisible = false,
                 searchQuery = "",
                 searchResults = emptyList(),
                 selectedCategoryFilter = null,
@@ -538,25 +534,6 @@ class FjalarViewModel(
         }
     }
 
-    fun onSaveAlarm(alarm: LocationAlarm) {
-        scope.launch {
-            val result = saveAlarmPort.saveAlarm(alarm)
-            if (result.isSuccess) {
-                refreshBackgroundSyncAfterMutation()
-                _uiState.update { current ->
-                    current.copy(
-                        isConfigureSheetVisible = false,
-                        selectedAlarmForEdit = null,
-                        initialAlarmLabel = null,
-                        selectedCoordinates = null,
-                        selectedRadius = TriggerRadius.DEFAULT,
-                    )
-                }
-                mapRendererPort?.clearOverlays()
-            }
-        }
-    }
-
     fun onDeleteAlarm(alarmId: String, onSuccess: () -> Unit = {}) {
         if (_uiState.value.isOperationPending) return
         val operationDraftRevision = draftRevision
@@ -578,19 +555,11 @@ class FjalarViewModel(
                 )
             }
             if (result?.isSuccess == true && ownsDraft) {
-                if (_uiState.value.selectedAlarmForEdit?.id == alarmId) {
-                    _uiState.update { current ->
-                        current.copy(
-                            isConfigureSheetVisible = false,
-                            selectedAlarmForEdit = null,
-                            initialAlarmLabel = null,
-                            selectedCoordinates = null,
-                            selectedRadius = TriggerRadius.DEFAULT,
-                        )
-                    }
-                    mapRendererPort?.clearOverlays()
+                if (editorPersistedId == alarmId || _uiState.value.activeDraft?.alarmId == alarmId) {
+                    discardEditor(null)
+                } else {
+                    _uiState.update { it.copy(activeDraft = null, hasOperationFailure = false) }
                 }
-                _uiState.update { it.copy(activeDraft = null, hasOperationFailure = false) }
                 onSuccess()
             }
         }
@@ -629,51 +598,6 @@ class FjalarViewModel(
         }
     }
 
-    fun onOpenNewAlarm() {
-        _uiState.update { current ->
-            current.copy(
-                selectedAlarmForEdit = null,
-                initialAlarmLabel = null,
-                isConfigureSheetVisible = true,
-                selectedCoordinates = null,
-                selectedRadius = TriggerRadius.DEFAULT,
-            )
-        }
-        mapRendererPort?.clearOverlays()
-    }
-
-    fun onOpenEditAlarm(alarm: LocationAlarm) {
-        clearViewportFollow()
-        _uiState.update { current ->
-            current.copy(
-                selectedAlarmForEdit = alarm,
-                initialAlarmLabel = alarm.label,
-                isConfigureSheetVisible = true,
-                selectedCoordinates = alarm.coordinates,
-                selectedRadius = alarm.radius,
-                mapViewportCenter = alarm.coordinates,
-                mapViewportZoom = 15.0,
-                viewportRequestId = current.viewportRequestId + 1L,
-            )
-        }
-        mapRendererPort?.placePin(alarm.coordinates)
-        mapRendererPort?.showGeofence(alarm.coordinates, alarm.radius)
-        mapRendererPort?.setViewport(alarm.coordinates, zoom = 15.0)
-    }
-
-    fun onDismissConfigureSheet() {
-        _uiState.update { current ->
-            current.copy(
-                isConfigureSheetVisible = false,
-                selectedAlarmForEdit = null,
-                initialAlarmLabel = null,
-                selectedCoordinates = null,
-                selectedRadius = TriggerRadius.DEFAULT,
-            )
-        }
-        mapRendererPort?.clearOverlays()
-    }
-
     fun onStartConfiguringAlarm(alarmId: String?, defaultCoordinates: GeoCoordinates? = null) {
         onDismissSearch()
         // The editor owns the camera from here: a late first fix must not move it.
@@ -699,7 +623,6 @@ class FjalarViewModel(
                 activeDraft = draft,
                 hasOperationFailure = false,
                 pendingEditorNotice = null,
-                selectedAlarmForEdit = _uiState.value.alarms.firstOrNull { it.id == alarmId },
                 selectedCoordinates = draft.coordinates,
                 selectedRadius = TriggerRadius(draft.radiusMeters),
             )
@@ -778,39 +701,6 @@ class FjalarViewModel(
         )
         scope.launch {
             recentDestinationsPort?.recordDestination(recent)
-        }
-    }
-
-    fun onSaveDraftAlarm(draft: ConfigureAlarmDraft, onSuccess: () -> Unit = {}) {
-        val existing = draft.alarmId?.let { id ->
-            _uiState.value.alarms.firstOrNull { it.id == id }
-        }
-        if (_uiState.value.isOperationPending) return
-        val alarm = draft.toLocationAlarm(existing)
-        val operationDraftRevision = draftRevision
-        _uiState.update { it.copy(isOperationPending = true, hasOperationFailure = false) }
-        scope.launch {
-            val result = saveAlarmPort.saveAlarm(alarm, draft.enabledOverride)
-            if (result.isSuccess) {
-                refreshBackgroundSyncAfterMutation()
-            }
-            val ownsDraft = operationDraftRevision == draftRevision
-            _uiState.update {
-                it.copy(isOperationPending = false, hasOperationFailure = ownsDraft && result.isFailure)
-            }
-            if (result.isSuccess && ownsDraft) {
-                _uiState.update { current ->
-                    current.copy(
-                        activeDraft = null,
-                        selectedAlarmForEdit = null,
-                        initialAlarmLabel = null,
-                        selectedCoordinates = null,
-                        selectedRadius = TriggerRadius.DEFAULT,
-                    )
-                }
-                mapRendererPort?.clearOverlays()
-                onSuccess()
-            }
         }
     }
 
@@ -944,8 +834,6 @@ class FjalarViewModel(
         _uiState.update { current ->
             current.copy(
                 activeDraft = null,
-                selectedAlarmForEdit = null,
-                initialAlarmLabel = null,
                 selectedCoordinates = null,
                 selectedRadius = TriggerRadius.DEFAULT,
                 hasOperationFailure = false,

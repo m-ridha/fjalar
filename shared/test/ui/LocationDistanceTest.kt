@@ -1,6 +1,7 @@
 package com.muhammadridha.fjalar.ui
 
 import com.muhammadridha.fjalar.adapters.storage.InMemoryKeyValueStorage
+import com.muhammadridha.fjalar.adapters.storage.PersistentAlarmRepository
 import com.muhammadridha.fjalar.fakes.createTestViewModel
 import com.muhammadridha.fjalar.domain.model.*
 import com.muhammadridha.fjalar.domain.ports.outbound.LocationTrackerPort
@@ -31,11 +32,19 @@ class LocationDistanceTest {
         GeoCoordinates(0.0, longitude), accuracy, Instant.parse("2000-01-01T00:00:00Z"), time.markNow(),
     )
 
+    private suspend fun seededStorage(vararg alarms: LocationAlarm): InMemoryKeyValueStorage {
+        val storage = InMemoryKeyValueStorage()
+        val repository = PersistentAlarmRepository(storage)
+        for (item in alarms) {
+            repository.upsertAlarm(item)
+        }
+        return storage
+    }
+
     @Test fun movementReordersArmedAlarmsAndNeverUsesRadiusAsDistance() = runTest {
         val tracker = Tracker()
-        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
-        vm.onSaveAlarm(alarm("west", 0.0))
-        vm.onSaveAlarm(alarm("east", 1.0))
+        val storage = seededStorage(alarm("west", 0.0), alarm("east", 1.0))
+        val vm = createTestViewModel(storage, tracker = tracker, coroutineScope = backgroundScope)
         runCurrent()
         val time = TestTimeSource()
         tracker.fixes.emit(fix(time))
@@ -53,10 +62,12 @@ class LocationDistanceTest {
     }
 
     @Test fun unknownDistancesUseStableIdAndExcludeNonArmedAlarms() = runTest {
-        val vm = createTestViewModel(InMemoryKeyValueStorage(), coroutineScope = backgroundScope)
-        vm.onSaveAlarm(alarm("z", 0.0))
-        vm.onSaveAlarm(alarm("a", 1.0))
-        vm.onSaveAlarm(alarm("0", 0.0).copy(state = AlarmState.DISABLED))
+        val storage = seededStorage(
+            alarm("z", 0.0),
+            alarm("a", 1.0),
+            alarm("0", 0.0).copy(state = AlarmState.DISABLED),
+        )
+        val vm = createTestViewModel(storage, coroutineScope = backgroundScope)
         runCurrent()
         assertEquals("a", vm.uiState.value.nearestArmedAlarm?.id)
         assertNull(vm.uiState.value.distanceMetersByAlarmId["a"])
@@ -64,9 +75,8 @@ class LocationDistanceTest {
 
     @Test fun equalDistancesUseStableAlarmId() = runTest {
         val tracker = Tracker()
-        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
-        vm.onSaveAlarm(alarm("z", 1.0))
-        vm.onSaveAlarm(alarm("a", -1.0))
+        val storage = seededStorage(alarm("z", 1.0), alarm("a", -1.0))
+        val vm = createTestViewModel(storage, tracker = tracker, coroutineScope = backgroundScope)
         tracker.fixes.emit(fix(TestTimeSource()))
         runCurrent()
         assertEquals("a", vm.uiState.value.nearestArmedAlarm?.id)
@@ -74,9 +84,8 @@ class LocationDistanceTest {
 
     @Test fun nearestUsesUnroundedDistanceBeforeIdTieBreak() = runTest {
         val tracker = Tracker()
-        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
-        vm.onSaveAlarm(alarm("a", 0.001001))
-        vm.onSaveAlarm(alarm("z", 0.001000))
+        val storage = seededStorage(alarm("a", 0.001001), alarm("z", 0.001000))
+        val vm = createTestViewModel(storage, tracker = tracker, coroutineScope = backgroundScope)
         tracker.fixes.emit(fix(TestTimeSource()))
         runCurrent()
         assertEquals(111, vm.uiState.value.distanceMetersByAlarmId["a"])
@@ -86,8 +95,8 @@ class LocationDistanceTest {
 
     @Test fun accuracyCutoffsKeepApproximateDotSeparateFromNumericDistance() = runTest {
         val tracker = Tracker()
-        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
-        vm.onSaveAlarm(alarm("a", 1.0))
+        val storage = seededStorage(alarm("a", 1.0))
+        val vm = createTestViewModel(storage, tracker = tracker, coroutineScope = backgroundScope)
         val time = TestTimeSource()
         for ((accuracy, hasDistance, hasDot) in listOf(
             Triple(100f, true, true), Triple(100.01f, false, true),
@@ -102,8 +111,8 @@ class LocationDistanceTest {
 
     @Test fun fixExpiresAfterThirtySecondsWithoutAnotherCallbackOrWallClockUse() = runTest {
         val tracker = Tracker()
-        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
-        vm.onSaveAlarm(alarm("a", 1.0))
+        val storage = seededStorage(alarm("a", 1.0))
+        val vm = createTestViewModel(storage, tracker = tracker, coroutineScope = backgroundScope)
         val time = TestTimeSource()
         tracker.fixes.emit(fix(time))
         runCurrent()
@@ -155,8 +164,8 @@ class LocationDistanceTest {
 
     @Test fun deniedProviderRemovesDistanceAndFutureObservationCannotRestoreIt() = runTest {
         val tracker = Tracker()
-        val vm = createTestViewModel(InMemoryKeyValueStorage(), tracker = tracker, coroutineScope = backgroundScope)
-        vm.onSaveAlarm(alarm("a", 1.0))
+        val storage = seededStorage(alarm("a", 1.0))
+        val vm = createTestViewModel(storage, tracker = tracker, coroutineScope = backgroundScope)
         val time = TestTimeSource()
         tracker.fixes.emit(fix(time))
         runCurrent()

@@ -665,7 +665,6 @@ class EndToEndNavigationIntegrationTest {
                 category = com.muhammadridha.fjalar.domain.model.PlaceCategory.TRAIN_STATION,
             )
             viewModel.onBrowsePlaceSelected(place)
-            assertFalse(viewModel.uiState.value.isConfigureSheetVisible)
             assertFalse(viewModel.uiState.value.isSearchSheetVisible)
             assertNull(viewModel.uiState.value.activeDraft)
             assertEquals(place.coordinates, viewModel.uiState.value.mapViewportCenter)
@@ -795,7 +794,7 @@ class EndToEndNavigationIntegrationTest {
             assertEquals(1000, viewModel.uiState.value.activeDraft?.radiusMeters)
 
             // 7. User saves the draft
-            viewModel.onSaveDraftAlarm(viewModel.uiState.value.activeDraft!!)
+            viewModel.onSaveAlarmEditor {}
 
             // Verify alarm was committed to port with exact fields
             assertEquals(1, saveAlarmPort.savedAlarms.size)
@@ -842,7 +841,7 @@ class EndToEndNavigationIntegrationTest {
 
             // User updates label and saves
             viewModel.onUpdateDraft(draft.copy(label = "Manggarai Station Renovated"))
-            viewModel.onSaveDraftAlarm(viewModel.uiState.value.activeDraft!!)
+            viewModel.onSaveAlarmEditor {}
 
             assertEquals(1, saveAlarmPort.savedAlarms.size)
             val saved = saveAlarmPort.savedAlarms.first()

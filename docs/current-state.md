@@ -116,9 +116,13 @@ The main map browses without selecting a destination. Taps and pans do not creat
 an alarm or temporary marker; search results move the camera only. The nearest
 active alarm's destination and the user blue dot remain the map's markers. A new
 alarm opens without a destination, and the map picker requires an explicit choice
-before its confirmation button is enabled. Picker search changes its candidate
-selection, which is committed to the draft only by picker confirmation. Cancel
-returns without changing it.
+(map tap, pin drag, or search/recent selection) before its confirmation button is
+enabled; camera pan and zoom never overwrite or clear the chosen pin or place
+name. Picker search updates its candidate selection (`onConfirmSelection`), which
+commits to the draft and records named picks once to `RecentDestinationsPort` with
+canonical `placeId` only when confirmed (unnamed coordinate-only pins are not
+recorded, and blank draft labels auto-fill from non-blank place names). Cancel
+returns without changing the draft.
 
 The picker frames a visit from the draft destination, then the current fix, then
 the last map viewport the user browsed (center and zoom), then the route arguments.
@@ -127,17 +131,31 @@ map records settled user pans and zooms for that fallback. A recenter tapped bef
 the first fix stays pending and consumes the first arriving fix unless superseded by a
 browse search selection, user map pan/zoom, or opening an alarm editor. The picker counts
 as a visible map for map-only location tracking. `shouldShowMapPickerControls(isSearchVisible)`
-in `MapPickerScreen` hides the top HUD pills (Back, hint pill, search bar),
-`MapNavigationControls`, and bottom `Choose destination` CTA while `SearchPlacesSheet`
+in `MapPickerScreen` hides the top HUD pills (Back, hint pill, `SearchTriggerPill`),
+`MapNavigationControls`, and bottom `Choose destination` CTA while `SearchPlacesOverlay`
 is open (keeping `SearchBackHandler` active), preventing controls from bleeding through
-behind the translucent search modal. `SearchPlacesSheet` renders as a 4-sided
-rounded floating glass modal (`RoundedCornerShape(28.dp)`) with outer spacing above the
-bottom navigation dock or picker edge and scroll content clipped inside its rounded border.
+behind the search overlay. `SearchPlacesOverlay` wraps `SearchPlacesSheet` in a shared
+top-anchored full-screen frosted overlay (`AnimatedVisibility` with `fadeIn`/`slideInVertically`,
+click-absorbing backdrop, `48.dp` `←` Back button, auto-focused `BasicTextField`,
+fixed `48.dp` `✕` Clear slot, category chips, and a single `Modifier.weight(1f)` `LazyColumn`
+with safe-drawing/IME insets) across both Main Map (hiding `FrostedBottomNavigationBar`)
+and `MapPickerScreen`.
 
-Configure Alarm has an enabled toggle, applied when saving. Explicit `Save` validates
-in place, saves valid new or changed drafts, skips redundant repository writes for an
-unchanged existing alarm, keeps invalid drafts open with a localized reason, and retains
-the editor for retry if persistence fails. Toolbar Back and Android system Back never
+Configure Alarm has an enabled toggle, applied when saving. Explicit `Save` shows a
+pending progress indicator, validates in place (highlighting `NAME_REQUIRED` on the
+label field and `NO_DESTINATION` on the location card), saves valid new or changed
+drafts, skips redundant repository writes for an unchanged existing alarm, keeps invalid
+drafts open with a localized snackbar reason, and retains the editor for retry if
+persistence fails. Non-ringing mutation failures (`onToggleAlarm`, `onSkipToday`,
+`onDeleteAlarm`, `onSelectLocale`) also surface via transient `SnackbarHost` notices
+rather than sticky screen banners, while `RingingAlertOverlay` keeps its dedicated
+ringing error guidance. `AlarmActivity` wraps its restricted keyguard UI in
+`FoldAwareControls` with `isReduceTransparencyActive()` and `SystemBarStyle` light/dark
+icon sync. On iOS, `ViewController.kt` reports `CLLocationManager.authorizationStatus`
+(`kCLAuthorizationStatusAuthorizedAlways`) into `onPermissionResult`/`onLocationAccessChecked`,
+wires `onRequestPermission` (`requestAlwaysAuthorization` or `UIApplicationOpenSettingsURLString`),
+and wires `requestCurrentLocation` for live recenter refreshes. Toolbar Back and Android
+system Back never
 auto-save: when there are no unsaved changes they exit immediately, and when the draft
 has unsaved changes (including after picking coordinates or a failed save) they show a
 2-action confirmation dialog (`Keep editing` / `Discard`; `Lanjut mengedit` / `Buang`).
@@ -330,11 +348,11 @@ taps keep working.
 
 The map picker and place search also support recent destination quick-picks
 via `RecentDestinationsPort` backed by `PersistentRecentDestinationsAdapter` in
-platform key-value storage. Destinations recorded from main-map browse selection
-(`onBrowsePlaceSelected`), picker search selection (`onPickerPlaceSelected`), or
-confirmed picker placement (`FjalarViewModel` driving `MapPickerScreen` in
-`FjalarApp.kt`) are stored in an LRU list capped at 5 entries,
-deduplicated by ID, case-insensitive trimmed name, and coordinate proximity within 50 meters.
+platform key-value storage. Named destinations recorded from main-map browse selection
+(`onBrowsePlaceSelected`) or confirmed picker placement (`MapPickerScreen` via
+`onConfirmSelection`) are stored in an LRU list capped at 5 entries,
+deduplicated by ID, case-insensitive trimmed name, and coordinate proximity within 50 meters;
+manual coordinate-only pin placements without a place name are not added to recents.
 In `SearchPlacesSheet`, when the query is blank and recent destinations exist,
 a vertical scrollable list renders full-width destination rows with category icons,
 single-line ellipsized names, optional distance pills, dividers, and

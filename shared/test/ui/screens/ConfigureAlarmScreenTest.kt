@@ -331,7 +331,7 @@ class ConfigureAlarmScreenTest {
         assertTrue(preservedDraft.vibrateEnabled)
 
         // 4. Save draft
-        viewModel.onSaveDraftAlarm(preservedDraft)
+        viewModel.onSaveAlarmEditor {}
         assertNotNull(savedAlarm)
         assertEquals("Edited Manggarai", savedAlarm.label)
         assertEquals(pickedCoords, savedAlarm.coordinates)
