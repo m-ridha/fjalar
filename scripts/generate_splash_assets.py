@@ -50,7 +50,12 @@ STALE_RASTER_OUTPUTS = (
 )
 
 SVG_NS = "{http://www.w3.org/2000/svg}"
-TOKEN_RE = re.compile(r"([MmCcZzLl])|(-?\d+(?:\.\d+)?)")
+SUPPORTED_COMMANDS = frozenset("MmLlCcZz")
+TOKEN_RE = re.compile(
+    r"([A-Za-z])"
+    r"|([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)"
+    r"|([\s,]+)"
+)
 
 
 def full_path(rel_path: str) -> str:
@@ -103,24 +108,66 @@ def load_master_svg(master_rel_path: str) -> tuple[float, float, str, list[tuple
     return width, height, background_hex, paths
 
 
+def parse_path_commands(d_str: str) -> list[tuple[str, list[float]]]:
+    """Tokenizes and validates an SVG/VectorDrawable path into `(command, values)` pairs."""
+    commands: list[tuple[str, list[float]]] = []
+    current_command: str | None = None
+    values: list[float] = []
+    pos = 0
+
+    def flush() -> None:
+        if current_command is None:
+            return
+        upper = current_command.upper()
+        if upper == "Z":
+            if values:
+                raise ValueError(f"Command '{current_command}' does not accept coordinates")
+        elif upper in ("M", "L"):
+            if not values or len(values) % 2 != 0:
+                raise ValueError(f"Command '{current_command}' requires coordinate pairs")
+        elif upper == "C":
+            if not values or len(values) % 6 != 0:
+                raise ValueError(f"Command '{current_command}' requires 6-value cubic Bezier tuples")
+        commands.append((current_command, list(values)))
+
+    for match in TOKEN_RE.finditer(d_str):
+        if match.start() != pos:
+            snippet = d_str[pos:match.start()]
+            raise ValueError(f"Unexpected path token near '{snippet}'")
+        pos = match.end()
+        cmd_token, num_token, sep_token = match.groups()
+        if sep_token:
+            continue
+        if cmd_token:
+            if cmd_token not in SUPPORTED_COMMANDS:
+                raise ValueError(f"Unsupported path command '{cmd_token}'")
+            flush()
+            current_command = cmd_token
+            values = []
+        elif num_token:
+            if current_command is None:
+                raise ValueError(f"Coordinate '{num_token}' appeared before any path command")
+            values.append(float(num_token))
+
+    if pos != len(d_str):
+        snippet = d_str[pos:]
+        raise ValueError(f"Unexpected path token near '{snippet}'")
+    flush()
+    return commands
+
+
 def sample_path_points(d_str: str, samples: int = BEZIER_SAMPLES) -> list[tuple[float, float]]:
     """Samples vertices and cubic Bezier points along an SVG/VectorDrawable path string."""
-    tokens = TOKEN_RE.findall(d_str)
     points: list[tuple[float, float]] = []
     current = (0.0, 0.0)
     subpath_start = (0.0, 0.0)
-    command = None
-    values: list[float] = []
 
-    def flush() -> None:
-        nonlocal current, subpath_start
-        if not command:
-            return
+    for command, values in parse_path_commands(d_str):
         upper = command.upper()
         is_rel = command != upper
         if upper == "Z":
             current = subpath_start
-            return
+            continue
         if upper in ("M", "L"):
             for index in range(0, len(values), 2):
                 nx = values[index] + (current[0] if is_rel else 0.0)
@@ -154,17 +201,6 @@ def sample_path_points(d_str: str, samples: int = BEZIER_SAMPLES) -> list[tuple[
                     )
                     points.append((bx, by))
                 current = p3
-        else:
-            raise ValueError(f"Unsupported path command '{command}'")
-
-    for cmd_token, num_token in tokens:
-        if cmd_token:
-            flush()
-            command = cmd_token
-            values = []
-        else:
-            values.append(float(num_token))
-    flush()
     return points
 
 
@@ -185,38 +221,22 @@ def max_radius_from_center(paths: list[tuple[str, str]], width: float, height: f
 
 def transform_path_data(d_str: str, scale: float, tx: float, ty: float) -> str:
     """Applies uniform scale + translation `(x * scale + tx, y * scale + ty)` to path data."""
-    tokens = TOKEN_RE.findall(d_str)
     parts: list[str] = []
-    command = None
-    values: list[float] = []
-
-    def flush() -> None:
-        if not command:
-            return
+    for cmd_index, (command, values) in enumerate(parse_path_commands(d_str)):
         upper = command.upper()
         if upper == "Z":
             parts.append("Z")
-            return
+            continue
         is_rel = command != upper
-        if upper not in ("M", "L", "C"):
-            raise ValueError(f"Unsupported path command '{command}'")
+        is_initial_rel_moveto = command == "m" and cmd_index == 0
         out_coords: list[str] = []
         for index, raw in enumerate(values):
-            if is_rel:
-                transformed = raw * scale
-            else:
-                transformed = raw * scale + (tx if index % 2 == 0 else ty)
+            # In SVG, an initial relative `m` starts at (0, 0) (absolute), while later
+            # pairs inside that `m` are implicit relative `l` offsets.
+            should_translate = (not is_rel) or (is_initial_rel_moveto and index < 2)
+            transformed = raw * scale + ((tx if index % 2 == 0 else ty) if should_translate else 0.0)
             out_coords.append(format_num(transformed))
         parts.append(f"{command} {' '.join(out_coords)}")
-
-    for cmd_token, num_token in tokens:
-        if cmd_token:
-            flush()
-            command = cmd_token
-            values = []
-        else:
-            values.append(float(num_token))
-    flush()
     return " ".join(parts)
 
 

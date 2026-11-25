@@ -246,6 +246,31 @@ class GeneratedSplashAssetsTest(unittest.TestCase):
         self.assertIsNotNone(activity, "Missing MainActivity in the manifest")
         self.assertEqual(activity.get(f"{ANDROID_NAMESPACE}theme"), "@style/Theme.Fjalar.Starting")
 
+    def test_path_parser_preserves_leading_decimals_exponents_and_rejects_invalid_tokens(self):
+        points = self.generator.sample_path_points("M .5 -.25 L 1e2 1.5e-2 Z")
+        self.assertEqual(points, [(0.5, -0.25), (100.0, 0.015)])
+        self.assertEqual(
+            self.generator.transform_path_data("M .5 1e1 L -.5 1.5e-2 Z", 2.0, 10.0, 20.0),
+            "M 11 40 L 9 20.03 Z",
+        )
+        for bad_path in ("M 10 10 H 20 V 30 Z", "M 10 10 Q 15 5 20 10 Z", "M 10 10 foo 20 20 Z", "M 10 10 @ 20 20 Z"):
+            with self.subTest(bad_path=bad_path):
+                with self.assertRaises(ValueError):
+                    self.generator.sample_path_points(bad_path)
+                with self.assertRaises(ValueError):
+                    self.generator.transform_path_data(bad_path, 1.0, 0.0, 0.0)
+
+    def test_transform_path_data_translates_only_first_pair_of_initial_relative_moveto(self):
+        self.assertEqual(
+            self.generator.transform_path_data("m 10 20 l 5 0 Z", 2.0, 100.0, 200.0),
+            "m 120 240 l 10 0 Z",
+        )
+        # Implicit relative lineto pairs inside initial `m`, plus a subsequent `m` after `Z`, must not translate.
+        self.assertEqual(
+            self.generator.transform_path_data("m 10 20 5 0 Z m 1 2 l 3 4 Z", 2.0, 100.0, 200.0),
+            "m 120 240 10 0 Z m 2 4 l 6 8 Z",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
