@@ -10,7 +10,7 @@ from release_metadata import configure_android, release_metadata
 
 class ReleaseMetadataTest(unittest.TestCase):
     def test_stable_and_suffixed_versions(self):
-        for tag in ["v0.1.0", "v0.1.0-debug", "v0.3.0", "v0.3.0-rc.1", "v0.3.1", "v0.3.3", "v0.4.0", "v0.4.1", "v0.4.2", "v1.2.3-rc.1", "v1.2.3-test-build"]:
+        for tag in ["v0.1.0", "v0.1.0-debug", "v0.3.0", "v0.3.0-rc.1", "v0.3.1", "v0.3.3", "v0.4.0", "v0.4.1", "v0.4.2", "v0.4.3", "v1.2.3-rc.1", "v1.2.3-test-build"]:
             with self.subTest(tag=tag):
                 values = release_metadata(tag, 42)
                 self.assertEqual(values["tag"], tag)
@@ -52,11 +52,11 @@ class ReleaseMetadataTest(unittest.TestCase):
         with TemporaryDirectory() as directory:
             module = Path(directory) / "module.yaml"
             module.write_text(real_module)
-            configure_android(module, release_metadata("v0.4.2", 99))
+            configure_android(module, release_metadata("v0.4.3", 99))
             updated = module.read_text()
             self.assertIn("    abiFilters:\n      - arm64-v8a\n", updated)
             self.assertIn("    resourcePackaging:\n      excludes:\n        - DebugProbesKt.bin\n", updated)
-            self.assertIn('    versionName: "0.4.2"\n    versionCode: 99\n    signing:\n      enabled: false\n', updated)
+            self.assertIn('    versionName: "0.4.3"\n    versionCode: 99\n    signing:\n      enabled: false\n', updated)
             self.assertIn("test-dependencies:\n", updated)
 
 
