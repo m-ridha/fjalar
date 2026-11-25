@@ -47,6 +47,18 @@ class ReleaseMetadataTest(unittest.TestCase):
                 configure_android(module, release_metadata("v2.3.4", 13))
             self.assertEqual(module.read_text(), updated)
 
+    def test_android_override_handles_nested_abi_and_packaging_blocks(self):
+        real_module = (Path(__file__).resolve().parents[1] / "androidApp" / "module.yaml").read_text()
+        with TemporaryDirectory() as directory:
+            module = Path(directory) / "module.yaml"
+            module.write_text(real_module)
+            configure_android(module, release_metadata("v0.4.2", 99))
+            updated = module.read_text()
+            self.assertIn("    abiFilters:\n      - arm64-v8a\n", updated)
+            self.assertIn("    resourcePackaging:\n      excludes:\n        - DebugProbesKt.bin\n", updated)
+            self.assertIn('    versionName: "0.4.2"\n    versionCode: 99\n    signing:\n      enabled: false\n', updated)
+            self.assertIn("test-dependencies:\n", updated)
+
 
 if __name__ == "__main__":
     unittest.main()

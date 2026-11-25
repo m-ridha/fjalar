@@ -7,14 +7,17 @@ dependencies:
   - $libs.androidx.activity.compose
   - $libs.androidx.window
   - $libs.androidx.core.splashscreen
-  - $compose.preview
-  - $compose.uiTooling
 
 settings:
   compose: enabled
   android:
     namespace: com.muhammadridha.fjalar
     applicationId: com.muhammadridha.fjalar
+    abiFilters:
+      - arm64-v8a
+    resourcePackaging:
+      excludes:
+        - DebugProbesKt.bin
 
 test-dependencies:
   - $libs.kotlinx.coroutines.test

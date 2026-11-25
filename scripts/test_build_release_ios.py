@@ -122,6 +122,73 @@ class BuildReleaseIosTest(unittest.TestCase):
             checksum_content = checksum_path.read_text().strip()
             self.assertEqual(f"{expected_sha}  fjalar-v0.4.2-ios-unsigned.ipa", checksum_content)
 
+    def test_macho_64_binary_invokes_xcrun_strip(self):
+        """Ensure 64-bit Mach-O binaries invoke xcrun strip -rSTx during IPA staging."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            scripts_dir = temp_path / "scripts"
+            scripts_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(METADATA_SCRIPT, scripts_dir / "release_metadata.py")
+
+            bin_dir = temp_path / "bin"
+            bin_dir.mkdir(parents=True, exist_ok=True)
+            strip_log = temp_path / "xcrun_calls.log"
+            xcrun_stub = bin_dir / "xcrun"
+            xcrun_stub.write_text(
+                "#!/usr/bin/env python3\n"
+                "import sys\n"
+                "from pathlib import Path\n"
+                f"Path({str(strip_log)!r}).write_text(' '.join(sys.argv[1:]))\n"
+            )
+            xcrun_stub.chmod(0o755)
+
+            kotlin_stub = temp_path / "kotlin"
+            kotlin_stub.write_text(
+                "#!/usr/bin/env python3\n"
+                "import plistlib\n"
+                "from pathlib import Path\n"
+                "app_dir = Path('build/tasks/_iosApp_buildIosAppIosArm64Release/bin/Release-iphoneos/Fjalar.app')\n"
+                "app_dir.mkdir(parents=True, exist_ok=True)\n"
+                "(app_dir / 'Fjalar').write_bytes(b'\\xcf\\xfa\\xed\\xfe' + b'\\x00' * 16)\n"
+                "with open(app_dir / 'Info.plist', 'wb') as f:\n"
+                "    plistlib.dump({\n"
+                "        'CFBundleIdentifier': 'com.muhammadridha.fjalar',\n"
+                "        'CFBundleExecutable': 'Fjalar',\n"
+                "        'CFBundleName': 'Fjalar',\n"
+                "        'CFBundlePackageType': 'APPL',\n"
+                "        'CFBundleShortVersionString': '1.0',\n"
+                "        'CFBundleVersion': '1',\n"
+                "    }, f, fmt=plistlib.FMT_BINARY)\n"
+            )
+            kotlin_stub.chmod(0o755)
+
+            env = os.environ.copy()
+            env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+            env["RELEASE_TAG"] = "v0.4.2"
+            env["BUILD_NUMBER"] = "42"
+            env.pop("IOS_TARGET_PLATFORM", None)
+
+            subprocess.run(
+                ["bash", str(BUILD_SCRIPT)],
+                cwd=temp_path,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            logged = strip_log.read_text()
+            self.assertTrue(logged.startswith("strip -rSTx "), logged)
+            self.assertTrue(logged.endswith("Payload/Fjalar.app/Fjalar"), logged)
+
+    def test_project_pbxproj_excludes_viewcontroller_kt_and_strips_release(self):
+        """Verify Release build settings strip symbols, disable previews, and exclude ViewController.kt."""
+        pbxproj = (ROOT / "iosApp/module.xcodeproj/project.pbxproj").read_text()
+        self.assertIn("ViewController.kt,", pbxproj)
+        self.assertIn("DEPLOYMENT_POSTPROCESSING = YES;", pbxproj)
+        self.assertIn("STRIP_INSTALLED_PRODUCT = YES;", pbxproj)
+        self.assertIn('STRIP_STYLE = "non-global";', pbxproj)
+        self.assertIn("ENABLE_PREVIEWS = NO;", pbxproj)
+
 
 if __name__ == "__main__":
     unittest.main()

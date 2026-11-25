@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/alarm,@string/notif_alarm_approaching,@string/notification_channel_alarm_name,@string/notification_channel_alarm_desc" />

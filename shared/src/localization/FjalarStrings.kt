@@ -508,12 +508,13 @@ object FjalarStrings {
     )
 
     fun get(key: FjalarStringKey, locale: AppLocale, vararg args: Any): String {
-        val catalog = when (locale) {
-            AppLocale.EN -> englishCatalog
-            AppLocale.ID -> indonesianCatalog
-        }
-        val template = catalog[key] ?: englishCatalog[key] ?: key.name
+        val template = rawTemplate(key, locale) ?: englishCatalog[key] ?: key.name
         return formatTemplate(template, args)
+    }
+
+    internal fun rawTemplate(key: FjalarStringKey, locale: AppLocale): String? = when (locale) {
+        AppLocale.EN -> englishCatalog[key]
+        AppLocale.ID -> indonesianCatalog[key]
     }
 
     private fun formatTemplate(template: String, args: Array<out Any>): String {

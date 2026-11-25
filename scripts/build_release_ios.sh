@@ -104,6 +104,14 @@ for raw_path in plist_paths:
         plistlib.dump(data, handle, fmt=fmt)
 PY
 
+ios_binary="$staging_dir/Payload/Fjalar.app/Fjalar"
+if [ -f "$ios_binary" ] && python3 -c 'import sys
+with open(sys.argv[1], "rb") as f:
+    magic = f.read(4)
+sys.exit(0 if magic == b"\xcf\xfa\xed\xfe" else 1)' "$ios_binary"; then
+  xcrun strip -rSTx "$ios_binary"
+fi
+
 (cd "$staging_dir" && zip -qr -9 "$OLDPWD/$ipa_path" Payload)
 
 # 3. Compute SHA256 checksums

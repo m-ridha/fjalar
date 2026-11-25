@@ -3,7 +3,7 @@
 Generate the dedicated bundled wake-up alarm sound for Fjalar (Wake Me at).
 
 Specifications (PRD 7.4 & Invariants):
-- Format: 44.1 kHz, 16-bit PCM WAV (stereo).
+- Format: 22.05 kHz, 16-bit PCM WAV (mono).
 - Duration: 3.6 seconds.
 - Acoustic Design:
   - Transit chime aesthetic: Harmonic bell chords with gentle crescendo.
@@ -20,7 +20,7 @@ import os
 import struct
 import wave
 
-SAMPLE_RATE = 44100
+SAMPLE_RATE = 22050
 DURATION = 3.6  # seconds
 NUM_SAMPLES = int(SAMPLE_RATE * DURATION)
 
@@ -35,8 +35,7 @@ def generate_chime_pcm() -> bytes:
         (1.2, 1479.98, 0.95, 0.50, 0.80),  # F#6: Clear arrival apex
     ]
 
-    left_channel = [0.0] * NUM_SAMPLES
-    right_channel = [0.0] * NUM_SAMPLES
+    channel = [0.0] * NUM_SAMPLES
 
     # Bell partials (fundamental, octave, minor third/tierce, strike transient)
     partials = [
@@ -60,25 +59,22 @@ def generate_chime_pcm() -> bytes:
                 sample_val += math.sin(2.0 * math.pi * freq * t) * p_amp * decay
 
             val = sample_val * amp * attack
-            left_channel[i] += val * pan_l
-            right_channel[i] += val * pan_r
+            channel[i] += val * (pan_l + pan_r) * 0.5
 
     # Clean exponential fade-out over last 150ms for seamless looping
     fade_len = int(0.15 * SAMPLE_RATE)
     for i in range(NUM_SAMPLES - fade_len, NUM_SAMPLES):
         fade = (NUM_SAMPLES - 1 - i) / fade_len
-        left_channel[i] *= fade
-        right_channel[i] *= fade
+        channel[i] *= fade
 
     # Normalize to -1.5 dB peak (approx 0.84 max amplitude) to eliminate digital clipping
-    max_peak = max(max(abs(x) for x in left_channel), max(abs(x) for x in right_channel))
+    max_peak = max(abs(x) for x in channel)
     scale = (32767.0 * 0.84) / max_peak
 
     pcm_data = bytearray()
-    for l, r in zip(left_channel, right_channel):
-        l_int = int(max(-32768, min(32767, l * scale)))
-        r_int = int(max(-32768, min(32767, r * scale)))
-        pcm_data.extend(struct.pack('<hh', l_int, r_int))
+    for sample in channel:
+        sample_int = int(max(-32768, min(32767, sample * scale)))
+        pcm_data.extend(struct.pack('<h', sample_int))
 
     return bytes(pcm_data)
 
@@ -86,7 +82,7 @@ def generate_chime_pcm() -> bytes:
 def write_wav(output_path: str, pcm_data: bytes):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with wave.open(output_path, 'wb') as wav_file:
-        wav_file.setnchannels(2)
+        wav_file.setnchannels(1)
         wav_file.setsampwidth(2)  # 16-bit
         wav_file.setframerate(SAMPLE_RATE)
         wav_file.writeframes(pcm_data)
