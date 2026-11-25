@@ -182,7 +182,7 @@ fun RingingAlertOverlay(
                 if (hasOperationFailure) {
                     Text(
                         text = fjalarString(if (snoozeDeliveryUnavailable) FjalarStringKey.RINGING_SNOOZE_NOTIFICATIONS_REQUIRED else FjalarStringKey.RINGING_OPERATION_FAILED),
-                        color = MaterialTheme.colorScheme.error,
+                        color = colors.danger,
                         textAlign = TextAlign.Center,
                     )
                 }

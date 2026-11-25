@@ -2086,4 +2086,62 @@ class FjalarViewModelTest {
         }
     }
 
+    @Test
+    fun draftCoordinatesChangedAutoFillsBlankLabelAndClearsValidationNotice() = runTest {
+        val (viewModel, _, vmScope) = createTestViewModel()
+        try {
+            viewModel.onStartConfiguringAlarm(alarmId = null, defaultCoordinates = null)
+            viewModel.onSaveAlarmEditor {}
+            assertEquals(AlarmEditorNotice.NO_DESTINATION, viewModel.uiState.value.pendingEditorNotice)
+
+            val stationCoords = GeoCoordinates(-6.20988, 106.85016)
+            viewModel.onDraftCoordinatesChanged(stationCoords, label = "  Stasiun Manggarai  ")
+            val updated = viewModel.uiState.value.activeDraft
+            assertNotNull(updated)
+            assertEquals("Stasiun Manggarai", updated.label)
+            assertEquals("Stasiun Manggarai", updated.addressLabel)
+            assertNull(viewModel.uiState.value.pendingEditorNotice)
+
+            // Non-blank user label is preserved when coordinates change later
+            viewModel.onUpdateDraft(updated.copy(label = "My Morning Stop"))
+            viewModel.onDraftCoordinatesChanged(GeoCoordinates(-6.1767, 106.8306), label = "Gambir")
+            val kept = viewModel.uiState.value.activeDraft!!
+            assertEquals("My Morning Stop", kept.label)
+            assertEquals("Gambir", kept.addressLabel)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
+    fun toggleAndSkipFailuresEmitTransientUpdateFailedNotice() = runTest {
+        val alarm = manggaraiAlarm()
+        val failingToggle = object : ToggleAlarmPort {
+            override suspend fun toggleAlarm(alarmId: String, enabled: Boolean): Result<Unit> =
+                Result.failure(IllegalStateException("toggle failed"))
+        }
+        val failingSkip = object : SkipTodayPort {
+            override suspend fun skipToday(alarmId: String): Result<Unit> =
+                Result.failure(IllegalStateException("skip failed"))
+        }
+        val (viewModel, _, vmScope) = createTestViewModel(
+            observePort = FakeObserveAlarmsPort(listOf(alarm)),
+            togglePort = failingToggle,
+            skipTodayPort = failingSkip,
+        )
+        try {
+            viewModel.onToggleAlarm(alarm.id, enabled = false)
+            val toggleNoticeId = viewModel.uiState.value.pendingEditorNoticeId
+            assertEquals(AlarmEditorNotice.UPDATE_FAILED, viewModel.uiState.value.pendingEditorNotice)
+            viewModel.onEditorNoticeShown(toggleNoticeId)
+            assertNull(viewModel.uiState.value.pendingEditorNotice)
+
+            viewModel.onSkipToday(alarm.id)
+            assertEquals(AlarmEditorNotice.UPDATE_FAILED, viewModel.uiState.value.pendingEditorNotice)
+            assertTrue(viewModel.uiState.value.pendingEditorNoticeId > toggleNoticeId)
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
 }

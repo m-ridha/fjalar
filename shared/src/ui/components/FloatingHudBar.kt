@@ -83,6 +83,7 @@ fun LanguageDropdown(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
+            containerColor = colors.glassModal,
         ) {
             DropdownMenuItem(
                 text = {
@@ -90,6 +91,7 @@ fun LanguageDropdown(
                         text = fjalarString(FjalarStringKey.LANG_ENGLISH),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = if (selectedLocale == AppLocale.EN) FontWeight.Bold else FontWeight.Normal,
+                        color = if (selectedLocale == AppLocale.EN) colors.primary else colors.textPrimary,
                     )
                 },
                 onClick = {
@@ -103,6 +105,7 @@ fun LanguageDropdown(
                         text = fjalarString(FjalarStringKey.LANG_INDONESIAN),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = if (selectedLocale == AppLocale.ID) FontWeight.Bold else FontWeight.Normal,
+                        color = if (selectedLocale == AppLocale.ID) colors.primary else colors.textPrimary,
                     )
                 },
                 onClick = {

@@ -513,7 +513,7 @@ class FjalarViewModel(
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (_: Exception) {
-                _uiState.update { it.copy(hasOperationFailure = true) }
+                emitTransientFailureNotice(setOperationFailure = true)
             }
         }
     }
@@ -522,6 +522,8 @@ class FjalarViewModel(
         scope.launch {
             if (toggleAlarmPort.toggleAlarm(alarmId, enabled).isSuccess) {
                 refreshBackgroundSyncAfterMutation()
+            } else {
+                emitTransientFailureNotice()
             }
         }
     }
@@ -530,6 +532,8 @@ class FjalarViewModel(
         scope.launch {
             if (skipTodayPort.skipToday(alarmId).isSuccess) {
                 refreshBackgroundSyncAfterMutation()
+            } else {
+                emitTransientFailureNotice()
             }
         }
     }
@@ -563,10 +567,14 @@ class FjalarViewModel(
                 refreshBackgroundSyncAfterMutation()
             }
             val ownsDraft = operationDraftRevision == draftRevision
+            val failed = result?.isSuccess != true
+            val noticeId = if (failed) ++editorNoticeSequence else _uiState.value.pendingEditorNoticeId
             _uiState.update {
                 it.copy(
                     isOperationPending = false,
-                    hasOperationFailure = ownsDraft && result?.isSuccess != true,
+                    hasOperationFailure = ownsDraft && failed,
+                    pendingEditorNotice = if (failed) AlarmEditorNotice.UPDATE_FAILED else it.pendingEditorNotice,
+                    pendingEditorNoticeId = noticeId,
                 )
             }
             if (result?.isSuccess == true && ownsDraft) {
@@ -710,6 +718,7 @@ class FjalarViewModel(
                 activeDraft = draft,
                 selectedCoordinates = draft.coordinates,
                 selectedRadius = validDraftRadius(draft) ?: current.selectedRadius,
+                pendingEditorNotice = null,
             )
         }
         draft.coordinates?.let { coords ->
@@ -726,17 +735,24 @@ class FjalarViewModel(
         if (pendingEditorRevision == draftRevision) return
         draftRevision++
         _uiState.update { current ->
-            val existingLabel = label ?: current.activeDraft?.takeIf { it.coordinates == coordinates }?.addressLabel
+            val trimmedLabel = label?.trim()?.takeIf { it.isNotBlank() }
+            val existingLabel = trimmedLabel ?: current.activeDraft?.takeIf { it.coordinates == coordinates }?.addressLabel
             val baseDraft = current.activeDraft?.withNewCoordinates(coordinates)
                 ?: ConfigureAlarmDraft(alarmId = newDraftIdentity(), coordinates = coordinates)
-            val updatedDraft = if (existingLabel != null) {
+            val withAddress = if (existingLabel != null) {
                 baseDraft.copy(addressLabel = existingLabel)
             } else {
                 baseDraft
             }
+            val updatedDraft = if (trimmedLabel != null && withAddress.label.isBlank()) {
+                withAddress.copy(label = trimmedLabel)
+            } else {
+                withAddress
+            }
             current.copy(
                 activeDraft = updatedDraft,
                 selectedCoordinates = coordinates,
+                pendingEditorNotice = null,
             )
         }
         val radius = _uiState.value.activeDraft?.let { TriggerRadius(it.radiusMeters) } ?: TriggerRadius.DEFAULT
@@ -906,6 +922,17 @@ class FjalarViewModel(
     fun onEditorNoticeShown(noticeId: Long = _uiState.value.pendingEditorNoticeId) {
         _uiState.update { current ->
             if (current.pendingEditorNoticeId == noticeId) current.copy(pendingEditorNotice = null) else current
+        }
+    }
+
+    private fun emitTransientFailureNotice(setOperationFailure: Boolean = false) {
+        val noticeId = ++editorNoticeSequence
+        _uiState.update { current ->
+            current.copy(
+                hasOperationFailure = if (setOperationFailure) true else current.hasOperationFailure,
+                pendingEditorNotice = AlarmEditorNotice.UPDATE_FAILED,
+                pendingEditorNoticeId = noticeId,
+            )
         }
     }
 

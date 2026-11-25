@@ -80,13 +80,6 @@ fun AlarmsScreen(
             .background(colors.canvas)
             .then(WindowInsetsLayoutHelper.safeDrawingPaddingModifier()),
     ) {
-        if (hasOperationFailure) {
-            Text(
-                text = FjalarStrings.get(FjalarStringKey.OPERATION_FAILED, locale),
-                color = colors.danger,
-                modifier = WindowInsetsLayoutHelper.hudTopPaddingModifier(),
-            )
-        }
         // Safe-area Top Header
         FlowRow(
             modifier = WindowInsetsLayoutHelper
