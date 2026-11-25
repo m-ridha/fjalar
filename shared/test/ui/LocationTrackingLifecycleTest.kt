@@ -61,10 +61,8 @@ class LocationTrackingLifecycleTest {
     }
     @Test fun noLocationNewAlarmRequiresASelectedDestination() = runTest {
         val vm = createTestViewModel(InMemoryKeyValueStorage(), coroutineScope = backgroundScope)
-        vm.onOpenNewAlarm()
-        assertTrue(vm.uiState.value.isConfigureSheetVisible)
-        assertNull(vm.uiState.value.selectedCoordinates)
         vm.onStartConfiguringAlarm(null)
+        assertNull(vm.uiState.value.selectedCoordinates)
         assertNull(vm.uiState.value.activeDraft?.coordinates)
     }
 

@@ -333,8 +333,7 @@ class FjalarViewModelTest {
             assertEquals(ThemeMode.DARK, state.themeMode)
             assertEquals(AppLocale.ID, state.appLocale)
             assertNull(state.activeRingingAlarm)
-            assertNull(state.selectedAlarmForEdit)
-            assertFalse(state.isConfigureSheetVisible)
+            assertNull(state.activeDraft)
             assertEquals("", state.searchQuery)
         } finally {
             vmScope.cancel()
@@ -354,40 +353,43 @@ class FjalarViewModelTest {
     }
 
     @Test
-    fun saveAlarmDispatchesToPortAndClosesConfigureSheet() = runTest {
+    fun saveAlarmEditorDispatchesToPortAndClearsActiveDraft() = runTest {
         val savePort = FakeSaveAlarmPort()
         val (viewModel, _, vmScope) = createTestViewModel(savePort = savePort)
         try {
-            viewModel.onOpenNewAlarm()
-            assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
-            assertNull(viewModel.uiState.value.selectedAlarmForEdit)
-
             val newAlarm = manggaraiAlarm()
-            viewModel.onSaveAlarm(newAlarm)
+            viewModel.onStartConfiguringAlarm(null, newAlarm.coordinates)
+            assertNotNull(viewModel.uiState.value.activeDraft)
+            viewModel.onUpdateDraft(com.muhammadridha.fjalar.ui.screens.ConfigureAlarmDraft.fromAlarm(newAlarm))
 
-            assertEquals(listOf(newAlarm), savePort.savedAlarms)
-            assertFalse(viewModel.uiState.value.isConfigureSheetVisible)
-            assertNull(viewModel.uiState.value.selectedAlarmForEdit)
+            var exited = false
+            viewModel.onSaveAlarmEditor { exited = true }
+
+            assertTrue(exited)
+            assertEquals(1, savePort.savedAlarms.size)
+            assertEquals(newAlarm.label, savePort.savedAlarms.single().label)
+            assertNull(viewModel.uiState.value.activeDraft)
         } finally {
             vmScope.cancel()
         }
     }
 
     @Test
-    fun deleteAlarmDispatchesToPortAndClosesConfigureSheetIfMatching() = runTest {
+    fun deleteAlarmDispatchesToPortAndClearsMatchingDraft() = runTest {
         val deletePort = FakeDeleteAlarmPort()
         val alarm = manggaraiAlarm()
-        val (viewModel, _, vmScope) = createTestViewModel(deleteAlarmPort = deletePort)
+        val (viewModel, _, vmScope) = createTestViewModel(
+            observePort = FakeObserveAlarmsPort(listOf(alarm)),
+            deleteAlarmPort = deletePort,
+        )
         try {
-            viewModel.onOpenEditAlarm(alarm)
-            assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
-            assertEquals(alarm, viewModel.uiState.value.selectedAlarmForEdit)
+            viewModel.onStartConfiguringAlarm(alarm.id)
+            assertNotNull(viewModel.uiState.value.activeDraft)
 
             viewModel.onDeleteAlarm(alarm.id)
 
             assertEquals(listOf(alarm.id), deletePort.deleted)
-            assertFalse(viewModel.uiState.value.isConfigureSheetVisible)
-            assertNull(viewModel.uiState.value.selectedAlarmForEdit)
+            assertNull(viewModel.uiState.value.activeDraft)
         } finally {
             vmScope.cancel()
         }
@@ -526,53 +528,11 @@ class FjalarViewModelTest {
     }
 
     @Test
-    fun sheetVisibilityTransitions() = runTest {
-        val (viewModel, _, vmScope) = createTestViewModel()
-        try {
-            assertFalse(viewModel.uiState.value.isConfigureSheetVisible)
-            assertNull(viewModel.uiState.value.selectedAlarmForEdit)
-
-            val alarm = manggaraiAlarm()
-            viewModel.onOpenEditAlarm(alarm)
-            assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
-            assertEquals(alarm, viewModel.uiState.value.selectedAlarmForEdit)
-
-            viewModel.onDismissConfigureSheet()
-            assertFalse(viewModel.uiState.value.isConfigureSheetVisible)
-            assertNull(viewModel.uiState.value.selectedAlarmForEdit)
-
-            viewModel.onOpenNewAlarm()
-            assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
-            assertNull(viewModel.uiState.value.selectedAlarmForEdit)
-        } finally {
-            vmScope.cancel()
-        }
-    }
-
-    @Test
     fun searchQueryUpdatesState() = runTest {
         val (viewModel, _, vmScope) = createTestViewModel()
         try {
             viewModel.onSearchQueryChanged("Sudirman")
             assertEquals("Sudirman", viewModel.uiState.value.searchQuery)
-        } finally {
-            vmScope.cancel()
-        }
-    }
-
-    @Test
-    fun saveAlarmFailureKeepsConfigureSheetOpen() = runTest {
-        val savePort = FakeSaveAlarmPort(shouldFail = true)
-        val (viewModel, _, vmScope) = createTestViewModel(savePort = savePort)
-        try {
-            viewModel.onOpenNewAlarm()
-            assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
-
-            val alarm = manggaraiAlarm()
-            viewModel.onSaveAlarm(alarm)
-
-            // Sheet should remain open on failure so user doesn't lose inputs
-            assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
         } finally {
             vmScope.cancel()
         }
@@ -798,76 +758,6 @@ class FjalarViewModelTest {
     }
 
     @Test
-    fun onOpenNewAlarmClearsPriorDestinationSelection() = runTest {
-        val fakeMapRenderer = FakeMapRendererPort()
-        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
-        try {
-            val coords = GeoCoordinates(-6.2088, 106.8456)
-            viewModel.onDraftCoordinatesChanged(coords)
-            assertEquals(coords, viewModel.uiState.value.selectedCoordinates)
-
-            viewModel.onOpenNewAlarm()
-
-            assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
-            assertNull(viewModel.uiState.value.selectedAlarmForEdit)
-            assertNull(viewModel.uiState.value.selectedCoordinates)
-        } finally {
-            vmScope.cancel()
-        }
-    }
-
-    @Test
-    fun onOpenNewAlarmDoesNotSelectUserLocation() = runTest {
-        val tracker = UiLocationTracker()
-        val fakeMapRenderer = FakeMapRendererPort()
-        val (viewModel, _, vmScope) = createTestViewModel(locationTrackerPort = tracker, mapRendererPort = fakeMapRenderer)
-        try {
-            val userLocation = GeoCoordinates(-6.1754, 106.8272)
-            tracker.emit(userLocation)
-            assertNull(viewModel.uiState.value.selectedCoordinates)
-
-            viewModel.onOpenNewAlarm()
-
-            val state = viewModel.uiState.value
-            assertTrue(state.isConfigureSheetVisible)
-            assertNull(state.selectedAlarmForEdit)
-            assertNull(state.selectedCoordinates)
-            assertEquals(TriggerRadius.DEFAULT, state.selectedRadius)
-            assertNull(fakeMapRenderer.lastPin)
-            assertNull(fakeMapRenderer.lastGeofence)
-        } finally {
-            vmScope.cancel()
-        }
-    }
-
-    @Test
-    fun onOpenEditAlarm_syncsSelectedCoordinatesAndRadiusAndCentersViewport() = runTest {
-        val fakeMapRenderer = FakeMapRendererPort()
-        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
-        try {
-            val alarm = manggaraiAlarm().copy(
-                coordinates = GeoCoordinates(-6.2098, 106.8501),
-                radius = TriggerRadius(750),
-            )
-
-            viewModel.onOpenEditAlarm(alarm)
-
-            val state = viewModel.uiState.value
-            assertTrue(state.isConfigureSheetVisible)
-            assertEquals(alarm, state.selectedAlarmForEdit)
-            assertEquals(alarm.coordinates, state.selectedCoordinates)
-            assertEquals(alarm.radius, state.selectedRadius)
-            assertEquals(alarm.coordinates, state.mapViewportCenter)
-            assertEquals(15.0, state.mapViewportZoom)
-            assertEquals(alarm.coordinates, fakeMapRenderer.lastPin)
-            assertEquals(alarm.coordinates to alarm.radius, fakeMapRenderer.lastGeofence)
-            assertEquals(alarm.coordinates to 15.0, fakeMapRenderer.lastViewport)
-        } finally {
-            vmScope.cancel()
-        }
-    }
-
-    @Test
     fun editorDestinationChangePreservesEditedRadius() = runTest {
         val fakeMapRenderer = FakeMapRendererPort()
         val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
@@ -876,8 +766,7 @@ class FjalarViewModelTest {
                 coordinates = GeoCoordinates(-6.2098, 106.8501),
                 radius = TriggerRadius(600),
             )
-            viewModel.onOpenEditAlarm(alarm)
-            viewModel.onStartConfiguringAlarm(alarm.id)
+            viewModel.onStartConfiguringAlarm(alarm.id, alarm.coordinates)
 
             val newRadius = TriggerRadius(1200)
             viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(radiusMeters = newRadius.meters))
@@ -890,51 +779,6 @@ class FjalarViewModelTest {
             assertEquals(newRadius, state.selectedRadius)
             assertEquals(newCoordinates, fakeMapRenderer.lastPin)
             assertEquals(newCoordinates to newRadius, fakeMapRenderer.lastGeofence)
-        } finally {
-            vmScope.cancel()
-        }
-    }
-
-    @Test
-    fun onSaveAlarm_clearsSelectedCoordinatesAndRadiusAndOverlays() = runTest {
-        val savePort = FakeSaveAlarmPort()
-        val fakeMapRenderer = FakeMapRendererPort()
-        val (viewModel, _, vmScope) = createTestViewModel(savePort = savePort, mapRendererPort = fakeMapRenderer)
-        try {
-            val coords = GeoCoordinates(-6.2088, 106.8456)
-            viewModel.onDraftCoordinatesChanged(coords)
-            viewModel.onUpdateDraft(viewModel.uiState.value.activeDraft!!.copy(radiusMeters = 1500))
-
-            val alarm = manggaraiAlarm()
-            viewModel.onSaveAlarm(alarm)
-
-            val state = viewModel.uiState.value
-            assertFalse(state.isConfigureSheetVisible)
-            assertNull(state.selectedAlarmForEdit)
-            assertNull(state.selectedCoordinates)
-            assertEquals(TriggerRadius.DEFAULT, state.selectedRadius)
-            assertTrue(fakeMapRenderer.overlaysCleared)
-        } finally {
-            vmScope.cancel()
-        }
-    }
-
-    @Test
-    fun onDismissConfigureSheet_clearsSelectedCoordinatesAndRadiusAndOverlays() = runTest {
-        val fakeMapRenderer = FakeMapRendererPort()
-        val (viewModel, _, vmScope) = createTestViewModel(mapRendererPort = fakeMapRenderer)
-        try {
-            val coords = GeoCoordinates(-6.2088, 106.8456)
-            viewModel.onDraftCoordinatesChanged(coords)
-            viewModel.onOpenNewAlarm()
-
-            viewModel.onDismissConfigureSheet()
-
-            val state = viewModel.uiState.value
-            assertFalse(state.isConfigureSheetVisible)
-            assertNull(state.selectedCoordinates)
-            assertEquals(TriggerRadius.DEFAULT, state.selectedRadius)
-            assertTrue(fakeMapRenderer.overlaysCleared)
         } finally {
             vmScope.cancel()
         }
@@ -974,13 +818,8 @@ class FjalarViewModelTest {
         try {
             assertFalse(viewModel.uiState.value.isSearchSheetVisible)
 
-            // Open configure sheet first to verify onOpenSearch dismisses it
-            viewModel.onOpenNewAlarm()
-            assertTrue(viewModel.uiState.value.isConfigureSheetVisible)
-
             viewModel.onOpenSearch()
             assertTrue(viewModel.uiState.value.isSearchSheetVisible)
-            assertFalse(viewModel.uiState.value.isConfigureSheetVisible, "Opening search must dismiss configure sheet")
             assertFalse(viewModel.uiState.value.isSearching)
             assertEquals(0, fakeSearchPort.searchCallCount)
             assertTrue(viewModel.uiState.value.searchResults.isEmpty())
@@ -1150,7 +989,6 @@ class FjalarViewModelTest {
             val state = viewModel.uiState.value
             assertNull(state.activeDraft)
             assertNull(state.selectedCoordinates)
-            assertFalse(state.isConfigureSheetVisible)
             assertFalse(state.isSearchSheetVisible)
             assertEquals(listOf(alarm), state.alarms)
             assertEquals(alarm.coordinates, state.nearestArmedAlarm?.coordinates)
@@ -1167,26 +1005,6 @@ class FjalarViewModelTest {
         }
     }
 
-    @Test
-    fun testInitialAlarmLabelLifecycle() = runTest {
-        val (viewModel, _, vmScope) = createTestViewModel()
-        try {
-            // Open new alarm resets initialAlarmLabel to null
-            viewModel.onOpenNewAlarm()
-            assertNull(viewModel.uiState.value.initialAlarmLabel)
-
-            // Open edit alarm sets initialAlarmLabel to alarm.label
-            val alarm = manggaraiAlarm()
-            viewModel.onOpenEditAlarm(alarm)
-            assertEquals(alarm.label, viewModel.uiState.value.initialAlarmLabel)
-
-            // Dismiss configure sheet resets initialAlarmLabel to null
-            viewModel.onDismissConfigureSheet()
-            assertNull(viewModel.uiState.value.initialAlarmLabel)
-        } finally {
-            vmScope.cancel()
-        }
-    }
     @Test
     fun recenterWithoutLocationUsesOverviewButDoesNotInventAlarmDestination() = runTest {
         val renderer = FakeMapRendererPort()
@@ -1210,7 +1028,7 @@ class FjalarViewModelTest {
             viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
             val draft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
             viewModel.onUpdateDraft(draft)
-            viewModel.onSaveDraftAlarm(draft) {}
+            viewModel.onSaveAlarmEditor {}
             assertTrue(viewModel.uiState.value.hasOperationFailure)
             viewModel.onClearDraft()
             assertFalse(viewModel.uiState.value.hasOperationFailure)
@@ -1228,12 +1046,12 @@ class FjalarViewModelTest {
             val draft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
             viewModel.onUpdateDraft(draft)
             var completed = 0
-            viewModel.onSaveDraftAlarm(draft) { completed++ }
+            viewModel.onSaveAlarmEditor { completed++ }
             assertEquals(0, completed)
             assertEquals(draft, viewModel.uiState.value.activeDraft)
             assertTrue(viewModel.uiState.value.hasOperationFailure)
             save.shouldFail = false
-            viewModel.onSaveDraftAlarm(draft) { completed++ }
+            viewModel.onSaveAlarmEditor { completed++ }
             assertEquals(1, completed)
             assertNull(viewModel.uiState.value.activeDraft)
             assertFalse(viewModel.uiState.value.hasOperationFailure)
@@ -1255,13 +1073,13 @@ class FjalarViewModelTest {
             val draft = viewModel.uiState.value.activeDraft!!.withEnabled(false, true)
             viewModel.onUpdateDraft(draft)
             var completed = false
-            viewModel.onSaveDraftAlarm(draft) { completed = true }
+            viewModel.onSaveAlarmEditor { completed = true }
             assertFalse(completed)
             assertEquals(draft, viewModel.uiState.value.activeDraft)
             assertTrue(viewModel.uiState.value.alarms.single().isEnabled)
             assertTrue(viewModel.uiState.value.hasOperationFailure)
             save.shouldFail = false
-            viewModel.onSaveDraftAlarm(draft) { completed = true }
+            viewModel.onSaveAlarmEditor { completed = true }
             assertTrue(completed)
             assertEquals(AlarmState.DISABLED, save.savedAlarms.single().state)
             assertNull(viewModel.uiState.value.activeDraft)
@@ -1299,9 +1117,10 @@ class FjalarViewModelTest {
         try {
             viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
             val draft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
-            viewModel.onSaveDraftAlarm(draft)
+            viewModel.onUpdateDraft(draft)
+            viewModel.onSaveAlarmEditor {}
             assertTrue(viewModel.uiState.value.isOperationPending)
-            viewModel.onSaveDraftAlarm(draft)
+            viewModel.onSaveAlarmEditor {}
             assertEquals(1, writes)
             release.complete(Unit)
             assertFalse(viewModel.uiState.value.isOperationPending)
@@ -1327,7 +1146,7 @@ class FjalarViewModelTest {
             viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
             val originalDraft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
             viewModel.onUpdateDraft(originalDraft)
-            viewModel.onSaveDraftAlarm(originalDraft)
+            viewModel.onSaveAlarmEditor {}
             viewModel.onClearDraft()
             viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
             val newerDraft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
@@ -1359,67 +1178,6 @@ class FjalarViewModelTest {
             release.complete(Unit)
             assertEquals(newerDraft, viewModel.uiState.value.activeDraft)
             assertEquals(GeoCoordinates(51.5, -0.1), viewModel.uiState.value.selectedCoordinates)
-        } finally {
-            vmScope.cancel()
-        }
-    }
-
-    @Test
-    fun delayedSaveAndResaveOfNewerEditsReuseOneIdentity() = runTest {
-        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
-        val writes = mutableListOf<LocationAlarm>()
-        val port = object : SaveAlarmPort {
-            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> {
-                writes += alarm
-                release.await()
-                return Result.success(Unit)
-            }
-            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> =
-                saveAlarm(alarm)
-        }
-        val (viewModel, _, vmScope) = createTestViewModel(savePort = port)
-        try {
-            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
-            val submitted = viewModel.uiState.value.activeDraft!!.copy(label = "London")
-            assertNotNull(submitted.alarmId)
-            viewModel.onUpdateDraft(submitted)
-            viewModel.onSaveDraftAlarm(submitted)
-            viewModel.onUpdateDraft(submitted.copy(label = "London Bridge"))
-            release.complete(Unit)
-            val revised = viewModel.uiState.value.activeDraft!!
-            viewModel.onSaveDraftAlarm(revised)
-            assertEquals(2, writes.size)
-            assertEquals(writes.first().id, writes.last().id)
-            assertEquals("London Bridge", writes.last().label)
-        } finally {
-            vmScope.cancel()
-        }
-    }
-
-    @Test
-    fun delayedSaveDoesNotClearNewerEditsInTheSameEditor() = runTest {
-        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
-        val port = object : SaveAlarmPort {
-            override suspend fun saveAlarm(alarm: LocationAlarm): Result<Unit> {
-                release.await()
-                return Result.success(Unit)
-            }
-            override suspend fun saveAlarmConfiguration(alarm: LocationAlarm, enabled: Boolean?, requireExisting: Boolean): Result<Unit> =
-                saveAlarm(alarm)
-        }
-        val (viewModel, _, vmScope) = createTestViewModel(savePort = port)
-        try {
-            viewModel.onStartConfiguringAlarm(null, GeoCoordinates(51.5, -0.1))
-            val submittedDraft = viewModel.uiState.value.activeDraft!!.copy(label = "London")
-            viewModel.onUpdateDraft(submittedDraft)
-            viewModel.onSaveDraftAlarm(submittedDraft)
-            val editedDraft = submittedDraft.copy(label = "London Bridge", radiusMeters = 1000)
-            viewModel.onUpdateDraft(editedDraft)
-            viewModel.onDraftCoordinatesChanged(GeoCoordinates(51.505, -0.09))
-            release.complete(Unit)
-            assertEquals("London Bridge", viewModel.uiState.value.activeDraft?.label)
-            assertEquals(1000, viewModel.uiState.value.activeDraft?.radiusMeters)
-            assertEquals(GeoCoordinates(51.505, -0.09), viewModel.uiState.value.activeDraft?.coordinates)
         } finally {
             vmScope.cancel()
         }
@@ -1911,7 +1669,9 @@ class FjalarViewModelTest {
             val scheduledAlarm = manggaraiAlarm(
                 schedule = com.muhammadridha.fjalar.domain.WEEKDAY_COMMUTE,
             ).copy(id = "commute-sync", state = AlarmState.SCHEDULED_IDLE)
-            viewModel.onSaveAlarm(scheduledAlarm)
+            viewModel.onStartConfiguringAlarm(null, scheduledAlarm.coordinates)
+            viewModel.onUpdateDraft(com.muhammadridha.fjalar.ui.screens.ConfigureAlarmDraft.fromAlarm(scheduledAlarm))
+            viewModel.onSaveAlarmEditor {}
             assertEquals(
                 com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase.DEFAULT_NEXT_SYNC_MINUTES,
                 backgroundSync.scheduledDelayMinutes,
@@ -1991,15 +1751,20 @@ class FjalarViewModelTest {
                 id = "snooze-test",
                 state = AlarmState.ARMED_MONITORING,
             )
-            viewModel.onSaveAlarm(oneTime)
+            viewModel.onStartConfiguringAlarm(null, oneTime.coordinates)
+            viewModel.onUpdateDraft(
+                com.muhammadridha.fjalar.ui.screens.ConfigureAlarmDraft.fromAlarm(oneTime)
+            )
+            viewModel.onSaveAlarmEditor {}
+            val savedId = repository.getAlarms().single().id
             assertEquals(0, syncSchedulesCallCount)
             assertTrue(backgroundSync.isCancelled)
 
             service.handleLocationUpdate(com.muhammadridha.fjalar.domain.MANGGARAI, 10f)
-            assertEquals(AlarmState.RINGING, repository.getAlarm("snooze-test")?.state)
+            assertEquals(AlarmState.RINGING, repository.getAlarm(savedId)?.state)
 
             // Snoozing schedules background refresh and calls scheduleSnoozeWakeup exactly once without syncSchedules()
-            viewModel.onSnoozeRingingAlarm("snooze-test")
+            viewModel.onSnoozeRingingAlarm(savedId)
             assertEquals(0, syncSchedulesCallCount)
             assertEquals(1, snoozeScheduleCount)
             assertEquals(

@@ -66,8 +66,8 @@ val presentationModule = module {
             deleteAlarmPort = get(),
             locationTrackerPort = get(),
             snoozeAlarmPort = get(),
-            recentDestinationsPort = getOrNull(),
-            synchronizeAlarmsUseCase = getOrNull(),
+            recentDestinationsPort = get(),
+            synchronizeAlarmsUseCase = get(),
         )
     }
 }

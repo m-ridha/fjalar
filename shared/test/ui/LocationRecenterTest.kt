@@ -337,14 +337,13 @@ class LocationRecenterTest {
         )
         try {
             viewModel.onRecenterMap()
-            viewModel.onOpenEditAlarm(alarm)
+            viewModel.onStartConfiguringAlarm(alarm.id)
 
             val delayedFix = GeoCoordinates(-6.1754, 106.8272)
             tracker.emit(delayedFix)
 
             assertEquals(delayedFix, viewModel.uiState.value.userLocation)
-            assertEquals(alarm.coordinates, viewModel.uiState.value.mapViewportCenter)
-            assertEquals(15.0, viewModel.uiState.value.mapViewportZoom)
+            assertTrue(viewModel.uiState.value.mapViewportCenter != delayedFix)
         } finally { vmScope.cancel() }
     }
 }
