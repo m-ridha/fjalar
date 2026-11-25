@@ -26,10 +26,14 @@ class MapPickerSelectionTest {
         assertNull(initial.onCameraCenterChanged(place.coordinates, isUserGesture = false).coordinates)
     }
 
-    @Test fun userPanOrTapCanExplicitlyChooseAnyGlobalPoint() {
+    @Test fun cameraPanAndZoomDoNotOverwriteSelectedDestination() {
         val world = MapPickerSelection(null)
         val sydney = GeoCoordinates(-33.86, 151.2)
-        assertEquals(sydney, world.onCameraCenterChanged(sydney, isUserGesture = true).coordinates)
+        val tokyo = GeoCoordinates(35.6762, 139.6503)
+        assertNull(world.onCameraCenterChanged(sydney, isUserGesture = true).coordinates)
+        val explicit = world.select(sydney)
+        assertEquals(sydney, explicit.coordinates)
+        assertEquals(sydney, explicit.onCameraCenterChanged(tokyo, isUserGesture = true).coordinates)
         assertEquals(GeoCoordinates(0.0, 0.0), world.select(GeoCoordinates(0.0, 0.0)).coordinates)
         assertEquals(sydney, MapPickerSelection(sydney).coordinates)
     }

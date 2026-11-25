@@ -596,6 +596,23 @@ class FjalarViewModelTest {
     }
 
     @Test
+    fun toggleThemeFromSystemWhenOsIsDarkSwitchesToLight() = runTest {
+        val storage = InMemoryKeyValueStorage().apply {
+            putString(PersistentPreferencesAdapter.KEY_THEME_MODE, ThemeMode.SYSTEM.name)
+        }
+        val (viewModel, preferences, vmScope) = createTestViewModel(storage = storage)
+        try {
+            assertEquals(ThemeMode.SYSTEM, viewModel.uiState.value.themeMode)
+
+            viewModel.onToggleTheme(currentlyDark = true)
+            assertEquals(ThemeMode.LIGHT, viewModel.uiState.value.themeMode)
+            assertEquals(ThemeMode.LIGHT, preferences.observeThemeMode().first())
+        } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @Test
     fun syncSchedules_invokesSyncSchedulesPort() = runTest {
         val fakeSyncPort = FakeSyncSchedulesPort()
         val (viewModel, _, vmScope) = createTestViewModel(syncSchedulesPort = fakeSyncPort)
@@ -1798,9 +1815,8 @@ class FjalarViewModelTest {
             val unlabeledCoords = GeoCoordinates(latitude = -6.2000, longitude = 106.8000)
             viewModel.onConfirmDestination(coordinates = unlabeledCoords)
             val updatedRecents = viewModel.uiState.value.recentDestinations
-            assertEquals(2, updatedRecents.size)
-            assertEquals("-6.2, 106.8", updatedRecents.first().name)
-            assertEquals("dest--6.2-106.8", updatedRecents.first().id)
+            assertEquals(1, updatedRecents.size)
+            assertEquals("Gambir Station", updatedRecents.first().name)
         } finally {
             vmScope.cancel()
         }

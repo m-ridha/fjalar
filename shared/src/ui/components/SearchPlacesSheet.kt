@@ -1,19 +1,25 @@
 package com.muhammadridha.fjalar.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,16 +33,21 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -50,6 +61,7 @@ import com.muhammadridha.fjalar.domain.model.RecentDestination
 import com.muhammadridha.fjalar.domain.model.SearchResultPlace
 import com.muhammadridha.fjalar.domain.service.DistanceCalculator
 import com.muhammadridha.fjalar.domain.service.HaversineCalculator
+import com.muhammadridha.fjalar.ui.WindowInsetsLayoutHelper
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
 import com.muhammadridha.fjalar.ui.theme.FjalarStrings
 import com.muhammadridha.fjalar.ui.theme.fjalarString
@@ -80,6 +92,49 @@ internal fun categoryEmoji(category: PlaceCategory): String = when (category) {
 }
 
 @Composable
+fun SearchPlacesOverlay(
+    visible: Boolean,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    results: List<SearchResultPlace>,
+    selectedCategory: PlaceCategory?,
+    onCategorySelect: (PlaceCategory?) -> Unit,
+    onPlaceSelect: (SearchResultPlace) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    recentDestinations: List<RecentDestination> = emptyList(),
+    onRecentSelect: (RecentDestination) -> Unit = {},
+    isLoading: Boolean = false,
+    userLocation: GeoCoordinates? = null,
+    distanceCalculator: DistanceCalculator = HaversineCalculator,
+    locale: AppLocale = LiquidGlassTheme.locale,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + slideInVertically(initialOffsetY = { -it / 6 }),
+        exit = fadeOut() + slideOutVertically(targetOffsetY = { -it / 6 }),
+        modifier = modifier.fillMaxSize(),
+    ) {
+        SearchPlacesSheet(
+            query = query,
+            onQueryChange = onQueryChange,
+            results = results,
+            selectedCategory = selectedCategory,
+            onCategorySelect = onCategorySelect,
+            onPlaceSelect = onPlaceSelect,
+            onDismiss = onDismiss,
+            recentDestinations = recentDestinations,
+            onRecentSelect = onRecentSelect,
+            isLoading = isLoading,
+            userLocation = userLocation,
+            distanceCalculator = distanceCalculator,
+            locale = locale,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+@Composable
 fun SearchPlacesSheet(
     query: String,
     onQueryChange: (String) -> Unit,
@@ -97,130 +152,152 @@ fun SearchPlacesSheet(
     locale: AppLocale = LiquidGlassTheme.locale,
 ) {
     val colors = LiquidGlassTheme.colors
-    val sheetShape = RoundedCornerShape(28.dp)
+    val focusRequester = remember { FocusRequester() }
+    val backDescription = FjalarStrings.get(FjalarStringKey.NAV_BACK, locale)
+    val clearDescription = fjalarString(FjalarStringKey.SEARCH_CLEAR)
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     Column(
         modifier = modifier
-            .fillMaxWidth()
-            .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
+            .fillMaxSize()
+            .background(colors.canvas.copy(alpha = 0.72f))
             .glassSurface(
                 level = GlassLevel.MODAL,
-                shape = sheetShape,
+                shape = RectangleShape,
             )
-            .clip(sheetShape)
-            .verticalScroll(rememberScrollState())
-            .padding(top = 10.dp, bottom = 12.dp),
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {},
+            ),
     ) {
-        // Top Grab Handle
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .size(width = 36.dp, height = 4.dp)
-                .background(
-                    color = colors.textSecondary.copy(alpha = 0.35f),
-                    shape = RoundedCornerShape(2.dp),
-                ),
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Header Row: Title & Cancel button
+        // Top Safe-Area Search Bar: Back Button + Auto-Focused Pill + Fixed-Height Clear Slot
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = WindowInsetsLayoutHelper
+                .hudTopPaddingModifier(horizontal = 16.dp, vertical = 8.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = fjalarString(FjalarStringKey.SEARCH_RECENT_TITLE),
-                modifier = Modifier.weight(1f).padding(end = 8.dp),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = colors.textPrimary,
-            )
-
-            TextButton(onClick = onDismiss) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                    .clip(CircleShape)
+                    .clickable(
+                        role = Role.Button,
+                        onClick = onDismiss,
+                    )
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = backDescription
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
                 Text(
-                    text = fjalarString(FjalarStringKey.EDITOR_CANCEL),
-                    color = colors.primary,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    text = "←",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    modifier = Modifier.clearAndSetSemantics {},
                 )
             }
-        }
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-        // Frosted Search Input Box
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "🔍",
-                fontSize = 15.sp,
-                modifier = Modifier.padding(end = 8.dp),
-            )
-
-            Box(
-                modifier = Modifier.weight(1f),
-                contentAlignment = Alignment.CenterStart,
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+                    .padding(start = 14.dp, end = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (query.isEmpty()) {
-                    Text(
-                        text = fjalarString(FjalarStringKey.SEARCH_PLACEHOLDER),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.textSecondary.copy(alpha = 0.6f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                Text(
+                    text = "🔍",
+                    fontSize = 15.sp,
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .clearAndSetSemantics {},
+                )
+
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    if (query.isEmpty()) {
+                        Text(
+                            text = fjalarString(FjalarStringKey.SEARCH_PLACEHOLDER),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = colors.textSecondary.copy(alpha = 0.6f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+
+                    BasicTextField(
+                        value = query,
+                        onValueChange = onQueryChange,
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.textPrimary),
+                        cursorBrush = SolidColor(colors.primary),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
                     )
                 }
 
-                BasicTextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.textPrimary),
-                    cursorBrush = SolidColor(colors.primary),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            if (query.isNotBlank()) {
-                val clearDescription = fjalarString(FjalarStringKey.SEARCH_CLEAR)
                 Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .clickable(
-                            role = Role.Button,
-                            onClick = { onQueryChange("") },
-                        )
-                        .semantics { contentDescription = clearDescription }
-                        .background(colors.textSecondary.copy(alpha = 0.15f)),
+                    modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = "✕",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textSecondary,
-                    )
+                    if (query.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .clickable(
+                                    role = Role.Button,
+                                    onClick = { onQueryChange("") },
+                                )
+                                .semantics {
+                                    role = Role.Button
+                                    contentDescription = clearDescription
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.textSecondary.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "✕",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textSecondary,
+                                    modifier = Modifier.clearAndSetSemantics {},
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         // Category Filter Chips Row
         Row(
-            modifier = Modifier
+            modifier = WindowInsetsLayoutHelper
+                .horizontalSafeDrawingPaddingModifier()
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -283,10 +360,13 @@ fun SearchPlacesSheet(
 
         // Results & Recent Destinations List
         LazyColumn(
-            modifier = Modifier
+            modifier = WindowInsetsLayoutHelper
+                .horizontalSafeDrawingPaddingModifier()
                 .fillMaxWidth()
-                .heightIn(max = 420.dp),
-            contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 12.dp),
+                .weight(1f)
+                .then(WindowInsetsLayoutHelper.navigationBottomPaddingModifier())
+                .imePadding(),
+            contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             if (shouldShowQuickPicks(query, recentDestinations)) {

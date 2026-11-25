@@ -51,7 +51,8 @@ import com.muhammadridha.fjalar.domain.model.ThemeMode
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
 import com.muhammadridha.fjalar.ui.WindowInsetsLayoutHelper
 import com.muhammadridha.fjalar.ui.SearchBackHandler
-import com.muhammadridha.fjalar.ui.components.SearchPlacesSheet
+import com.muhammadridha.fjalar.ui.components.SearchPlacesOverlay
+import com.muhammadridha.fjalar.ui.components.SearchTriggerPill
 import com.muhammadridha.fjalar.ui.components.PlatformMapView
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
 import com.muhammadridha.fjalar.ui.theme.FjalarStrings
@@ -82,7 +83,7 @@ fun mapPickerConfirmSemanticDescription(
 @Composable
 fun MapPickerScreen(
     initialCoordinates: GeoCoordinates,
-    onConfirmCoordinates: (GeoCoordinates) -> Unit,
+    onConfirmSelection: (GeoCoordinates, String?, PlaceCategory, String?) -> Unit,
     onBack: () -> Unit,
     isSearchVisible: Boolean,
     searchQuery: String,
@@ -95,9 +96,7 @@ fun MapPickerScreen(
     onDismissSearch: () -> Unit,
     modifier: Modifier = Modifier,
     recentDestinations: List<RecentDestination> = emptyList(),
-    onSelectRecentDestination: (RecentDestination) -> Unit = {},
-    onRecordSearchResult: ((SearchResultPlace) -> Unit)? = null,
-    onConfirmDestination: ((GeoCoordinates, String?, PlaceCategory) -> Unit)? = null,
+    initialPlaceName: String? = null,
     locale: AppLocale = LiquidGlassTheme.locale,
     initialZoom: Double = 15.0,
     awaitInitialLocation: Boolean = false,
@@ -115,8 +114,15 @@ fun MapPickerScreen(
     var selection by remember(initialCoordinates, hasInitialSelection) {
         mutableStateOf(MapPickerSelection(initialCoordinates.takeIf { hasInitialSelection }))
     }
-    var selectedPlaceName by remember { mutableStateOf<String?>(null) }
-    var selectedPlaceCategory by remember { mutableStateOf(PlaceCategory.GENERAL) }
+    var selectedPlaceName by remember(initialCoordinates, hasInitialSelection, initialPlaceName) {
+        mutableStateOf(initialPlaceName?.takeIf { hasInitialSelection && it.isNotBlank() })
+    }
+    var selectedPlaceCategory by remember(initialCoordinates, hasInitialSelection) {
+        mutableStateOf(PlaceCategory.GENERAL)
+    }
+    var selectedPlaceId by remember(initialCoordinates, hasInitialSelection) {
+        mutableStateOf<String?>(null)
+    }
     var viewportRequestId by remember(initialCoordinates, hasInitialSelection) { mutableStateOf(0L) }
     // The next fix should still frame the map: initial framing, or a recenter before any fix.
     var awaitingFirstFix by remember(initialCoordinates, hasInitialSelection) {
@@ -160,6 +166,7 @@ fun MapPickerScreen(
                 selection = selection.select(it)
                 selectedPlaceName = null
                 selectedPlaceCategory = PlaceCategory.GENERAL
+                selectedPlaceId = null
                 cameraTarget = it
                 preserveZoom = true
                 viewportRequestId++
@@ -168,14 +175,11 @@ fun MapPickerScreen(
                 selection = selection.select(it)
                 selectedPlaceName = null
                 selectedPlaceCategory = PlaceCategory.GENERAL
+                selectedPlaceId = null
             },
             destinationEditingEnabled = true,
             onCameraCenterChanged = { center, isUserGesture ->
                 selection = selection.onCameraCenterChanged(center, isUserGesture)
-                if (isUserGesture) {
-                    selectedPlaceName = null
-                    selectedPlaceCategory = PlaceCategory.GENERAL
-                }
             },
             // Selection follows gestures without issuing a camera reset to initialZoom.
             viewportRequestId = viewportRequestId,
@@ -262,22 +266,13 @@ fun MapPickerScreen(
                     }
                 }
 
-                Row(
+                SearchTriggerPill(
+                    onClick = onOpenSearch,
+                    placeholder = FjalarStrings.get(FjalarStringKey.HUD_SEARCH_PLACEHOLDER, locale),
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                        .clickable(role = Role.Button, onClick = onOpenSearch)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = FjalarStrings.get(FjalarStringKey.HUD_SEARCH_PLACEHOLDER, locale),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.textPrimary,
-                    )
-                }
+                        .fillMaxWidth(),
+                )
 
                 MapNavigationControls(
                     onRecenter = {
@@ -308,8 +303,7 @@ fun MapPickerScreen(
                 Button(
                     onClick = {
                         selection.coordinates?.let { coords ->
-                            onConfirmCoordinates(coords)
-                            onConfirmDestination?.invoke(coords, selectedPlaceName, selectedPlaceCategory)
+                            onConfirmSelection(coords, selectedPlaceName, selectedPlaceCategory, selectedPlaceId)
                         }
                     },
                     enabled = selection.coordinates != null,
@@ -340,44 +334,40 @@ fun MapPickerScreen(
             }
         }
 
-        if (isSearchVisible) {
-            SearchPlacesSheet(
-                query = searchQuery,
-                onQueryChange = onSearchQueryChange,
-                results = searchResults,
-                selectedCategory = selectedCategory,
-                onCategorySelect = onSelectCategory,
-                recentDestinations = recentDestinations,
-                onRecentSelect = { destination ->
-                    selection = selection.select(destination.coordinates)
-                    selectedPlaceName = destination.name
-                    selectedPlaceCategory = destination.category
-                    cameraTarget = destination.coordinates
-                    cameraZoom = 15.0
-                    preserveZoom = false
-                    viewportRequestId++
-                    onSelectRecentDestination(destination)
-                    onDismissSearch()
-                },
-                onPlaceSelect = { place ->
-                    selection = selection.select(place)
-                    selectedPlaceName = place.name
-                    selectedPlaceCategory = place.category
-                    cameraTarget = place.coordinates
-                    cameraZoom = 15.0
-                    preserveZoom = false
-                    viewportRequestId++
-                    onRecordSearchResult?.invoke(place)
-                    onDismissSearch()
-                },
-                onDismiss = onDismissSearch,
-                isLoading = isSearching,
-                userLocation = userPosition?.coordinates ?: cameraTarget,
-                locale = locale,
-                modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(
-                    Modifier.align(Alignment.BottomCenter),
-                ).imePadding(),
-            )
-        }
+        SearchPlacesOverlay(
+            visible = isSearchVisible,
+            query = searchQuery,
+            onQueryChange = onSearchQueryChange,
+            results = searchResults,
+            selectedCategory = selectedCategory,
+            onCategorySelect = onSelectCategory,
+            recentDestinations = recentDestinations,
+            onRecentSelect = { destination ->
+                selection = selection.select(destination.coordinates)
+                selectedPlaceName = destination.name
+                selectedPlaceCategory = destination.category
+                selectedPlaceId = destination.id
+                cameraTarget = destination.coordinates
+                cameraZoom = 15.0
+                preserveZoom = false
+                viewportRequestId++
+                onDismissSearch()
+            },
+            onPlaceSelect = { place ->
+                selection = selection.select(place)
+                selectedPlaceName = place.name
+                selectedPlaceCategory = place.category
+                selectedPlaceId = place.id
+                cameraTarget = place.coordinates
+                cameraZoom = 15.0
+                preserveZoom = false
+                viewportRequestId++
+                onDismissSearch()
+            },
+            onDismiss = onDismissSearch,
+            isLoading = isSearching,
+            userLocation = userPosition?.coordinates ?: cameraTarget,
+            locale = locale,
+        )
     }
 }

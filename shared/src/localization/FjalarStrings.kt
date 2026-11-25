@@ -318,7 +318,7 @@ object FjalarStrings {
         FjalarStringKey.PICKER_TITLE to "Select Destination Pin",
         FjalarStringKey.PICKER_CONFIRM to "Choose destination",
         FjalarStringKey.PICKER_CHANGE_PIN to "Choose destination",
-        FjalarStringKey.PICKER_HINT to "Move the map to choose a destination",
+        FjalarStringKey.PICKER_HINT to "Tap the map or search to choose a destination",
 
         FjalarStringKey.ALARMS_EMPTY_TITLE to "No Alarms Yet",
         FjalarStringKey.ALARMS_EMPTY_BODY to "Tap + Add Alarm to set your first wake-up alarm.",
@@ -480,7 +480,7 @@ object FjalarStrings {
         FjalarStringKey.PICKER_TITLE to "Pilih Titik Tujuan",
         FjalarStringKey.PICKER_CONFIRM to "Pilih tujuan",
         FjalarStringKey.PICKER_CHANGE_PIN to "Pilih tujuan",
-        FjalarStringKey.PICKER_HINT to "Geser peta untuk memilih tujuan",
+        FjalarStringKey.PICKER_HINT to "Ketuk peta atau cari untuk memilih tujuan",
 
         FjalarStringKey.ALARMS_EMPTY_TITLE to "Belum ada alarm",
         FjalarStringKey.ALARMS_EMPTY_BODY to "Ketuk + Tambah alarm untuk membuat alarm pertama.",

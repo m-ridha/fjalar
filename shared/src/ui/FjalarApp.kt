@@ -63,7 +63,7 @@ import com.muhammadridha.fjalar.ui.components.LocationPermissionBanner
 import com.muhammadridha.fjalar.ui.components.PlatformMapView
 import com.muhammadridha.fjalar.ui.components.RingingAlertOverlay
 import com.muhammadridha.fjalar.ui.components.StartupPlaceholder
-import com.muhammadridha.fjalar.ui.components.SearchPlacesSheet
+import com.muhammadridha.fjalar.ui.components.SearchPlacesOverlay
 import com.muhammadridha.fjalar.ui.navigation.AlarmsRoute
 import com.muhammadridha.fjalar.ui.navigation.ConfigureRoute
 import com.muhammadridha.fjalar.ui.navigation.FrostedBottomNavigationBar
@@ -211,7 +211,7 @@ fun FjalarApp(
                                     onSearchClick = { viewModel.onOpenSearch(PlaceSearchContext.BROWSE) },
                                     onToggleLocale = viewModel::onToggleLocale,
                                     onSelectLocale = viewModel::onSelectLocale,
-                                    onToggleTheme = viewModel::onToggleTheme,
+                                    onToggleTheme = { viewModel.onToggleTheme(isDarkTheme) },
                                     onRecenter = viewModel::onRecenterMap,
                                     bearing = mapBearing,
                                     onResetNorth = { northRequestId++ },
@@ -249,42 +249,31 @@ fun FjalarApp(
                             }
                         }
 
-                        // Search Places Modal Sheet
-                        AnimatedVisibility(
+                        // Search Places Modal Overlay
+                        SearchPlacesOverlay(
                             visible = uiState.isSearchSheetVisible && uiState.searchContext == PlaceSearchContext.BROWSE,
-                            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
-                            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.BottomCenter),
-                        ) {
-                            SearchPlacesSheet(
-                                query = uiState.searchQuery,
-                                onQueryChange = viewModel::onSearchQueryChanged,
-                                results = uiState.searchResults,
-                                selectedCategory = uiState.selectedCategoryFilter,
-                                onCategorySelect = viewModel::onSelectCategoryFilter,
-                                onPlaceSelect = viewModel::onBrowsePlaceSelected,
-                                onDismiss = viewModel::onDismissSearch,
-                                recentDestinations = uiState.recentDestinations,
-                                onRecentSelect = { recent ->
-                                    viewModel.onBrowsePlaceSelected(
-                                        SearchResultPlace(
-                                            id = recent.id,
-                                            name = recent.name,
-                                            coordinates = recent.coordinates,
-                                            category = recent.category,
-                                        )
+                            query = uiState.searchQuery,
+                            onQueryChange = viewModel::onSearchQueryChanged,
+                            results = uiState.searchResults,
+                            selectedCategory = uiState.selectedCategoryFilter,
+                            onCategorySelect = viewModel::onSelectCategoryFilter,
+                            onPlaceSelect = viewModel::onBrowsePlaceSelected,
+                            onDismiss = viewModel::onDismissSearch,
+                            recentDestinations = uiState.recentDestinations,
+                            onRecentSelect = { recent ->
+                                viewModel.onBrowsePlaceSelected(
+                                    SearchResultPlace(
+                                        id = recent.id,
+                                        name = recent.name,
+                                        coordinates = recent.coordinates,
+                                        category = recent.category,
                                     )
-                                },
-                                isLoading = uiState.isSearching,
-                                userLocation = uiState.userLocation ?: uiState.mapViewportCenter,
-                                locale = uiState.appLocale,
-                                modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier()
-                                    .imePadding()
-                                    .padding(bottom = dockHeight),
-                            )
-                        }
+                                )
+                            },
+                            isLoading = uiState.isSearching,
+                            userLocation = uiState.userLocation ?: uiState.mapViewportCenter,
+                            locale = uiState.appLocale,
+                        )
                     }
                 }
 
@@ -483,23 +472,12 @@ fun FjalarApp(
                         onSelectCategory = viewModel::onSelectCategoryFilter,
                         onDismissSearch = viewModel::onDismissSearch,
                         recentDestinations = uiState.recentDestinations,
-                        onSelectRecentDestination = { recent ->
-                            viewModel.onConfirmDestination(
-                                coordinates = recent.coordinates,
-                                label = recent.name,
-                                category = recent.category,
-                                destinationId = recent.id,
-                            )
-                        },
-                        onRecordSearchResult = viewModel::onPickerPlaceSelected,
-                        onConfirmCoordinates = { coords ->
+                        initialPlaceName = uiState.activeDraft?.addressLabel,
+                        onConfirmSelection = { coords, name, category, placeId ->
                             viewModel.onDismissSearch()
-                            viewModel.onDraftCoordinatesChanged(coords)
-                            navController.popBackStack()
-                        },
-                        onConfirmDestination = { coords, name, category ->
                             viewModel.onDraftCoordinatesChanged(coords, name)
-                            viewModel.onConfirmDestination(coords, name, category)
+                            viewModel.onConfirmDestination(coords, name, category, placeId)
+                            navController.popBackStack()
                         },
                         onBack = {
                             navController.popBackStack()
@@ -509,10 +487,11 @@ fun FjalarApp(
                 }
             }
 
-            val showBottomBar = uiState.isInitialViewportReady && (
-                navBackStackEntry?.destination?.hasRoute<MapRoute>() == true ||
-                    navBackStackEntry?.destination?.hasRoute<AlarmsRoute>() == true
-                )
+            val showBottomBar = uiState.isInitialViewportReady &&
+                !uiState.isSearchSheetVisible && (
+                    navBackStackEntry?.destination?.hasRoute<MapRoute>() == true ||
+                        navBackStackEntry?.destination?.hasRoute<AlarmsRoute>() == true
+                    )
 
             SnackbarHost(
                 hostState = editorSnackbarHostState,
