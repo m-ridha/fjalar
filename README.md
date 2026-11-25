@@ -145,7 +145,7 @@ fjalar/
 │   └── test@ios/                # iOS-specific tests
 ├── scripts/                     # Asset, release, and verification scripts
 │   ├── generate_app_icons.py    # Generates all Android adaptive/legacy icons & iOS 18 asset catalog
-│   ├── generate_splash_assets.py # Derives Android/iOS launch artwork from the icon masters, inside the masked circle
+│   ├── generate_splash_assets.py # Derives Android VectorDrawable & iOS SVG launch artwork from the SVG masters
 │   ├── generate_alarm_sound.py  # Generates bundled alarm.wav audio across assets, Android raw, and iOS bundle
 │   ├── test_generated_icons.py  # Unit tests for icon dimensions, bit depths, and safe-zone constraints
 │   ├── test_generated_splash_assets.py # Unit tests for launch artwork safe circle, backgrounds, and wiring
@@ -156,7 +156,7 @@ fjalar/
 │   └── test_*.py                # Release, audio, security, catalog, and workflow regression tests (plus test_control_safe_area.swift)
 ├── assets/                      # Approved brand assets
 │   ├── audio/                   # Master alarm.wav waveform
-│   └── icons/                   # 1024x1024 master icons (Light & Dark PNG + JPG exports)
+│   └── icons/                   # 1024x1024 master icons (Light & Dark SVG, PNG, and JPG exports)
 ├── project.yaml                 # JetBrains Amper project definition
 └── libs.versions.toml           # Version catalog (Kotlin 2.x, Compose, Coroutines, DateTime)
 ```

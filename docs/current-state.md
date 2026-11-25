@@ -93,9 +93,12 @@ neutral origin. Android holds `androidx.core:splashscreen` via
 `setKeepOnScreenCondition` (with a 4 s hard cap) and fades out over 200 ms (or
 0 ms when animations are disabled). Both platforms render `StartupPlaceholder`
 over the canvas until ready, fading instantly when reduced transparency is
-active. Launch artwork is derived from the approved icon masters by
-`scripts/generate_splash_assets.py` and kept inside the 192 dp circle Android
-12+ paints, which `scripts/test_generated_splash_assets.py` verifies. Android
+active. Vector launch artwork is derived from the approved Light/Dark SVG icon
+masters (`assets/icons/icon_master_light.svg` and `assets/icons/icon_master_dark.svg`)
+by `scripts/generate_splash_assets.py` (`androidApp/res/drawable[-night]/ic_splash_icon.xml`
+and `iosApp/src/Assets.xcassets/LaunchIcon.imageset/*.svg`) and kept inside the
+192 dp circle Android 12+ paints, which `scripts/test_generated_splash_assets.py`
+verifies. Android
 reads the persisted `ThemeMode` synchronously before `installSplashScreen()` and
 unconditionally syncs `UiModeManager.setApplicationNightMode(...)` (API 31+) in
 `StartupTheme.syncApplicationNightMode` without comparing against the system-wide
