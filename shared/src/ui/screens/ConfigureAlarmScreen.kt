@@ -1,6 +1,7 @@
 package com.muhammadridha.fjalar.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -49,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.onFocusChanged
@@ -75,6 +78,7 @@ import com.muhammadridha.fjalar.domain.model.GeoCoordinates
 import com.muhammadridha.fjalar.domain.model.LocationAlarm
 import com.muhammadridha.fjalar.domain.model.ScheduleType
 import com.muhammadridha.fjalar.domain.model.TriggerRadius
+import com.muhammadridha.fjalar.ui.AlarmEditorNotice
 import com.muhammadridha.fjalar.ui.WindowInsetsLayoutHelper
 import com.muhammadridha.fjalar.ui.components.AlarmSwitch
 import com.muhammadridha.fjalar.ui.components.DeleteAlarmConfirmationDialog
@@ -239,6 +243,7 @@ fun ConfigureAlarmScreen(
     locale: AppLocale = LiquidGlassTheme.locale,
     isOperationPending: Boolean = false,
     hasOperationFailure: Boolean = false,
+    validationNotice: AlarmEditorNotice? = null,
     persistedAlarm: LocationAlarm? = null,
 ) {
     val colors = LiquidGlassTheme.colors
@@ -289,16 +294,29 @@ fun ConfigureAlarmScreen(
             Box(
                 modifier = Modifier
                     .heightIn(min = 48.dp)
+                    .alpha(if (isOperationPending) 0.5f else 1f)
                     .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
                     .clickable(enabled = !isOperationPending, role = Role.Button, onClick = onSave)
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = FjalarStrings.get(FjalarStringKey.EDITOR_SAVE, locale),
-                    color = colors.primary,
-                    style = MaterialTheme.typography.labelMedium,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (isOperationPending) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = colors.primary,
+                        )
+                    }
+                    Text(
+                        text = FjalarStrings.get(FjalarStringKey.EDITOR_SAVE, locale),
+                        color = colors.primary,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
             }
         }
 
@@ -311,17 +329,11 @@ fun ConfigureAlarmScreen(
                 .imePadding()
                 .padding(horizontal = 20.dp, vertical = 12.dp),
         ) {
-            if (hasOperationFailure) {
-                Text(
-                    text = FjalarStrings.get(FjalarStringKey.OPERATION_FAILED, locale),
-                    color = colors.danger,
-                    modifier = Modifier.padding(bottom = 12.dp),
-                )
-            }
             // Label input field
             OutlinedTextField(
                 value = draft.label,
                 enabled = !isOperationPending,
+                isError = validationNotice == AlarmEditorNotice.NAME_REQUIRED,
                 onValueChange = { onDraftChange(draft.copy(label = it)) },
                 placeholder = {
                     Text(
@@ -335,8 +347,10 @@ fun ConfigureAlarmScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = colors.primary,
                     unfocusedBorderColor = colors.borderSubtle,
+                    errorBorderColor = colors.danger,
                     focusedTextColor = colors.textPrimary,
                     unfocusedTextColor = colors.textPrimary,
+                    errorTextColor = colors.textPrimary,
                 ),
             )
 
@@ -366,10 +380,16 @@ fun ConfigureAlarmScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Location Summary Card
+            val locationErrorBorder = if (validationNotice == AlarmEditorNotice.NO_DESTINATION) {
+                Modifier.border(1.5.dp, colors.danger, RoundedCornerShape(20.dp))
+            } else {
+                Modifier
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .glassSurface(level = GlassLevel.SHEET, shape = RoundedCornerShape(20.dp))
+                    .then(locationErrorBorder)
                     .padding(16.dp),
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -773,9 +793,10 @@ fun ConfigureAlarmScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 48.dp)
+                        .alpha(if (isOperationPending) 0.5f else 1f)
                         .clip(RoundedCornerShape(16.dp))
                         .background(colors.danger.copy(alpha = 0.12f))
-                        .clickable(role = Role.Button) { showDeleteDialog = true }
+                        .clickable(enabled = !isOperationPending, role = Role.Button) { showDeleteDialog = true }
                         .padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -1118,7 +1139,7 @@ private fun EditorTimeInput(
         if (editorMinuteOfDay(hourField.text, minuteField.text) == null) {
             Text(
                 text = FjalarStrings.get(FjalarStringKey.EDITOR_TIME_INVALID, locale),
-                color = colors.textPrimary,
+                color = colors.danger,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp),
             )

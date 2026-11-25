@@ -341,6 +341,7 @@ fun FjalarApp(
                         persistedAlarm = draft.deletionTarget(uiState.alarms),
                         isOperationPending = uiState.isOperationPending,
                         hasOperationFailure = uiState.hasOperationFailure,
+                        validationNotice = uiState.pendingEditorNotice,
                         onDraftChange = viewModel::onUpdateDraft,
                         onBack = handleBack,
                         onSave = handleSave,
