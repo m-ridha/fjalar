@@ -1,6 +1,7 @@
 package com.muhammadridha.fjalar
 
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
 import com.muhammadridha.fjalar.ui.FjalarViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -34,7 +35,7 @@ private fun isForegroundLocationAuthorized(status: CLAuthorizationStatus): Boole
 
 fun ViewController(): UIViewController = ComposeUIViewController {
     val viewModel: FjalarViewModel = koinViewModel()
-    val permissionManager = CLLocationManager()
+    val permissionManager = remember { CLLocationManager() }
 
     fun refreshLocationPermissionState() {
         val status = permissionManager.authorizationStatus
@@ -47,8 +48,8 @@ fun ViewController(): UIViewController = ComposeUIViewController {
         }
     }
 
-    DisposableEffect(viewModel) {
-        val locationDelegate = object : NSObject(), CLLocationManagerDelegateProtocol {
+    val locationDelegate = remember(viewModel, permissionManager) {
+        object : NSObject(), CLLocationManagerDelegateProtocol {
             override fun locationManagerDidChangeAuthorization(manager: CLLocationManager) {
                 refreshLocationPermissionState()
             }
@@ -61,6 +62,9 @@ fun ViewController(): UIViewController = ComposeUIViewController {
                 // Delegate method required for one-shot requestLocation() calls.
             }
         }
+    }
+
+    DisposableEffect(viewModel, permissionManager, locationDelegate) {
         permissionManager.delegate = locationDelegate
         viewModel.onAppForegroundChanged(UIApplication.sharedApplication.applicationState == UIApplicationState.UIApplicationStateActive)
         refreshLocationPermissionState()

@@ -8,6 +8,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -166,6 +167,11 @@ fun SearchPlacesSheet(
             .glassSurface(
                 level = GlassLevel.MODAL,
                 shape = RectangleShape,
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {},
             ),
     ) {
         // Top Safe-Area Search Bar: Back Button + Auto-Focused Pill + Fixed-Height Clear Slot
@@ -287,7 +293,8 @@ fun SearchPlacesSheet(
 
         // Category Filter Chips Row
         Row(
-            modifier = Modifier
+            modifier = WindowInsetsLayoutHelper
+                .horizontalSafeDrawingPaddingModifier()
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
@@ -353,9 +360,11 @@ fun SearchPlacesSheet(
 
         // Results & Recent Destinations List
         LazyColumn(
-            modifier = Modifier
+            modifier = WindowInsetsLayoutHelper
+                .horizontalSafeDrawingPaddingModifier()
                 .fillMaxWidth()
                 .weight(1f)
+                .then(WindowInsetsLayoutHelper.navigationBottomPaddingModifier())
                 .imePadding(),
             contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
