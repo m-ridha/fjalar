@@ -8,11 +8,7 @@ data class MapPickerSelection(val coordinates: GeoCoordinates?) {
     val viewportCenter: GeoCoordinates
         get() = coordinates ?: GeoCoordinates(0.0, 0.0)
 
-    fun onCameraCenterChanged(center: GeoCoordinates, isUserGesture: Boolean = false): MapPickerSelection {
-        // Native maps also report initialization and programmatic recentering.
-        if (!isUserGesture) return this
-        return select(center)
-    }
+    fun onCameraCenterChanged(center: GeoCoordinates, isUserGesture: Boolean = false): MapPickerSelection = this
 
     fun select(place: SearchResultPlace): MapPickerSelection = select(place.coordinates)
 

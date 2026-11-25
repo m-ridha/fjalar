@@ -114,6 +114,46 @@ fun LanguageDropdown(
     }
 }
 
+@Composable
+fun SearchTriggerPill(
+    onClick: () -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LiquidGlassTheme.colors
+    Row(
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
+            .clickable(
+                role = Role.Button,
+                onClick = onClick,
+            )
+            .semantics {
+                role = Role.Button
+                contentDescription = placeholder
+            }
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "🔍",
+            fontSize = 14.sp,
+            color = colors.textSecondary,
+            modifier = Modifier.clearAndSetSemantics {},
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = placeholder,
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.clearAndSetSemantics {},
+        )
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FloatingHudBar(
@@ -148,39 +188,13 @@ fun FloatingHudBar(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 // Search Pill
-                Row(
+                SearchTriggerPill(
+                    onClick = onSearchClick,
+                    placeholder = searchPlaceholder,
                     modifier = Modifier
                         .weight(1f)
-                        .widthIn(min = 160.dp)
-                        .heightIn(min = 48.dp)
-                        .glassSurface(level = GlassLevel.PILL, shape = CircleShape)
-                        .clickable(
-                            role = Role.Button,
-                            onClick = onSearchClick,
-                        )
-                        .semantics {
-                            role = Role.Button
-                            contentDescription = searchPlaceholder
-                        }
-                        .padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "🔍",
-                        fontSize = 14.sp,
-                        color = colors.textSecondary,
-                        modifier = Modifier.clearAndSetSemantics {},
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = searchPlaceholder,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.clearAndSetSemantics {},
-                    )
-                }
+                        .widthIn(min = 160.dp),
+                )
 
                 // Locale Dropdown (🌐 EN ▾ / 🌐 ID ▾)
                 LanguageDropdown(

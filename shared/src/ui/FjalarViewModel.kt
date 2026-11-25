@@ -483,12 +483,12 @@ class FjalarViewModel(
         }
     }
 
-    fun onToggleTheme() {
+    fun onToggleTheme(currentlyDark: Boolean = false) {
         val currentMode = _uiState.value.themeMode
         val nextMode = when (currentMode) {
             ThemeMode.LIGHT -> ThemeMode.DARK
             ThemeMode.DARK -> ThemeMode.LIGHT
-            ThemeMode.SYSTEM -> ThemeMode.DARK
+            ThemeMode.SYSTEM -> if (currentlyDark) ThemeMode.LIGHT else ThemeMode.DARK
         }
         scope.launch {
             preferencesPort.setThemeMode(nextMode)
@@ -750,8 +750,7 @@ class FjalarViewModel(
         category: PlaceCategory = PlaceCategory.GENERAL,
         destinationId: String? = null,
     ) {
-        val name = label?.trim()?.takeIf { it.isNotBlank() }
-            ?: "${coordinates.latitude}, ${coordinates.longitude}"
+        val name = label?.trim()?.takeIf { it.isNotBlank() } ?: return
         val id = destinationId?.takeIf { it.isNotBlank() }
             ?: "dest-${coordinates.latitude}-${coordinates.longitude}"
         val recent = RecentDestination(
