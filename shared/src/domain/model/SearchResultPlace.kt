@@ -3,6 +3,7 @@ package com.muhammadridha.fjalar.domain.model
 enum class PlaceCategory {
     TRAIN_STATION,
     METRO_STATION,
+    BUS_STOP,
     TRANSIT_STOP,
     LANDMARK,
     GENERAL,

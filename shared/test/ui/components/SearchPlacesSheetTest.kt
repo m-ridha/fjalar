@@ -68,9 +68,29 @@ class SearchPlacesSheetTest {
     fun categoryEmojiMapsAllPlaceCategoriesCorrectly() {
         assertEquals("🚆", categoryEmoji(PlaceCategory.TRAIN_STATION))
         assertEquals("🚇", categoryEmoji(PlaceCategory.METRO_STATION))
+        assertEquals("🚌", categoryEmoji(PlaceCategory.BUS_STOP))
         assertEquals("🚏", categoryEmoji(PlaceCategory.TRANSIT_STOP))
         assertEquals("🏛️", categoryEmoji(PlaceCategory.LANDMARK))
         assertEquals("📍", categoryEmoji(PlaceCategory.GENERAL))
+    }
+
+    @Test
+    fun filterRecentDestinations_appliesSelectedCategoryFilter() {
+        val trainRecent = sampleRecent(id = "train-1", name = "Gambir", category = PlaceCategory.TRAIN_STATION)
+        val busRecent = sampleRecent(id = "bus-1", name = "Halte Harmoni", category = PlaceCategory.BUS_STOP)
+        val recents = listOf(trainRecent, busRecent)
+
+        assertEquals(recents, filterRecentDestinations(recents, null))
+        assertEquals(listOf(trainRecent), filterRecentDestinations(recents, PlaceCategory.TRAIN_STATION))
+        assertEquals(listOf(busRecent), filterRecentDestinations(recents, PlaceCategory.BUS_STOP))
+
+        val nonMatching = filterRecentDestinations(recents, PlaceCategory.METRO_STATION)
+        assertTrue(nonMatching.isEmpty())
+        assertFalse(shouldShowQuickPicks("", nonMatching))
+        assertTrue(shouldShowEmptyFilteredRecents("", recents, nonMatching, PlaceCategory.METRO_STATION))
+        assertFalse(shouldShowEmptyFilteredRecents("", recents, recents, null))
+        assertFalse(shouldShowEmptyFilteredRecents("", emptyList(), emptyList(), PlaceCategory.METRO_STATION))
+        assertFalse(shouldShowEmptyFilteredRecents("MRT", recents, nonMatching, PlaceCategory.METRO_STATION))
     }
 
     @Test

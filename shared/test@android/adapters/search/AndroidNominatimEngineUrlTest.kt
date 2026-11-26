@@ -2,7 +2,9 @@ package com.muhammadridha.fjalar.adapters.search
 
 import com.muhammadridha.fjalar.domain.model.AppLocale
 import com.muhammadridha.fjalar.domain.model.GeoCoordinates
+import com.muhammadridha.fjalar.domain.model.PlaceCategory
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -62,5 +64,15 @@ class AndroidNominatimEngineUrlTest {
         assertTrue(url.contains("addressdetails=1"), url)
         assertFalse(url.contains("lat="), url)
         assertFalse(url.contains("lon="), url)
+    }
+
+    @Test
+    fun resolveCategoryMapsOsmBusTagsToBusStop() {
+        val engine = AndroidNominatimEngine()
+
+        assertEquals(PlaceCategory.BUS_STOP, engine.resolveCategory("highway", "bus_stop"))
+        assertEquals(PlaceCategory.BUS_STOP, engine.resolveCategory("amenity", "bus_station"))
+        assertEquals(PlaceCategory.BUS_STOP, engine.resolveCategory("bus_station", "station"))
+        assertEquals(PlaceCategory.TRANSIT_STOP, engine.resolveCategory("public_transport", "platform"))
     }
 }

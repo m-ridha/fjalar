@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -71,8 +72,28 @@ import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
 import kotlin.math.roundToInt
 
+internal fun filterRecentDestinations(
+    recentDestinations: List<RecentDestination>,
+    selectedCategory: PlaceCategory?,
+): List<RecentDestination> = if (selectedCategory == null) {
+    recentDestinations
+} else {
+    recentDestinations.filter { it.category == selectedCategory }
+}
+
 internal fun shouldShowQuickPicks(query: String, recentDestinations: List<RecentDestination>): Boolean =
     query.isBlank() && recentDestinations.isNotEmpty()
+
+internal fun shouldShowEmptyFilteredRecents(
+    query: String,
+    recentDestinations: List<RecentDestination>,
+    visibleRecentDestinations: List<RecentDestination>,
+    selectedCategory: PlaceCategory?,
+): Boolean =
+    query.isBlank() &&
+        selectedCategory != null &&
+        recentDestinations.isNotEmpty() &&
+        visibleRecentDestinations.isEmpty()
 
 internal fun shouldShowEmptySearchResults(
     results: List<SearchResultPlace>,
@@ -86,6 +107,7 @@ internal fun quickPickContentDescription(destination: RecentDestination, locale:
 internal fun categoryEmoji(category: PlaceCategory): String = when (category) {
     PlaceCategory.TRAIN_STATION -> "🚆"
     PlaceCategory.METRO_STATION -> "🚇"
+    PlaceCategory.BUS_STOP -> "🚌"
     PlaceCategory.TRANSIT_STOP -> "🚏"
     PlaceCategory.LANDMARK -> "🏛️"
     PlaceCategory.GENERAL -> "📍"
@@ -155,6 +177,9 @@ fun SearchPlacesSheet(
     val focusRequester = remember { FocusRequester() }
     val backDescription = FjalarStrings.get(FjalarStringKey.NAV_BACK, locale)
     val clearDescription = fjalarString(FjalarStringKey.SEARCH_CLEAR)
+    val visibleRecentDestinations = remember(recentDestinations, selectedCategory) {
+        filterRecentDestinations(recentDestinations, selectedCategory)
+    }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -331,6 +356,17 @@ fun SearchPlacesSheet(
             )
 
             CategoryChip(
+                label = fjalarString(FjalarStringKey.SEARCH_CATEGORY_BUS),
+                selected = selectedCategory == PlaceCategory.BUS_STOP,
+                onClick = {
+                    onCategorySelect(
+                        if (selectedCategory == PlaceCategory.BUS_STOP) null else PlaceCategory.BUS_STOP
+                    )
+                },
+                colors = colors,
+            )
+
+            CategoryChip(
                 label = fjalarString(FjalarStringKey.SEARCH_CATEGORY_TRANSIT),
                 selected = selectedCategory == PlaceCategory.TRANSIT_STOP,
                 onClick = {
@@ -369,7 +405,7 @@ fun SearchPlacesSheet(
             contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            if (shouldShowQuickPicks(query, recentDestinations)) {
+            if (shouldShowQuickPicks(query, visibleRecentDestinations)) {
                 item(key = "quick_picks_header") {
                     Text(
                         text = fjalarString(FjalarStringKey.SEARCH_QUICK_PICKS_TITLE),
@@ -379,7 +415,7 @@ fun SearchPlacesSheet(
                     )
                 }
 
-                itemsIndexed(recentDestinations, key = { _, recent -> "recent_${recent.id}" }) { index, recent ->
+                itemsIndexed(visibleRecentDestinations, key = { _, recent -> "recent_${recent.id}" }) { index, recent ->
                     val contentDesc = quickPickContentDescription(recent, locale)
                     PlaceListRow(
                         name = recent.name,
@@ -394,11 +430,47 @@ fun SearchPlacesSheet(
                         rowContentDescription = contentDesc,
                     )
 
-                    if (index < recentDestinations.lastIndex) {
+                    if (index < visibleRecentDestinations.lastIndex) {
                         HorizontalDivider(
                             color = colors.textSecondary.copy(alpha = 0.1f),
                             thickness = 0.5.dp,
                             modifier = Modifier.padding(start = 52.dp, end = 8.dp),
+                        )
+                    }
+                }
+            } else if (
+                shouldShowEmptyFilteredRecents(
+                    query = query,
+                    recentDestinations = recentDestinations,
+                    visibleRecentDestinations = visibleRecentDestinations,
+                    selectedCategory = selectedCategory,
+                )
+            ) {
+                item(key = "quick_picks_empty") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp, horizontal = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = categoryEmoji(selectedCategory ?: PlaceCategory.GENERAL),
+                            fontSize = 32.sp,
+                            modifier = Modifier.clearAndSetSemantics {},
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = fjalarString(FjalarStringKey.SEARCH_RECENT_EMPTY_TITLE),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = colors.textPrimary,
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = fjalarString(FjalarStringKey.SEARCH_RECENT_EMPTY_BODY),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = colors.textSecondary,
+                            textAlign = TextAlign.Center,
                         )
                     }
                 }
@@ -413,6 +485,7 @@ fun SearchPlacesSheet(
                         Text(
                             text = "🔍",
                             fontSize = 32.sp,
+                            modifier = Modifier.clearAndSetSemantics {},
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
@@ -475,7 +548,11 @@ private fun CategoryChip(
             .heightIn(min = 48.dp)
             .then(backgroundModifier)
             .clip(CircleShape)
-            .clickable(role = Role.RadioButton, onClick = onClick)
+            .selectable(
+                selected = selected,
+                role = Role.RadioButton,
+                onClick = onClick,
+            )
             .padding(horizontal = 14.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -537,6 +614,7 @@ private fun PlaceListRow(
             Text(
                 text = categoryEmoji(category),
                 fontSize = 18.sp,
+                modifier = Modifier.clearAndSetSemantics {},
             )
         }
 
