@@ -4,7 +4,7 @@
 
 Read the user's current instructions and inspect affected code before relying on documented behavior or historical passing checks. Canonical requirements and design tokens are tracked in the Notion documents below. Private planning files or memory summaries are not prerequisites.
 
-- **PRD (Behavior & Invariants):** [PRD: Fjalar (Wake Me at) v0.4](https://app.notion.com/p/PRD-Fjalar-Wake-Me-at-4030ee070c2381068c72ff3840f77325)
+- **PRD (Behavior & Invariants):** [PRD: Fjalar (Wake Me at) v0.5](https://app.notion.com/p/PRD-Fjalar-Wake-Me-at-4030ee070c2381068c72ff3840f77325)
 - **UI/UX & Design Tokens:** [Product and UI Design: Fjalar (Wake Me at) v0.5](https://app.notion.com/p/Product-and-UI-Design-Fjalar-Wake-Me-at-4030ee070c2381008ebeddc2ab6c654e)
 - **Interactive Screens & Themes:** [Google Stitch Project 12482101652095184669](https://stitch.withgoogle.com/projects/12482101652095184669) (`Liquid Glass Transit` & `Liquid Glass Transit Dark Mode`)
 - **Approved 2D Vector App Icon:** [App Icon Design v1.1](https://app.notion.com/p/4040ee070c2381ea8359ef1f191029bf) (masters in `assets/icons/`)
@@ -85,7 +85,7 @@ Follow the [Product and UI Design Specification](https://app.notion.com/p/4030ee
      - **Light Mode (`Daylight Glass`):** Canvas `#F2F3F8`, Primary `#007AFF`, Secondary `#34C759`, Text `#1A1B1F`.
      - **Dark Mode (`Nocturnal Obsidian Glass`):** Canvas `#0C0E14`, glass surfaces `#181C26`/`#1E2330`, Primary `#00D2FF`, Secondary `#00E676`, Text `#FFFFFF`.
 2. **Accessibility & Reduce Transparency Fallback:**
-   - `Modifier.glassSurface` currently draws tinted backgrounds and gradient borders, without Gaussian backdrop blur. Live OS reduce-transparency / high-contrast observation is wired via `AccessibilityPort`, `AndroidAccessibilityAdapter`, `IosAccessibilityAdapter`, and `expect/actual isReduceTransparencyActive()` (`shared/src/ui/accessibility/ReduceTransparency.kt`, consumed in `App.kt`, `FjalarApp.kt`, and `LiquidGlassTheme.kt`) to switch to 92% opaque tinted surfaces:
+   - `Modifier.glassSurface` currently draws tinted backgrounds and gradient borders, without Gaussian backdrop blur. Live OS reduce-transparency / high-contrast observation is wired via `AccessibilityPort`, `AndroidAccessibilityAdapter`, `IosAccessibilityAdapter`, and `expect/actual isReduceTransparencyActive()` (`shared/src/ui/accessibility/ReduceTransparency.kt`, consumed in `App.kt`, `FjalarApp.kt`, `AlarmActivity.kt`, and `LiquidGlassTheme.kt`) to switch to 92% opaque tinted surfaces:
      - `ReducedTransparencyLightLiquidGlassColors`: `#F4F3F8` @ 92% with 1.5 dp high-contrast border.
      - `ReducedTransparencyDarkLiquidGlassColors`: `#191B22` @ 92% with 1.5 dp high-contrast border.
    - Target `>= 4.5:1` WCAG AA contrast over surfaces. Token tests assert that threshold against the fallback colors; measured primary-text ratios exceed 15:1, but they do not prove contrast over every live map composition.

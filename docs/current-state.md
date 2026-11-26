@@ -1,24 +1,30 @@
 # Current project state
 
-Source audit: 2026-11-25, based on main through v0.4.3 preparation (PRs #66 and #67, commit
-`580dd4f`). This records implemented behavior across Phases 1 through 10 and post-v0.3.0
+Source audit: 2026-11-26, based on main through v0.5.0 preparation (PRs #69, #70, and #71, commit
+`3aa48a9`). This records implemented behavior across Phases 1 through 10 and post-v0.3.0
 wiring, security, editor UX, app icon updates, Android map cartography, native splash
 gating, worldwide online place search, Liquid Glass v2 tokens, E2E bugfixes,
 vertical recent destinations, cold-start splash night-mode sync, picker/attribution/empty-state
-UI polish, vector cold-start launch assets, and release binary slimming/cleanup. Notion
-requirements and historical Stitch mockups may include planned future enhancements.
+UI polish, vector cold-start launch assets, release binary slimming/cleanup, unified
+top-anchored search, pan-safe picker gestures, iOS location permission/recenter wiring,
+1-tap system dark toggle, editor auto-label/inline validation, transient failure
+snackbars, and ringing theme parity. Notion requirements and historical Stitch mockups
+may include planned future enhancements.
 
-## Release readiness (v0.4.3)
+## Release readiness (v0.5.0)
 
-Fjalar v0.4.3 ships core domain logic, Liquid Glass v2 UI (`#F2F3F8` Light canvas and
+Fjalar v0.5.0 ships core domain logic, Liquid Glass v2 UI (`#F2F3F8` Light canvas and
 `1 dp` pill rims), native startup splash with last-known-location viewport gating and
 unconditional API 31+ per-app night-mode sync, worldwide online place search
 (`PlaceSearchAdapter` with OSM Photon and Apple MapKit `MKLocalSearch`), vertical
-recent destinations in `SearchPlacesSheet` with browse/picker selection recording in
-`FjalarViewModel`, search-aware picker controls, symmetric-margin iOS map attribution
-clearance, bilingual transit localization with aligned empty-state copy, dynamic
-accessibility observation, wired background refresh and circular geofencing, explicit
-alarm editor save/discard confirmation, updated crowing-bolt app icons, zoom-tiered
+recent destinations in `SearchPlacesOverlay` (wrapping `SearchPlacesSheet`) with
+browse/picker selection recording in `FjalarViewModel`, pan-safe search-aware picker
+controls, symmetric-margin iOS map attribution clearance, iOS `CLLocationManager`
+permission and recenter wiring, 1-tap `ThemeMode.SYSTEM` switching in OS Dark Mode,
+bilingual transit localization with aligned empty-state copy, dynamic accessibility
+observation (including `AlarmActivity`), wired background refresh and circular
+geofencing, explicit alarm editor auto-label/inline validation/save/discard confirmation,
+transient `SnackbarHost` error notices, updated crowing-bolt app icons, zoom-tiered
 Android map POI labeling, and multiplatform release packaging:
 
 - **Bilingual transit (`en` & `id`)**: Full English and Bahasa Indonesia catalog parity across
@@ -167,7 +173,7 @@ unchanged. The radius slider spans
 50 m to 3 km, with 50 m, 100 m, 200 m, 300 m, 500 m, 1 km, 2 km, and 3 km presets
 arranged in two center-aligned equal-width 5-column rows (sub-km in row 1; 1–3 km in row 2). New alarms
 default to 100 m. The domain retains its 10 km maximum for saved alarms.
-`v0.4.3` adds no migration or clamping of existing values. Day chips use
+`v0.5.0` adds no migration or clamping of existing values. Day chips use
 `Mo Tu We Th Fr Sa Su` and `Sn Sl Rb Km Jm Sb Mg` across two center-aligned equal-width 5-column
 rows (`Mo–Fr` / `Sn–Jm` in row 1; `Sa–Su` / `Sb–Mg` in row 2). `AlarmCard` keeps compact metadata pills
 (`radius` and sound/vibration badges) in its metadata `FlowRow` and places the scheduled
@@ -407,6 +413,8 @@ and exit codes.
 | Ramus Cloud Android (`main` @ `9b76516` debug APK, 2026-11-24) | Verified end-to-end cloud Scenarios A–D: `EN <-> ID` switch, Carto Light <-> Dark live reload, `"Ma"` `<3` char gate, `"Manggarai"` and `"Shibuya Station"` search + `Metro / MRT` filter + `"zzzzqqqq"` empty state, vertical `Recent destinations` synced across Main Map and `MapPickerScreen`, geofence over streets/buildings, `200m` preset, `0 px` `Delete` shift on Skip, edit discard confirmation guard, alarm switch toggle, Delete returning to `No Alarms Yet`, and `0` `AndroidRuntime` crashes in `android_logcat`. |
 | `iPhone 17` Simulator (`iOS 27.2`, `main` @ `9b76516` & PR #64 `c6e18f3` debug `.app`, 2026-11-24) | Verified `LaunchScreen` Light/Dark appearances, live `MKLocalSearch` (`Manggarai`, `Stasiun Manggarai`, `Shibuya Station`, `Station`, `Train` filter, `"zxqjvkwp99123"` empty state), vertical `Recent destinations` synced across Main Map and `MapPickerScreen`, keyboard-open form layout on `ConfigureAlarmScreen` with bottom dock hidden, `200m` preset & scheduled day chips, `Alarms` Skip (`0.0 px` `Delete` shift), and edit discard guard on `9b76516`; visually confirmed on PR #64 (`c6e18f3`) that ` Maps Legal` clears above `FrostedBottomNavigationBar` (Light/Dark) and `✓ Choose destination` with centered crosshair/pin, `MapPickerScreen` HUD/CTA stay hidden behind `SearchPlacesSheet`, and `Saved Alarms` empty-state subtitle matches `+ Add Alarm` / `+ Tambah alarm`. |
 | `Medium_Phone_API_37.0`, `iPhone 17` Simulator & `main` @ `580dd4f` release packaging (PRs #66 & #67, 2026-11-25) | (a) PR #66 Swarm cold-start vector splash visual & PIL verification across all 4 OS × App `VectorDrawable` states on `Medium_Phone_API_37.0` (`325 × 449 px` mark, exact `#FFFFFF`/`#000000` backgrounds, transparent eye cutout, `0` crashes) and Light/Dark single-scale SVG `UILaunchScreen` states on `iPhone 17` (`257 × 355 px` mark, `"Preserved Vector Representation": true` in `Assets.car`); (b) PR #67 release binary measurements (`13.06 MiB` `arm64-v8a` Android release APK with `@raw/alarm` preserved via `keep.xml`, and `11.09 MiB` stripped iOS unsigned `.ipa` / `32.35 MiB` `Fjalar.app` with `ViewController.kt` & `composeResources` absent). |
+| Android API 37 Emulator (`Medium_Phone_API_37.0`, `main` @ `3aa48a9` debug APK & unsigned `arm64-v8a` release APK, 2026-11-26) | Verified 1-tap OS Dark→Light theme toggle, dark `glassModal` `LanguageDropdown`, `EN <-> ID` switch, top-anchored `SearchPlacesOverlay` with `mInputShown=true` keyboard auto-focus & live Photon results, Map Picker pan-safe pin/place-name preservation, editor auto-label from picked place name, inline `NO_DESTINATION` & `NAME_REQUIRED` error borders, `Discard changes?` dialog, and Save/Toggle/Delete back to `No Alarms Yet`. Measured unsigned `arm64-v8a` release APK at `13,697,888 B` (`13.06 MiB`). |
+| Ramus Cloud Android (`main` @ `3aa48a9` debug APK, 2026-11-26) | Verified install/launch, runtime permission prompts, Main Map top-anchored search + auto-focus typing + browse select, theme toggle, language dropdown, Map Picker search/recents/pan-preservation, and editor auto-label (`0` app crashes observed; session ended at Save due to monthly Ramus account quota exhaustion). |
 
 These observations do not establish map-bearing rotation or reproduce the earlier
 missing-pin report. Still unverified on Android: completing the locked-screen

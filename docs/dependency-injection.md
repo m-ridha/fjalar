@@ -28,7 +28,7 @@ Definitions live in `com.muhammadridha.fjalar.di`:
 | --- | --- | --- |
 | `persistenceModule` | `PersistentAlarmRepository`, `PersistentPreferencesAdapter`, and `PersistentRecentDestinationsAdapter`, exposed through their ports | Application singleton |
 | `alarmModule` | Mutable system timezone, schedule evaluator, one `AlarmService` (with optional `GeofencePort`), all inbound port bindings (including `HandleGeofenceTransitionPort`), and `SynchronizeAlarmsUseCase` | Application singleton; every inbound port aliases the same service |
-| `presentationModule` | `FjalarViewModel` (with optional `recentDestinationsPort` and `synchronizeAlarmsUseCase`) | ViewModel-store lifetime through Koin's ViewModel integration |
+| `presentationModule` | `FjalarViewModel` (with required `recentDestinationsPort` and `synchronizeAlarmsUseCase`) | ViewModel-store lifetime through Koin's ViewModel integration |
 | `androidPresentationModule` | Restricted alarm ViewModel with notification ID parameter | Activity ViewModel-store lifetime |
 | `androidPlatformModule` | SharedPreferences storage, `AndroidAccessibilityAdapter`, Android location, AlarmManager, ringer, `PlaceSearchAdapter` (`AndroidNominatimEngine`), `AndroidBackgroundSyncAdapter`, and `AndroidGeofenceAdapter` | Application singleton, application context only |
 | `iosPlatformModule` | NSUserDefaults storage, `IosAccessibilityAdapter`, CoreLocation, `IosSystemEvents`, background scheduler, ringer, `PlaceSearchAdapter` (`IosAppleLocalSearchEngine`), `IosBackgroundSyncAdapter`, and `IosRegionGeofenceAdapter` | Application singleton |
