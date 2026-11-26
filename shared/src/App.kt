@@ -12,6 +12,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun App(
     viewModel: FjalarViewModel = koinViewModel(),
     reducedTransparency: Boolean = isReduceTransparencyActive(),
+    suppressPermissionBanner: Boolean = false,
     onRequestPermission: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -19,6 +20,7 @@ fun App(
         viewModel = viewModel,
         modifier = modifier,
         reducedTransparency = reducedTransparency,
+        suppressPermissionBanner = suppressPermissionBanner,
         onRequestPermission = onRequestPermission,
     )
 }

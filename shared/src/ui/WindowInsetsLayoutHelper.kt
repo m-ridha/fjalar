@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -28,7 +29,7 @@ object WindowInsetsLayoutHelper {
 
     @Composable
     private fun controlSafeInsets(): WindowInsets =
-        WindowInsets.safeDrawing.union(LocalControlOcclusionInsets.current)
+        WindowInsets.safeDrawing.union(WindowInsets.statusBars).union(LocalControlOcclusionInsets.current)
 
     val DefaultHorizontalPadding: Dp = 16.dp
     val DefaultVerticalPadding: Dp = 8.dp

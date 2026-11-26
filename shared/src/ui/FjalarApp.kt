@@ -36,6 +36,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -97,6 +98,7 @@ fun FjalarApp(
     viewModel: FjalarViewModel,
     modifier: Modifier = Modifier,
     reducedTransparency: Boolean = isReduceTransparencyActive(),
+    suppressPermissionBanner: Boolean = false,
     onRequestPermission: (() -> Unit)? = null,
     navController: NavHostController = rememberNavController(),
 ) {
@@ -136,12 +138,23 @@ fun FjalarApp(
             ?: uiState.userLocation
             ?: GeoCoordinates(0.0, 0.0)
 
-        var permissionBannerDismissed by remember { mutableStateOf(false) }
+        var permissionBannerDismissed by rememberSaveable { mutableStateOf(false) }
+
+        val isMapPickerRoute = navBackStackEntry?.destination?.hasRoute<MapPickerRoute>() == true
+        LaunchedEffect(isMapPickerRoute) {
+            if (isMapPickerRoute) {
+                editorSnackbarHostState.currentSnackbarData?.dismiss()
+            }
+        }
 
         val editorNotice = uiState.pendingEditorNotice
         val editorNoticeId = uiState.pendingEditorNoticeId
-        val canShowEditorNotice = editorNotice == AlarmEditorNotice.UPDATE_FAILED ||
-            isBottomBarVisible(currentRoute) || uiState.activeDraft != null
+        val canShowEditorNotice = shouldDisplayEditorNotice(
+            notice = editorNotice,
+            isMapPickerRoute = isMapPickerRoute,
+            isBottomBarVisible = isBottomBarVisible(currentRoute),
+            hasActiveDraft = uiState.activeDraft != null,
+        )
         LaunchedEffect(editorNoticeId, editorNotice, canShowEditorNotice, uiState.appLocale) {
             if (editorNotice != null && canShowEditorNotice && editorNoticeId > lastQueuedEditorNoticeId) {
                 lastQueuedEditorNoticeId = editorNoticeId
@@ -235,7 +248,12 @@ fun FjalarApp(
                                     },
                                 )
 
-                                if (!uiState.hasLocationPermission && !permissionBannerDismissed) {
+                                if (shouldShowLocationPermissionBanner(
+                                        hasLocationPermission = uiState.hasLocationPermission,
+                                        permissionBannerDismissed = permissionBannerDismissed,
+                                        suppressPermissionBanner = suppressPermissionBanner,
+                                    )
+                                ) {
                                     Spacer(modifier = Modifier.height(6.dp))
                                     LocationPermissionBanner(
                                         onRequestPermission = { onRequestPermission?.invoke() },
@@ -623,3 +641,19 @@ internal fun editorNoticeStringKey(notice: AlarmEditorNotice): FjalarStringKey =
     AlarmEditorNotice.ALARM_DELETED -> FjalarStringKey.EDITOR_ALARM_DELETED
     AlarmEditorNotice.UPDATE_FAILED -> FjalarStringKey.EDITOR_UPDATE_FAILED
 }
+
+internal fun shouldDisplayEditorNotice(
+    notice: AlarmEditorNotice?,
+    isMapPickerRoute: Boolean,
+    isBottomBarVisible: Boolean,
+    hasActiveDraft: Boolean,
+): Boolean {
+    if (notice == null || isMapPickerRoute) return false
+    return notice == AlarmEditorNotice.UPDATE_FAILED || isBottomBarVisible || hasActiveDraft
+}
+
+internal fun shouldShowLocationPermissionBanner(
+    hasLocationPermission: Boolean,
+    permissionBannerDismissed: Boolean,
+    suppressPermissionBanner: Boolean,
+): Boolean = !hasLocationPermission && !permissionBannerDismissed && !suppressPermissionBanner

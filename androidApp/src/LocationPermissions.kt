@@ -41,3 +41,8 @@ internal fun shouldOpenBackgroundLocationSettings(
     backgroundRationale: Boolean,
 ): Boolean = !backgroundGranted && requestCompleted &&
     (apiLevel >= Build.VERSION_CODES.R || !backgroundRationale)
+
+internal fun shouldSuppressAndroidPermissionBanner(
+    showBackgroundRationale: Boolean,
+    isPermissionPromptInFlight: Boolean,
+): Boolean = showBackgroundRationale || isPermissionPromptInFlight

@@ -137,4 +137,12 @@ class LocationPermissionsTest {
             }
         }
     }
+
+    @Test
+    fun bannerIsSuppressedWhileBackgroundRationaleOrPermissionPromptIsActive() {
+        assertFalse(shouldSuppressAndroidPermissionBanner(showBackgroundRationale = false, isPermissionPromptInFlight = false))
+        assertTrue(shouldSuppressAndroidPermissionBanner(showBackgroundRationale = true, isPermissionPromptInFlight = false))
+        assertTrue(shouldSuppressAndroidPermissionBanner(showBackgroundRationale = false, isPermissionPromptInFlight = true))
+        assertTrue(shouldSuppressAndroidPermissionBanner(showBackgroundRationale = true, isPermissionPromptInFlight = true))
+    }
 }

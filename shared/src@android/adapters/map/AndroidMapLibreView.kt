@@ -66,7 +66,6 @@ fun AndroidMapLibreView(
     val currentOnUserCameraIdle by rememberUpdatedState(onUserCameraIdle)
     val currentOnMapClick by rememberUpdatedState(onMapClick)
     val currentOnPinDrag by rememberUpdatedState(onPinDrag)
-    val currentPinLocation by rememberUpdatedState(pinLocation)
     val currentOnBearingChanged by rememberUpdatedState(onBearingChanged)
     val currentIsDarkTheme by rememberUpdatedState(isDarkTheme)
 
@@ -112,53 +111,47 @@ fun AndroidMapLibreView(
         }
     }
 
-    // Touch-based pin dragging and long-click repositioning
-    val density = context.resources.displayMetrics.density
-    val touchSlopPx = 48f * density
-    var isDraggingPin by remember { mutableStateOf(false) }
+    // Long-press-only pin dragging so short swipes near center always pan smoothly.
+    val pinDragState = remember { PinDragGestureState() }
 
     DisposableEffect(mapView, mapLibreMap, destinationEditingEnabled) {
         if (!destinationEditingEnabled) {
             return@DisposableEffect onDispose {}
         }
         mapView.setOnTouchListener { v, event ->
-            val map = mapLibreMap
-            val activePin = currentPinLocation
-            if (map != null && activePin != null) {
-                val pinScreenPoint = with(AndroidMapRendererAdapter) {
-                    map.projection.toScreenLocation(activePin.toLatLng())
+            val map = mapLibreMap ?: return@setOnTouchListener false
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    if (pinDragState.shouldConsumeMove()) {
+                        val newLatLng = map.projection.fromScreenLocation(android.graphics.PointF(event.x, event.y))
+                        with(AndroidMapRendererAdapter) {
+                            currentOnPinDrag(newLatLng.toGeoCoordinates())
+                        }
+                        return@setOnTouchListener true
+                    }
                 }
-                val dx = event.x - pinScreenPoint.x
-                val dy = event.y - pinScreenPoint.y
-                val distance = kotlin.math.hypot(dx.toDouble(), dy.toDouble()).toFloat()
-
-                when (event.actionMasked) {
-                    android.view.MotionEvent.ACTION_DOWN -> {
-                        if (distance <= touchSlopPx) {
-                            isDraggingPin = true
-                            v.parent?.requestDisallowInterceptTouchEvent(true)
-                            return@setOnTouchListener true
+                android.view.MotionEvent.ACTION_UP -> {
+                    if (pinDragState.finishDrag(commit = true)) {
+                        v.parent?.requestDisallowInterceptTouchEvent(false)
+                        val newLatLng = map.projection.fromScreenLocation(android.graphics.PointF(event.x, event.y))
+                        with(AndroidMapRendererAdapter) {
+                            currentOnPinDrag(newLatLng.toGeoCoordinates())
                         }
+                        val cancelEvent = android.view.MotionEvent.obtain(event)
+                        try {
+                            cancelEvent.action = android.view.MotionEvent.ACTION_CANCEL
+                            v.onTouchEvent(cancelEvent)
+                        } finally {
+                            cancelEvent.recycle()
+                        }
+                        return@setOnTouchListener true
                     }
-                    android.view.MotionEvent.ACTION_MOVE -> {
-                        if (isDraggingPin) {
-                            val newLatLng = map.projection.fromScreenLocation(android.graphics.PointF(event.x, event.y))
-                            with(AndroidMapRendererAdapter) {
-                                currentOnPinDrag(newLatLng.toGeoCoordinates())
-                            }
-                            return@setOnTouchListener true
-                        }
-                    }
-                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
-                        if (isDraggingPin) {
-                            isDraggingPin = false
-                            v.parent?.requestDisallowInterceptTouchEvent(false)
-                            val newLatLng = map.projection.fromScreenLocation(android.graphics.PointF(event.x, event.y))
-                            with(AndroidMapRendererAdapter) {
-                                currentOnPinDrag(newLatLng.toGeoCoordinates())
-                            }
-                            return@setOnTouchListener true
-                        }
+                }
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    if (pinDragState.isDragging) {
+                        pinDragState.finishDrag(commit = false)
+                        v.parent?.requestDisallowInterceptTouchEvent(false)
+                        return@setOnTouchListener false
                     }
                 }
             }
@@ -166,7 +159,7 @@ fun AndroidMapLibreView(
         }
 
         onDispose {
-            isDraggingPin = false
+            pinDragState.reset()
             mapView.parent?.requestDisallowInterceptTouchEvent(false)
             mapView.setOnTouchListener(null)
         }
@@ -184,6 +177,8 @@ fun AndroidMapLibreView(
             true
         }
         val longClickListener = MapLibreMap.OnMapLongClickListener { latLng ->
+            pinDragState.beginLongPressDrag()
+            mapView.parent?.requestDisallowInterceptTouchEvent(true)
             with(AndroidMapRendererAdapter) {
                 currentOnPinDrag(latLng.toGeoCoordinates())
             }
@@ -299,4 +294,25 @@ fun AndroidMapLibreView(
         factory = { mapView },
         modifier = modifier,
     )
+}
+
+internal class PinDragGestureState {
+    var isDragging: Boolean = false
+        private set
+
+    fun beginLongPressDrag() {
+        isDragging = true
+    }
+
+    fun shouldConsumeMove(): Boolean = isDragging
+
+    fun finishDrag(commit: Boolean): Boolean {
+        if (!isDragging) return false
+        isDragging = false
+        return commit
+    }
+
+    fun reset() {
+        isDragging = false
+    }
 }

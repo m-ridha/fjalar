@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
@@ -110,21 +111,28 @@ class MainActivity : ComponentActivity() {
                 themeMode = permissionUiState.themeMode,
                 systemInDark = isSystemInDarkTheme(),
             ).isDark
-            SideEffect {
+            LaunchedEffect(isDarkTheme) {
                 // Update icons and the pre-29 navigation scrim together. Newer versions
                 // retain transparent gesture navigation and platform contrast protection.
                 enableEdgeToEdge(
-                    statusBarStyle = SystemBarStyle.auto(
-                        android.graphics.Color.TRANSPARENT,
-                        android.graphics.Color.TRANSPARENT,
-                    ) { isDarkTheme },
+                    statusBarStyle = if (isDarkTheme) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT,
+                        )
+                    },
                     navigationBarStyle = SystemBarStyle.auto(
                         LightLiquidGlassColors.canvas.toArgb(),
                         DarkLiquidGlassColors.canvas.toArgb(),
                     ) { isDarkTheme },
                 )
             }
-            var showBackgroundRationale by remember { mutableStateOf(false) }
+            var showBackgroundRationale by rememberSaveable { mutableStateOf(false) }
+            var isPermissionPromptInFlight by rememberSaveable {
+                mutableStateOf(!hasForegroundLocationPermission() && !isForegroundLocationPermanentlyDenied())
+            }
             val requiredPermissions = remember {
                 foregroundPermissions(Build.VERSION.SDK_INT)
             }
@@ -133,6 +141,7 @@ class MainActivity : ComponentActivity() {
             val backgroundPermissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestPermission(),
             ) { granted ->
+                isPermissionPromptInFlight = false
                 hasCompletedBackgroundPermissionRequest = !granted
                 refreshLocationPermissionState(viewModel)
                 if (hasForegroundLocationPermission()) {
@@ -142,6 +151,7 @@ class MainActivity : ComponentActivity() {
             val applicationSettingsLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.StartActivityForResult(),
             ) {
+                isPermissionPromptInFlight = false
                 refreshLocationPermissionState(viewModel)
                 if (hasForegroundLocationPermission()) {
                     requestMapLocation(viewModel)
@@ -150,6 +160,7 @@ class MainActivity : ComponentActivity() {
             val permissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestMultiplePermissions(),
             ) {
+                isPermissionPromptInFlight = false
                 val foregroundGranted = hasForegroundLocationPermission()
                 // A one-time grant can expire; only denials should retain the settings-recovery marker.
                 hasCompletedForegroundPermissionRequest = !foregroundGranted
@@ -160,6 +171,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             val requestForegroundPermission = {
+                isPermissionPromptInFlight = true
                 if (isForegroundLocationPermanentlyDenied()) {
                     applicationSettingsLauncher.launch(applicationDetailsSettingsIntent())
                 } else {
@@ -173,6 +185,8 @@ class MainActivity : ComponentActivity() {
                     // Settings recovery is user initiated through the permission banner.
                     if (!isForegroundLocationPermanentlyDenied()) {
                         requestForegroundPermission()
+                    } else {
+                        isPermissionPromptInFlight = false
                     }
                 } else {
                     requestMapLocation(viewModel)
@@ -202,6 +216,10 @@ class MainActivity : ComponentActivity() {
             FoldAwareControls(this@MainActivity) {
                 App(
                     viewModel = viewModel,
+                    suppressPermissionBanner = shouldSuppressAndroidPermissionBanner(
+                        showBackgroundRationale = showBackgroundRationale,
+                        isPermissionPromptInFlight = isPermissionPromptInFlight,
+                    ),
                     onRequestPermission = {
                         when (locationPermissionStep()) {
                             LocationPermissionStep.FOREGROUND -> requestForegroundPermission()
@@ -230,6 +248,7 @@ class MainActivity : ComponentActivity() {
                             when (locationPermissionStep()) {
                                 LocationPermissionStep.FOREGROUND -> requestForegroundPermission()
                                 LocationPermissionStep.BACKGROUND_RUNTIME -> {
+                                    isPermissionPromptInFlight = true
                                     if (isBackgroundLocationPermanentlyDenied()) {
                                         applicationSettingsLauncher.launch(applicationDetailsSettingsIntent())
                                     } else {
