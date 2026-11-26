@@ -91,6 +91,18 @@ class PlaceCategoryHeuristicsTest {
     }
 
     @Test
+    fun compoundBusAndMetroNamesPreferBusStop() {
+        assertEquals(
+            PlaceCategory.BUS_STOP,
+            PlaceCategoryHeuristics.refine("Metro Bus Station", PlaceCategory.TRANSIT_STOP),
+        )
+        assertEquals(
+            PlaceCategory.BUS_STOP,
+            PlaceCategoryHeuristics.refine("Halte MRT Lebak Bulus", PlaceCategory.TRANSIT_STOP),
+        )
+    }
+
+    @Test
     fun providerBusStopCategoryIsNotOverridden() {
         assertEquals(
             PlaceCategory.BUS_STOP,

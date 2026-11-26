@@ -60,11 +60,11 @@ object PlaceCategoryHeuristics {
             -> Unit
         }
 
-        if (METRO_KEYWORDS.any { name.contains(it, ignoreCase = true) }) {
-            return PlaceCategory.METRO_STATION
-        }
         if (BUS_KEYWORDS.any { name.contains(it, ignoreCase = true) }) {
             return PlaceCategory.BUS_STOP
+        }
+        if (METRO_KEYWORDS.any { name.contains(it, ignoreCase = true) }) {
+            return PlaceCategory.METRO_STATION
         }
         if (RAIL_KEYWORDS.any { name.contains(it, ignoreCase = true) }) {
             return PlaceCategory.TRAIN_STATION
