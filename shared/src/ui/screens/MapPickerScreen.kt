@@ -225,6 +225,7 @@ fun MapPickerScreen(
                         horizontal = 0.dp,
                         vertical = 0.dp,
                     )
+                    .then(WindowInsetsLayoutHelper.navigationBottomPaddingModifier())
                     .fillMaxWidth()
                     .padding(bottom = confirmBarHeight + 16.dp)
                     .verticalScroll(rememberScrollState()),
@@ -299,6 +300,7 @@ fun MapPickerScreen(
             Box(
                 modifier = WindowInsetsLayoutHelper
                     .navigationBottomPaddingModifier(Modifier.align(Alignment.BottomCenter))
+                    // Measure only the bar inside the safe rectangle; Column and IosMapKitAdapter add bottom safe insets separately.
                     .onSizeChanged { size ->
                         confirmBarHeight = with(density) { size.height.toDp() }
                     }

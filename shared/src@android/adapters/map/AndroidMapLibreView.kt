@@ -137,6 +137,13 @@ fun AndroidMapLibreView(
                         with(AndroidMapRendererAdapter) {
                             currentOnPinDrag(newLatLng.toGeoCoordinates())
                         }
+                        val cancelEvent = android.view.MotionEvent.obtain(event)
+                        try {
+                            cancelEvent.action = android.view.MotionEvent.ACTION_CANCEL
+                            v.onTouchEvent(cancelEvent)
+                        } finally {
+                            cancelEvent.recycle()
+                        }
                         return@setOnTouchListener true
                     }
                 }
@@ -144,7 +151,7 @@ fun AndroidMapLibreView(
                     if (pinDragState.isDragging) {
                         pinDragState.finishDrag(commit = false)
                         v.parent?.requestDisallowInterceptTouchEvent(false)
-                        return@setOnTouchListener true
+                        return@setOnTouchListener false
                     }
                 }
             }

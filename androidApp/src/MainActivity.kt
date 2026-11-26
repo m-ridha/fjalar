@@ -189,7 +189,6 @@ class MainActivity : ComponentActivity() {
                         isPermissionPromptInFlight = false
                     }
                 } else {
-                    isPermissionPromptInFlight = false
                     requestMapLocation(viewModel)
                 }
             }
