@@ -221,11 +221,12 @@ class AndroidNominatimEngine(
         return results
     }
 
-    private fun resolveCategory(categoryClass: String, type: String): PlaceCategory = when {
+    internal fun resolveCategory(categoryClass: String, type: String): PlaceCategory = when {
         type in listOf("subway", "subway_entrance", "metro_station") -> PlaceCategory.METRO_STATION
+        categoryClass == "bus_station" || type in listOf("bus_stop", "bus_station") -> PlaceCategory.BUS_STOP
         categoryClass == "railway" -> PlaceCategory.TRAIN_STATION
-        categoryClass in listOf("aeroway", "bus_station", "public_transport") ||
-            type in listOf("aerodrome", "bus_stop", "platform", "tram_stop", "ferry_terminal") -> PlaceCategory.TRANSIT_STOP
+        categoryClass in listOf("aeroway", "public_transport") ||
+            type in listOf("aerodrome", "platform", "tram_stop", "ferry_terminal") -> PlaceCategory.TRANSIT_STOP
         categoryClass in listOf("tourism", "historic", "attraction") -> PlaceCategory.LANDMARK
         else -> PlaceCategory.GENERAL
     }

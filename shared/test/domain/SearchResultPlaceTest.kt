@@ -117,9 +117,10 @@ class SearchResultPlaceTest {
     @Test
     fun allPlaceCategoriesAreRecognized() {
         val categories = PlaceCategory.entries
-        assertEquals(5, categories.size)
+        assertEquals(6, categories.size)
         assertTrue(categories.contains(PlaceCategory.TRAIN_STATION))
         assertTrue(categories.contains(PlaceCategory.METRO_STATION))
+        assertTrue(categories.contains(PlaceCategory.BUS_STOP))
         assertTrue(categories.contains(PlaceCategory.TRANSIT_STOP))
         assertTrue(categories.contains(PlaceCategory.LANDMARK))
         assertTrue(categories.contains(PlaceCategory.GENERAL))

@@ -20,7 +20,7 @@ import kotlin.coroutines.resume
 /**
  * iOS implementation of [OnlineGeocodingEngine] backed by MapKit [MKLocalSearch].
  *
- * MapKit returns point-of-interest categories, which keeps the Train/Metro/Transit filters
+ * MapKit returns point-of-interest categories, which keeps the Train/Metro/Bus/Transit filters
  * useful outside OSM-tagged results. Region bias stays approximate because the adapter rounds
  * the requested proximity before calling this engine.
  */

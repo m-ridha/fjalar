@@ -880,19 +880,26 @@ class FjalarViewModelTest {
             category = PlaceCategory.METRO_STATION,
             aliases = listOf("jakarta"),
         )
-        val transit = SearchResultPlace(
+        val bus = SearchResultPlace(
             id = "tj_harmoni",
-            name = "Harmoni Central Busway",
+            name = "Halte TransJakarta Harmoni",
             coordinates = GeoCoordinates(-6.16611, 106.82056),
+            category = PlaceCategory.BUS_STOP,
+            aliases = listOf("jakarta"),
+        )
+        val transit = SearchResultPlace(
+            id = "ferry_muara_angke",
+            name = "Muara Angke Ferry Terminal",
+            coordinates = GeoCoordinates(-6.10320, 106.77470),
             category = PlaceCategory.TRANSIT_STOP,
             aliases = listOf("jakarta"),
         )
-        val fakeSearchPort = FakeSearchPlacesPort(places = listOf(train, metro, transit))
+        val fakeSearchPort = FakeSearchPlacesPort(places = listOf(train, metro, bus, transit))
         val (viewModel, _, vmScope) = createTestViewModel(searchPlacesPort = fakeSearchPort)
         try {
             viewModel.onSearchQueryChanged("jakarta")
             testScheduler.advanceUntilIdle()
-            assertEquals(3, viewModel.uiState.value.searchResults.size)
+            assertEquals(4, viewModel.uiState.value.searchResults.size)
 
             viewModel.onSelectCategoryFilter(PlaceCategory.TRAIN_STATION)
             assertEquals(PlaceCategory.TRAIN_STATION, viewModel.uiState.value.selectedCategoryFilter)
@@ -904,9 +911,14 @@ class FjalarViewModelTest {
             assertEquals(1, viewModel.uiState.value.searchResults.size)
             assertEquals("mrt_bundaran_hi", viewModel.uiState.value.searchResults.first().id)
 
+            viewModel.onSelectCategoryFilter(PlaceCategory.BUS_STOP)
+            assertEquals(PlaceCategory.BUS_STOP, viewModel.uiState.value.selectedCategoryFilter)
+            assertEquals(1, viewModel.uiState.value.searchResults.size)
+            assertEquals("tj_harmoni", viewModel.uiState.value.searchResults.first().id)
+
             viewModel.onSelectCategoryFilter(null)
             assertNull(viewModel.uiState.value.selectedCategoryFilter)
-            assertEquals(3, viewModel.uiState.value.searchResults.size)
+            assertEquals(4, viewModel.uiState.value.searchResults.size)
         } finally {
             vmScope.cancel()
         }

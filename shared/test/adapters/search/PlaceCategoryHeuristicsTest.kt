@@ -63,6 +63,54 @@ class PlaceCategoryHeuristicsTest {
     }
 
     @Test
+    fun busNamesPromoteTransitStopsAndGeneralToBusStop() {
+        assertEquals(
+            PlaceCategory.BUS_STOP,
+            PlaceCategoryHeuristics.refine("Halte TransJakarta Harmoni", PlaceCategory.TRANSIT_STOP),
+        )
+        assertEquals(
+            PlaceCategory.BUS_STOP,
+            PlaceCategoryHeuristics.refine("Shinjuku Bus Station", PlaceCategory.GENERAL),
+        )
+        assertEquals(
+            PlaceCategory.BUS_STOP,
+            PlaceCategoryHeuristics.refine("Central Bus Stop", PlaceCategory.GENERAL),
+        )
+        assertEquals(
+            PlaceCategory.BUS_STOP,
+            PlaceCategoryHeuristics.refine("Harmoni Central Busway", PlaceCategory.TRANSIT_STOP),
+        )
+        assertEquals(
+            PlaceCategory.BUS_STOP,
+            PlaceCategoryHeuristics.refine("Bedok Bus Interchange", PlaceCategory.GENERAL),
+        )
+        assertEquals(
+            PlaceCategory.BUS_STOP,
+            PlaceCategoryHeuristics.refine("Arret de Bus Opera", PlaceCategory.GENERAL),
+        )
+    }
+
+    @Test
+    fun compoundBusAndMetroNamesPreferBusStop() {
+        assertEquals(
+            PlaceCategory.BUS_STOP,
+            PlaceCategoryHeuristics.refine("Metro Bus Station", PlaceCategory.TRANSIT_STOP),
+        )
+        assertEquals(
+            PlaceCategory.BUS_STOP,
+            PlaceCategoryHeuristics.refine("Halte MRT Lebak Bulus", PlaceCategory.TRANSIT_STOP),
+        )
+    }
+
+    @Test
+    fun providerBusStopCategoryIsNotOverridden() {
+        assertEquals(
+            PlaceCategory.BUS_STOP,
+            PlaceCategoryHeuristics.refine("Stasiun Bus Terminal", PlaceCategory.BUS_STOP),
+        )
+    }
+
+    @Test
     fun matchingIsCaseInsensitive() {
         assertEquals(
             PlaceCategory.TRAIN_STATION,
