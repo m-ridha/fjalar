@@ -296,7 +296,7 @@ object FjalarStrings {
         FjalarStringKey.PERM_BACKGROUND_SETTINGS_BODY to "Choose %s in the system location permission settings. You can skip this step and keep using the map, but scheduled alarms need background location.",
         FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION to "Continue",
 
-        FjalarStringKey.SEARCH_PLACEHOLDER to "Search stations, stops, or places...",
+        FjalarStringKey.SEARCH_PLACEHOLDER to "Search stations or places…",
         FjalarStringKey.SEARCH_CATEGORY_ALL to "All",
         FjalarStringKey.SEARCH_CATEGORY_TRAIN to "Train",
         FjalarStringKey.SEARCH_CATEGORY_METRO to "Metro / MRT",
@@ -461,7 +461,7 @@ object FjalarStrings {
         FjalarStringKey.PERM_BACKGROUND_SETTINGS_BODY to "Pilih %s di pengaturan izin lokasi sistem. Peta tetap dapat digunakan tanpa izin ini, tetapi alarm terjadwal memerlukan lokasi latar belakang.",
         FjalarStringKey.PERM_BACKGROUND_SETTINGS_ACTION to "Lanjutkan",
 
-        FjalarStringKey.SEARCH_PLACEHOLDER to "Cari stasiun, halte, atau tempat...",
+        FjalarStringKey.SEARCH_PLACEHOLDER to "Cari stasiun atau tempat…",
         FjalarStringKey.SEARCH_CATEGORY_ALL to "Semua",
         FjalarStringKey.SEARCH_CATEGORY_TRAIN to "Kereta",
         FjalarStringKey.SEARCH_CATEGORY_METRO to "Metro / MRT",

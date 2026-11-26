@@ -219,15 +219,20 @@ fun MapPickerScreen(
         if (shouldShowMapPickerControls(isSearchVisible)) {
             // Header and map controls share the fold/cutout-safe scroll rectangle.
             Column(
-                modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier)
+                modifier = WindowInsetsLayoutHelper
+                    .hudTopPaddingModifier(
+                        modifier = Modifier.align(Alignment.TopCenter),
+                        horizontal = 0.dp,
+                        vertical = 0.dp,
+                    )
                     .fillMaxWidth()
-                    .padding(bottom = 100.dp)
+                    .padding(bottom = confirmBarHeight + 16.dp)
                     .verticalScroll(rememberScrollState()),
             ) {
                 Row(
-                    modifier = WindowInsetsLayoutHelper
-                        .hudTopPaddingModifier(Modifier)
-                        .fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

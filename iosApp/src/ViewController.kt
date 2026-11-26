@@ -1,7 +1,10 @@
 package com.muhammadridha.fjalar
 
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.ComposeUIViewController
 import com.muhammadridha.fjalar.ui.FjalarViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -33,12 +36,17 @@ internal fun isAlwaysLocationAuthorized(status: CLAuthorizationStatus): Boolean 
 private fun isForegroundLocationAuthorized(status: CLAuthorizationStatus): Boolean =
     status == kCLAuthorizationStatusAuthorizedAlways || status == kCLAuthorizationStatusAuthorizedWhenInUse
 
+internal fun shouldSuppressIosPermissionBanner(status: CLAuthorizationStatus): Boolean =
+    status == kCLAuthorizationStatusNotDetermined
+
 fun ViewController(): UIViewController = ComposeUIViewController {
     val viewModel: FjalarViewModel = koinViewModel()
     val permissionManager = remember { CLLocationManager() }
+    var authorizationStatus by remember { mutableStateOf(permissionManager.authorizationStatus) }
 
     fun refreshLocationPermissionState() {
         val status = permissionManager.authorizationStatus
+        authorizationStatus = status
         val granted = isAlwaysLocationAuthorized(status)
         val previouslyGranted = viewModel.uiState.value.hasLocationPermission
         viewModel.onPermissionResult(granted)
@@ -136,6 +144,7 @@ fun ViewController(): UIViewController = ComposeUIViewController {
 
     App(
         viewModel = viewModel,
+        suppressPermissionBanner = shouldSuppressIosPermissionBanner(authorizationStatus),
         onRequestPermission = {
             when (permissionManager.authorizationStatus) {
                 kCLAuthorizationStatusNotDetermined,
