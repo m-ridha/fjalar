@@ -104,11 +104,16 @@ for raw_path in plist_paths:
         plistlib.dump(data, handle, fmt=fmt)
 PY
 
-# Strip empty compose-resources stubs (retain if any actual resource files are present).
-compose_res_dir="$staging_dir/Payload/Fjalar.app/compose-resources"
-if [ -d "$compose_res_dir" ] && [ -z "$(find "$compose_res_dir" -type f -print -quit)" ]; then
-  rm -rf "$compose_res_dir"
-fi
+# Prune empty compose-resources directory trees without removing any bundled files/symlinks.
+prune_empty_compose_resources() {
+  local dir="$1"
+  if [ -d "$dir" ] && [ -z "$(find "$dir" -mindepth 1 \( -type f -o -type l \) -print -quit)" ]; then
+    rm -rf "$dir"
+  fi
+}
+
+prune_empty_compose_resources "$archive_dir/Products/Applications/Fjalar.app/compose-resources"
+prune_empty_compose_resources "$staging_dir/Payload/Fjalar.app/compose-resources"
 
 ios_binary="$staging_dir/Payload/Fjalar.app/Fjalar"
 if [ -f "$ios_binary" ] && python3 -c 'import sys
