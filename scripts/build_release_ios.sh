@@ -104,6 +104,12 @@ for raw_path in plist_paths:
         plistlib.dump(data, handle, fmt=fmt)
 PY
 
+# Strip empty compose-resources stubs (retain if any actual resource files are present).
+compose_res_dir="$staging_dir/Payload/Fjalar.app/compose-resources"
+if [ -d "$compose_res_dir" ] && [ -z "$(find "$compose_res_dir" -type f -print -quit)" ]; then
+  rm -rf "$compose_res_dir"
+fi
+
 ios_binary="$staging_dir/Payload/Fjalar.app/Fjalar"
 if [ -f "$ios_binary" ] && python3 -c 'import sys
 with open(sys.argv[1], "rb") as f:

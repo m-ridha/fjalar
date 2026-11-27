@@ -8,3 +8,9 @@ dependencies:
 
 settings:
   compose: enabled
+
+settings@iosArm64:
+  kotlin:
+    freeCompilerArgs:
+      - -Xbinary=smallBinary=true
+      - -Xbinary=runtimeAssertionsMode=ignore

@@ -187,6 +187,8 @@ class BuildReleaseIosTest(unittest.TestCase):
         self.assertIn("DEPLOYMENT_POSTPROCESSING = YES;", pbxproj)
         self.assertIn("STRIP_INSTALLED_PRODUCT = YES;", pbxproj)
         self.assertIn('STRIP_STYLE = "non-global";', pbxproj)
+        self.assertIn("GCC_OPTIMIZATION_LEVEL = s;", pbxproj)
+        self.assertIn('SWIFT_OPTIMIZATION_LEVEL = "-Osize";', pbxproj)
         self.assertIn("ENABLE_PREVIEWS = NO;", pbxproj)
 
 
