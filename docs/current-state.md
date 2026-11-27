@@ -1,31 +1,32 @@
 # Current project state
 
-Source audit: 2026-11-26, based on main through v0.5.0 preparation (PRs #69, #70, and #71, commit
-`3aa48a9`). This records implemented behavior across Phases 1 through 10 and post-v0.3.0
+Source audit: 2026-11-27, based on main through PRs #73–#77, commit
+`e8845a0`). This records implemented behavior across Phases 1 through 10 and post-v0.3.0
 wiring, security, editor UX, app icon updates, Android map cartography, native splash
-gating, worldwide online place search, Liquid Glass v2 tokens, E2E bugfixes,
-vertical recent destinations, cold-start splash night-mode sync, picker/attribution/empty-state
-UI polish, vector cold-start launch assets, release binary slimming/cleanup, unified
-top-anchored search, pan-safe picker gestures, iOS location permission/recenter wiring,
-1-tap system dark toggle, editor auto-label/inline validation, transient failure
-snackbars, and ringing theme parity. Notion requirements and historical Stitch mockups
-may include planned future enhancements.
+gating, worldwide online place search (`Bus Stop` / `Halte Bus` + category-filtered
+`Recent destinations`), Liquid Glass v2 tokens, multi-device E2E polish, stationary-space
+Slide-to-Stop drag tracking, sibling ringing backdrop scrim, and release binary size
+optimization. Notion requirements and historical Stitch mockups may include planned future
+enhancements.
 
-## Release readiness (v0.5.0)
+## Release readiness (v0.5.1)
 
-Fjalar v0.5.0 ships core domain logic, Liquid Glass v2 UI (`#F2F3F8` Light canvas and
+Fjalar v0.5.1 ships core domain logic, Liquid Glass v2 UI (`#F2F3F8` Light canvas and
 `1 dp` pill rims), native startup splash with last-known-location viewport gating and
 unconditional API 31+ per-app night-mode sync, worldwide online place search
-(`PlaceSearchAdapter` with OSM Photon and Apple MapKit `MKLocalSearch`), vertical
+(`PlaceSearchAdapter` with OSM Photon and Apple MapKit `MKLocalSearch`, including
+`Bus Stop` / `Halte Bus` filtering across live results and `Recent destinations`), vertical
 recent destinations in `SearchPlacesOverlay` (wrapping `SearchPlacesSheet`) with
 browse/picker selection recording in `FjalarViewModel`, pan-safe search-aware picker
 controls, symmetric-margin iOS map attribution clearance, iOS `CLLocationManager`
-permission and recenter wiring, 1-tap `ThemeMode.SYSTEM` switching in OS Dark Mode,
-bilingual transit localization with aligned empty-state copy, dynamic accessibility
-observation (including `AlarmActivity`), wired background refresh and circular
-geofencing, explicit alarm editor auto-label/inline validation/save/discard confirmation,
-transient `SnackbarHost` error notices, updated crowing-bolt app icons, zoom-tiered
-Android map POI labeling, and multiplatform release packaging:
+permission and recenter wiring, undetermined/in-flight permission banner suppression,
+1-tap `ThemeMode.SYSTEM` switching in OS Dark Mode, bilingual transit localization with
+aligned empty-state copy, dynamic accessibility observation (including `AlarmActivity`),
+wired background refresh and circular geofencing, explicit alarm editor auto-label/inline
+validation/save/discard confirmation, transient `SnackbarHost` error notices, stationary-
+coordinate `SlideToStopTrack` dismissal over a behind-content `0.94f` backdrop scrim,
+updated crowing-bolt app icons, zoom-tiered Android map POI labeling, and size-optimized
+multiplatform release packaging:
 
 - **Bilingual transit (`en` & `id`)**: Full English and Bahasa Indonesia catalog parity across
   UI, day chips (`Mo..Su` / `Sn..Mg`), notifications, unsaved-changes discard dialog, and
@@ -128,7 +129,10 @@ name. Picker search updates its candidate selection (`onConfirmSelection`), whic
 commits to the draft and records named picks once to `RecentDestinationsPort` with
 canonical `placeId` only when confirmed (unnamed coordinate-only pins are not
 recorded, and blank draft labels auto-fill from non-blank place names). Cancel
-returns without changing the draft.
+returns without changing the draft. On Android, `AndroidMapLibreView` uses
+long-press-only pin dragging (`PinDragGestureState`) without hijacking short
+center-origin pans on `ACTION_DOWN` and resets MapLibre gesture state cleanly via
+synthetic `ACTION_CANCEL` on release.
 
 The picker frames a visit from the draft destination, then the current fix, then
 the last map viewport the user browsed (center and zoom), then the route arguments.
@@ -136,16 +140,22 @@ It uses zoom 15 for a destination or fix and the browsed zoom otherwise. The mai
 map records settled user pans and zooms for that fallback. A recenter tapped before
 the first fix stays pending and consumes the first arriving fix unless superseded by a
 browse search selection, user map pan/zoom, or opening an alarm editor. The picker counts
-as a visible map for map-only location tracking. `shouldShowMapPickerControls(isSearchVisible)`
+as a visible map for map-only location tracking. `WindowInsetsLayoutHelper` unions
+`WindowInsets.statusBars` into `controlSafeInsets()`, and `MapPickerScreen` applies
+`hudTopPaddingModifier` and `navigationBottomPaddingModifier` once on the outer top HUD
+`Column` (keeping `confirmBarHeight` measured inside `navigationBottomPaddingModifier()`).
+`shouldShowMapPickerControls(isSearchVisible)`
 in `MapPickerScreen` hides the top HUD pills (Back, hint pill, `SearchTriggerPill`),
-`MapNavigationControls`, and bottom `Choose destination` CTA while `SearchPlacesOverlay`
+`MapPickerScreen`'s top controls (`MapNavigationControls`), and bottom `Choose destination` CTA while `SearchPlacesOverlay`
 is open (keeping `SearchBackHandler` active), preventing controls from bleeding through
 behind the search overlay. `SearchPlacesOverlay` wraps `SearchPlacesSheet` in a shared
 top-anchored full-screen frosted overlay (`AnimatedVisibility` with `fadeIn`/`slideInVertically`,
 click-absorbing backdrop, `48.dp` `←` Back button, auto-focused `BasicTextField`,
-fixed `48.dp` `✕` Clear slot, category chips, and a single `Modifier.weight(1f)` `LazyColumn`
+fixed `48.dp` `✕` Clear slot, `selectable` category chips, and a single `Modifier.weight(1f)` `LazyColumn`
 with safe-drawing/IME insets) across both Main Map (hiding `FrostedBottomNavigationBar`)
-and `MapPickerScreen`.
+and `MapPickerScreen`; navigating to `MapPickerRoute` immediately dismisses any active
+Configure validation snackbar via `shouldDisplayEditorNotice(...)` so it never covers the
+picker CTA.
 
 Configure Alarm has an enabled toggle, applied when saving. Explicit `Save` shows a
 pending progress indicator, validates in place (highlighting `NAME_REQUIRED` on the
@@ -155,7 +165,13 @@ drafts open with a localized snackbar reason, and retains the editor for retry i
 persistence fails. Non-ringing mutation failures (`onToggleAlarm`, `onSkipToday`,
 `onDeleteAlarm`, `onSelectLocale`) also surface via transient `SnackbarHost` notices
 rather than sticky screen banners, while `RingingAlertOverlay` keeps its dedicated
-ringing error guidance. `AlarmActivity` wraps its restricted keyguard UI in
+ringing error guidance. On `MapRoute`, `shouldShowLocationPermissionBanner(...)` suppresses
+`LocationPermissionBanner` (whose dismiss state and Android rationale survive rotation via
+`rememberSaveable`) while an initial OS foreground prompt is undetermined/in-flight
+(`shouldSuppressAndroidPermissionBanner` / `shouldSuppressIosPermissionBanner`) or while
+Android `BackgroundLocationPermissionDialog` is displayed. `MainActivity` sets
+`android:windowSoftInputMode="adjustResize"` and updates `enableEdgeToEdge(...)` via
+`LaunchedEffect(isDarkTheme)` with explicit `SystemBarStyle.light`/`SystemBarStyle.dark`. `AlarmActivity` wraps its restricted keyguard UI in
 `FoldAwareControls` with `isReduceTransparencyActive()` and `SystemBarStyle` light/dark
 icon sync. On iOS, `ViewController.kt` reports `CLLocationManager.authorizationStatus`
 (`kCLAuthorizationStatusAuthorizedAlways`) into `onPermissionResult`/`onLocationAccessChecked`,
@@ -327,7 +343,7 @@ be verified:
 - **Alarm Card (`AlarmCard`)**: Merges descendants (`mergeDescendants = true`) into a single natural speech description including alarm label, address, schedule/one-time trip, trigger radius, sound/vibration mode, and active/completed/disabled status. Action buttons (Delete, Skip Today) provide distinct, labeled announcements (`ACCESSIBLE_DELETE_ALARM`).
 - **HUD & Navigation Controls (`FloatingHudBar`, `MapNavigationControls`, `ArmedStatusPill`, `FrostedBottomNavigationBar`)**: `ArmedStatusPill` announces commute monitoring state (`ACCESSIBLE_ARMED_STATE`); `MapCompassControl` calculates dynamic speech descriptions with normalized integer bearings and cardinal/intercardinal direction names (`ACCESSIBLE_COMPASS_BEARING`); `MapRecenterControl`, the HUD Search Pill, `LanguageDropdown`, and Theme Toggle keep `Role.Button` semantics and localized `contentDescription` on their clickable containers while clearing decorative/redundant child `Text` nodes (`"🔍"`, search placeholder text, `"🌐 EN ▾"`, `"🌙"` / `"☀️"`) with `clearAndSetSemantics {}` without stripping `OnClick` semantics. `FrostedBottomNavigationBar` clears inner emoji and duplicate label `Text` semantics on `NavTabItem` (`Role.Tab`) and only mounts on verified `MapRoute` or `AlarmsRoute` destinations so soft-keyboard resizing never surfaces it on `ConfigureRoute`.
 - **Alarm Editor (`ConfigureAlarmScreen`)**: Radius slider exposes natural content description (`ACCESSIBLE_RADIUS_SLIDER`) and tabular state description (`stateDescription`); radius presets use `Role.RadioButton`; day-of-week chips use `Role.Checkbox` with localized day abbreviations (`DAY_NAME_*`: `Mon..Sun` in EN, `Sn..Mg` in ID) and selection state descriptions (`ACCESSIBLE_DAY_SELECTED` / `ACCESSIBLE_DAY_NOT_SELECTED`).
-- **Map Picker & Ringing Alert (`MapPickerScreen`, `RingingAlertOverlay`)**: Map Picker's center crosshair clears child semantics (`clearAndSetSemantics`) to announce placement instructions, and its confirmation `Button` keeps `.semantics { role = Role.Button; contentDescription = ... }` (`ACCESSIBLE_PICKER_CONFIRM`) while clearing the child `"✓ ..."` `Text` node with `clearAndSetSemantics {}` so `OnClick` and `Disabled` semantics remain intact without speaking `"✓"` or duplicating the label. `RingingAlertOverlay` clears the decorative `"📍"` radar glyph via `clearAndSetSemantics {}`.
+- **Map Picker & Ringing Alert (`MapPickerScreen`, `RingingAlertOverlay`, `SlideToStopTrack`)**: Map Picker's center crosshair clears child semantics (`clearAndSetSemantics`) to announce placement instructions, and its confirmation `Button` keeps `.semantics { role = Role.Button; contentDescription = ... }` (`ACCESSIBLE_PICKER_CONFIRM`) while clearing the child `"✓ ..."` `Text` node with `clearAndSetSemantics {}` so `OnClick` and `Disabled` semantics remain intact without speaking `"✓"` or duplicating the label. `RingingAlertOverlay` clears the decorative `"📍"` radar glyph via `clearAndSetSemantics {}` and separates its `0.94f` backdrop scrim (`ringingOverlayBackdropColor`) and `Main`-pass pointer absorber onto a behind-content sibling `Box` so pre-slop small drags on `SlideToStopTrack` are never consumed by an ancestor. `SlideToStopTrack` measures drags in stationary track coordinates via `StationarySlideDragTracker`, supporting `LayoutDirection.Rtl`, disabled mid-gesture anchor rebasing, post-completion `updateDrag` regression guards, and active pointer-ID swap cancellation while preserving two-step `Role.Button` / `AccessibleStopConfirmation` semantics.
 Primary HUD, navigation, card, editor, and ringing-alert controls (including Snooze with
 `heightIn(min = 48.dp)`) enforce `>= 48 dp` minimum touch targets.
 
@@ -346,10 +362,13 @@ places (roughly 1 km), never the precise position. Ranking uses the exact unroun
 coordinates on-device with `HaversineCalculator` (falling back to the current map
 viewport center when a live 30 s location fix expires so search distance badges stay
 visible). Provider results, the query, and the
-coarse coordinates are never persisted. Category chips (All, Train, Metro, Transit) are
-best-effort client-side filters driven by provider categories plus
-`PlaceCategoryHeuristics`; places without matching metadata stay in the general or
-transit-stop bucket. Offline, a non-blank query returns no results while recents and map
+coarse coordinates are never persisted. Category chips (`All`, `Train`, `Metro / MRT`,
+`Bus Stop` / `Halte Bus`, `Transit`, with `Role.RadioButton` `selectable` semantics)
+filter both live search results and blank-query `Recent destinations` via
+`filterRecentDestinations(...)` and `shouldShowEmptyFilteredRecents(...)`; `AndroidNominatimEngine`
+maps OSM `highway=bus_stop` / `amenity=bus_station` tags directly to `PlaceCategory.BUS_STOP`,
+while `PlaceCategoryHeuristics` checks `BUS_KEYWORDS` before `METRO_KEYWORDS` and
+`RAIL_KEYWORDS`. Offline, a non-blank query returns no results while recents and map
 taps keep working.
 
 The map picker and place search also support recent destination quick-picks
@@ -373,11 +392,15 @@ classes stay constructor-injected. Persistence is JSON in platform key-value
 storage. See [Dependency injection](dependency-injection.md).
 
 For published releases with valid version tags, the `android` job builds a
-signed `arm64-v8a` APK (with R8 shrinking guided by `androidApp/res/raw/keep.xml` and
-`DebugProbesKt.bin` excluded) and the `verify` job runs multiplatform verification (`./kotlin test`,
-`./kotlin check`) plus unsigned physical-device iOS packaging
-(`scripts/build_release_ios.sh`, stripping Mach-O symbols with `xcrun strip -rSTx`, excluding
-`ViewController.kt` from app bundle resources, and disabling Release SwiftUI previews). After both jobs pass, the `publish` job verifies
+signed `arm64-v8a` APK (with R8 shrinking guided by `androidApp/res/raw/keep.xml`,
+16 KB page-aligned `libmaplibre.so`, and `DebugProbesKt.bin` plus unused `META-INF`
+metadata excluded in `androidApp/module.yaml`) and the `verify` job runs multiplatform
+verification (`./kotlin test`, `./kotlin check`) plus unsigned physical-device iOS packaging
+(`scripts/build_release_ios.sh`, compiling `iosArm64` with `-Xbinary=smallBinary=true` in
+`iosApp/module.yaml`, Release `GCC_OPTIMIZATION_LEVEL = s` / `SWIFT_OPTIMIZATION_LEVEL = "-Osize"`,
+stripping Mach-O symbols with `xcrun strip -rSTx`, pruning empty `compose-resources`
+stubs from both `.xcarchive` and `.ipa`, excluding `ViewController.kt` from app bundle
+resources, and disabling Release SwiftUI previews). After both jobs pass, the `publish` job verifies
 and attaches the signed Android APK (`fjalar-<tag>-android.apk`), `SHA256SUMS.txt`,
 unsigned iOS IPA (`fjalar-<tag>-ios-unsigned.ipa`), and `SHA256SUMS-ios.txt` via
 `scripts/upload_release_assets.py`. Signed App Store / TestFlight distribution is not
