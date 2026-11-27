@@ -420,7 +420,8 @@ class FjalarViewModel(
             it.copy(
                 searchQuery = query,
                 isSearching = false,
-                isSearchSettled = false,
+                isSearchSettled = it.isSearchSettled &&
+                    it.searchQuery.trim().length >= PlaceSearchAdapter.MIN_QUERY_LENGTH,
             )
         }
         searchJob = scope.launch {

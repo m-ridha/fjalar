@@ -1018,7 +1018,7 @@ class FjalarViewModelTest {
             // Typing a longer query retains prior results until the next debounced fetch settles.
             viewModel.onSearchQueryChanged("Sudi")
             assertFalse(viewModel.uiState.value.isSearching)
-            assertFalse(viewModel.uiState.value.isSearchSettled)
+            assertTrue(viewModel.uiState.value.isSearchSettled)
             assertEquals(listOf(sudirman), viewModel.uiState.value.searchResults)
 
             testScheduler.advanceTimeBy(FjalarViewModel.SEARCH_DEBOUNCE_MILLIS)
@@ -1038,6 +1038,43 @@ class FjalarViewModelTest {
         } finally {
             firstResponse.complete(emptyList())
             secondResponse.complete(emptyList())
+            vmScope.cancel()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun settledEmptySearchKeepsIsSearchSettledTrueAcrossLongQueryEdits() = runTest {
+        val fakeSearchPort = FakeSearchPlacesPort(places = emptyList())
+        val (viewModel, _, vmScope) = createTestViewModel(searchPlacesPort = fakeSearchPort)
+        try {
+            viewModel.onOpenSearch(PlaceSearchContext.BROWSE)
+
+            // 2 -> 3 keeps isSearchSettled false so matching recents bridge smoothly until results arrive.
+            viewModel.onSearchQueryChanged("Ga")
+            assertFalse(viewModel.uiState.value.isSearchSettled)
+            viewModel.onSearchQueryChanged("Gam")
+            assertFalse(viewModel.uiState.value.isSearchSettled)
+            assertFalse(viewModel.uiState.value.isSearching)
+
+            testScheduler.advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.isSearchSettled)
+            assertTrue(viewModel.uiState.value.searchResults.isEmpty())
+
+            // Continuing or backspacing while staying >= 3 chars keeps isSearchSettled true so recents do not bounce back.
+            viewModel.onSearchQueryChanged("Gamb")
+            assertFalse(viewModel.uiState.value.isSearching)
+            assertTrue(viewModel.uiState.value.isSearchSettled)
+
+            viewModel.onSearchQueryChanged("Gam")
+            assertFalse(viewModel.uiState.value.isSearching)
+            assertTrue(viewModel.uiState.value.isSearchSettled)
+
+            // Dropping below 3 chars resets isSearchSettled so quick picks reappear cleanly.
+            viewModel.onSearchQueryChanged("Ga")
+            assertFalse(viewModel.uiState.value.isSearching)
+            assertFalse(viewModel.uiState.value.isSearchSettled)
+        } finally {
             vmScope.cancel()
         }
     }
