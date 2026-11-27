@@ -90,23 +90,26 @@ fun RingingAlertOverlay(
 
     val distanceText = ringingDistanceText(if (hideDestinationDetails) null else distanceMeters, LiquidGlassTheme.locale)
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(ringingOverlayBackdropColor(colors))
-            .glassSurface(level = GlassLevel.MODAL, shape = RectangleShape)
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        event.changes.forEach { change ->
-                            if (!change.isConsumed) change.consume()
+    Box(modifier = modifier.fillMaxSize()) {
+        // Keep backdrop scrim and pointer absorption on a behind-content sibling Box so
+        // pre-slop small moves on SlideToStopTrack are never consumed by an ancestor.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(ringingOverlayBackdropColor(colors))
+                .glassSurface(level = GlassLevel.MODAL, shape = RectangleShape)
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            event.changes.forEach { change ->
+                                if (!change.isConsumed) change.consume()
+                            }
+                            if (event.changes.none { it.pressed }) break
                         }
-                        if (event.changes.none { it.pressed }) break
                     }
-                }
-            },
-    ) {
+                },
+        )
         Column(
             modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier.fillMaxSize())
                 .padding(horizontal = 24.dp, vertical = 32.dp),
