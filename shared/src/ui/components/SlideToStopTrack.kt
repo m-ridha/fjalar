@@ -93,6 +93,7 @@ class SlideToStopState(
     }
 
     fun updateDrag(rawPx: Float, maxPx: Float) {
+        if (completionEmitted) return
         if (maxPx <= 0f) {
             dragFraction = 0f
             return
@@ -174,7 +175,8 @@ fun SlideToStopTrack(
                 .pointerInput(state, maxDragPx, thumbSizePx, thumbHitPaddingPx) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
-                        if (!isWithinThumbHitTarget(
+                        if (!currentEnabled ||
+                            !isWithinThumbHitTarget(
                                 touchX = down.position.x,
                                 dragFraction = state.dragFraction,
                                 maxDragPx = maxDragPx,

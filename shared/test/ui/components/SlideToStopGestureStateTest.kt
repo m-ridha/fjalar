@@ -125,4 +125,25 @@ class SlideToStopGestureStateTest {
         assertTrue(state.checkThresholdAndResolve { stops++ })
         assertEquals(1, stops)
     }
+
+    @Test
+    fun updateDragAfterCompletionDoesNotRegressDragFraction() {
+        val state = SlideToStopState()
+        state.updateDrag(100f, 100f)
+        assertTrue(state.checkThresholdAndResolve {})
+
+        state.updateDrag(0f, 100f)
+        assertEquals(1.0f, state.dragFraction)
+        state.dragBy(-50f, 100f)
+        assertEquals(1.0f, state.dragFraction)
+    }
+
+    @Test
+    fun thumbHitTargetExactEdgesWithPaddingAreInclusive() {
+        // With dragFraction = 0.5f, maxDragPx = 200f, thumbStart = 100f, thumbEnd = 152f.
+        assertTrue(isWithinThumbHitTarget(touchX = 92f, dragFraction = 0.5f, maxDragPx = 200f, thumbSizePx = 52f, hitPaddingPx = 8f))
+        assertTrue(isWithinThumbHitTarget(touchX = 160f, dragFraction = 0.5f, maxDragPx = 200f, thumbSizePx = 52f, hitPaddingPx = 8f))
+        assertFalse(isWithinThumbHitTarget(touchX = 91.9f, dragFraction = 0.5f, maxDragPx = 200f, thumbSizePx = 52f, hitPaddingPx = 8f))
+        assertFalse(isWithinThumbHitTarget(touchX = 160.1f, dragFraction = 0.5f, maxDragPx = 200f, thumbSizePx = 52f, hitPaddingPx = 8f))
+    }
 }

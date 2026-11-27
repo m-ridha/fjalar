@@ -8,7 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -95,7 +95,17 @@ fun RingingAlertOverlay(
             .fillMaxSize()
             .background(ringingOverlayBackdropColor(colors))
             .glassSurface(level = GlassLevel.MODAL, shape = RectangleShape)
-            .pointerInput(Unit) { detectTapGestures { } },
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        event.changes.forEach { change ->
+                            if (!change.isConsumed) change.consume()
+                        }
+                        if (event.changes.none { it.pressed }) break
+                    }
+                }
+            },
     ) {
         Column(
             modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier.fillMaxSize())
