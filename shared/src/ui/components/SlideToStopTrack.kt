@@ -1,7 +1,10 @@
 package com.muhammadridha.fjalar.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -35,6 +39,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
@@ -51,6 +56,66 @@ fun isSlideToStopSatisfied(
     dragFraction: Float,
     threshold: Float = SLIDE_TO_STOP_THRESHOLD,
 ): Boolean = dragFraction >= threshold
+
+internal fun isWithinThumbHitTarget(
+    touchX: Float,
+    dragFraction: Float,
+    maxDragPx: Float,
+    thumbSizePx: Float,
+    hitPaddingPx: Float = 0f,
+    isRtl: Boolean = false,
+): Boolean {
+    if (thumbSizePx <= 0f) return false
+    val safeMaxDragPx = maxDragPx.coerceAtLeast(0f)
+    val thumbStart = if (isRtl) {
+        safeMaxDragPx * (1f - dragFraction)
+    } else {
+        safeMaxDragPx * dragFraction
+    }
+    val thumbEnd = thumbStart + thumbSizePx
+    return touchX in (thumbStart - hitPaddingPx)..(thumbEnd + hitPaddingPx)
+}
+
+internal class StationarySlideDragTracker(
+    private val activePointerId: Long,
+    initialPointerX: Float,
+    initialDragFraction: Float,
+    private val maxDragPx: Float,
+    private val isRtl: Boolean = false,
+) {
+    var anchorX: Float = initialPointerX
+        private set
+    var anchorThumbPx: Float = initialDragFraction * maxDragPx.coerceAtLeast(0f)
+        private set
+    var isCancelledByPointerSwap: Boolean = false
+        private set
+
+    /**
+     * Tracks travel relative to a stationary track origin, cancelling on active-pointer swaps
+     * and rebasing the anchor whenever the track is disabled so disabled travel is never credited.
+     */
+    fun update(
+        pointerId: Long,
+        pointerX: Float,
+        enabled: Boolean,
+        state: SlideToStopState,
+    ): Boolean {
+        if (isCancelledByPointerSwap) return false
+        if (pointerId != activePointerId) {
+            isCancelledByPointerSwap = true
+            state.cancelDrag()
+            return false
+        }
+        if (!enabled) {
+            anchorX = pointerX
+            anchorThumbPx = state.dragFraction * maxDragPx.coerceAtLeast(0f)
+            return false
+        }
+        val deltaX = if (isRtl) anchorX - pointerX else pointerX - anchorX
+        state.updateDrag(anchorThumbPx + deltaX, maxDragPx)
+        return true
+    }
+}
 
 class SlideToStopState(
     val threshold: Float = SLIDE_TO_STOP_THRESHOLD,
@@ -77,6 +142,7 @@ class SlideToStopState(
     }
 
     fun updateDrag(rawPx: Float, maxPx: Float) {
+        if (completionEmitted) return
         if (maxPx <= 0f) {
             dragFraction = 0f
             return
@@ -117,6 +183,7 @@ fun SlideToStopTrack(
 ) {
     val colors = LiquidGlassTheme.colors
     val density = LocalDensity.current
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val currentOnStop by rememberUpdatedState(onStopAlarm)
     val currentEnabled by rememberUpdatedState(enabled)
 
@@ -147,69 +214,111 @@ fun SlideToStopTrack(
         val trackWidthPx = with(density) { maxWidth.toPx() }
         val thumbSizePx = with(density) { thumbSize.toPx() }
         val maxDragPx = (trackWidthPx - thumbSizePx).coerceAtLeast(0f)
+        val thumbHitPaddingPx = with(density) { 8.dp.toPx() }
 
-        val currentDragFraction = state.dragFraction
-        // Center Instruction Label with fade-out during drag
-        val textAlpha = (1f - currentDragFraction * 1.4f).coerceIn(0f, 1f)
-        Box(
-            modifier = Modifier.fillMaxWidth().heightIn(min = thumbSize),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = colors.textPrimary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .padding(start = thumbSize + 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp)
-                    .alpha(textAlpha),
-            )
-        }
-
-        // Draggable Thumb
+        // Measure pointer gestures in stationary track coordinates so shifting the thumb
+        // via .offset never translates the pointer origin mid-swipe on iOS.
         Box(
             modifier = Modifier
-                .offset { IntOffset(x = (state.dragFraction * maxDragPx).roundToInt(), y = 0) }
-                .size(thumbSize)
-                .clip(CircleShape)
-                .background(colors.danger)
-                .pointerInput(maxDragPx) {
-                    detectHorizontalDragGestures(
-                        onDragStart = { confirmation.reset() },
-                        onDragEnd = {
-                            // Resolve synchronously: release must see every delta, even before a frame.
-                            if (currentEnabled) state.checkThresholdAndResolve { currentOnStop() }
-                            state.cancelDrag()
-                        },
-                        onDragCancel = { state.cancelDrag() },
-                        onHorizontalDrag = { change, dragAmount ->
-                            change.consume()
-                            if (currentEnabled) {
-                                state.dragBy(dragAmount, maxDragPx)
-                            }
-                        },
-                    )
-                }
-                .semantics {
-                    contentDescription = if (confirmation.awaitingConfirmation) accessibleConfirm else accessiblePrompt
-                    role = Role.Button
-                    onClick(label = if (confirmation.awaitingConfirmation) accessibleConfirm else accessiblePrompt) {
-                        if (!currentEnabled) return@onClick false
-                        confirmation.activate {
-                            state.updateDrag(1f, 1f)
-                            state.checkThresholdAndResolve { currentOnStop() }
+                .fillMaxWidth()
+                .heightIn(min = thumbSize)
+                .pointerInput(state, maxDragPx, thumbSizePx, thumbHitPaddingPx, isRtl) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        if (!currentEnabled ||
+                            !isWithinThumbHitTarget(
+                                touchX = down.position.x,
+                                dragFraction = state.dragFraction,
+                                maxDragPx = maxDragPx,
+                                thumbSizePx = thumbSizePx,
+                                hitPaddingPx = thumbHitPaddingPx,
+                                isRtl = isRtl,
+                            )
+                        ) {
+                            return@awaitEachGesture
                         }
-                        true
+
+                        val tracker = StationarySlideDragTracker(
+                            activePointerId = down.id.value,
+                            initialPointerX = down.position.x,
+                            initialDragFraction = state.dragFraction,
+                            maxDragPx = maxDragPx,
+                            isRtl = isRtl,
+                        )
+                        try {
+                            val drag = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ ->
+                                change.consume()
+                                if (tracker.update(change.id.value, change.position.x, currentEnabled, state)) {
+                                    confirmation.reset()
+                                }
+                            }
+                            if (drag != null && !tracker.isCancelledByPointerSwap) {
+                                if (drag.id != down.id) {
+                                    state.cancelDrag()
+                                } else {
+                                    if (currentEnabled) confirmation.reset()
+                                    val completed = horizontalDrag(drag.id) { change ->
+                                        change.consume()
+                                        tracker.update(change.id.value, change.position.x, currentEnabled, state)
+                                    }
+                                    if (completed && !tracker.isCancelledByPointerSwap && currentEnabled) {
+                                        state.checkThresholdAndResolve { currentOnStop() }
+                                    }
+                                }
+                            }
+                        } finally {
+                            state.cancelDrag()
+                        }
                     }
                 },
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.CenterStart,
         ) {
-            Text(
-                text = "➔",
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            val currentDragFraction = state.dragFraction
+            // Center Instruction Label with fade-out during drag
+            val textAlpha = (1f - currentDragFraction * 1.4f).coerceIn(0f, 1f)
+            Box(
+                modifier = Modifier.fillMaxWidth().heightIn(min = thumbSize),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .padding(start = thumbSize + 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp)
+                        .alpha(textAlpha),
+                )
+            }
+
+            // Draggable Thumb
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(x = (state.dragFraction * maxDragPx).roundToInt(), y = 0) }
+                    .size(thumbSize)
+                    .clip(CircleShape)
+                    .background(colors.danger)
+                    .semantics {
+                        contentDescription = if (confirmation.awaitingConfirmation) accessibleConfirm else accessiblePrompt
+                        role = Role.Button
+                        onClick(label = if (confirmation.awaitingConfirmation) accessibleConfirm else accessiblePrompt) {
+                            if (!currentEnabled) return@onClick false
+                            confirmation.activate {
+                                state.updateDrag(1f, 1f)
+                                state.checkThresholdAndResolve { currentOnStop() }
+                            }
+                            true
+                        }
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "➔",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -21,7 +22,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +34,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
@@ -45,8 +47,14 @@ import com.muhammadridha.fjalar.ui.WindowInsetsLayoutHelper
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
 import com.muhammadridha.fjalar.ui.theme.fjalarString
 import com.muhammadridha.fjalar.ui.theme.GlassLevel
+import com.muhammadridha.fjalar.ui.theme.LiquidGlassColors
 import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
+
+internal const val RINGING_BACKDROP_SCRIM_ALPHA: Float = 0.94f
+
+internal fun ringingOverlayBackdropColor(colors: LiquidGlassColors): Color =
+    colors.canvas.copy(alpha = RINGING_BACKDROP_SCRIM_ALPHA)
 
 @Composable
 fun RingingAlertOverlay(
@@ -85,7 +93,19 @@ fun RingingAlertOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .glassSurface(level = GlassLevel.MODAL, shape = RoundedCornerShape(0.dp)),
+            .background(ringingOverlayBackdropColor(colors))
+            .glassSurface(level = GlassLevel.MODAL, shape = RectangleShape)
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        event.changes.forEach { change ->
+                            if (!change.isConsumed) change.consume()
+                        }
+                        if (event.changes.none { it.pressed }) break
+                    }
+                }
+            },
     ) {
         Column(
             modifier = WindowInsetsLayoutHelper.safeDrawingPaddingModifier(Modifier.fillMaxSize())
