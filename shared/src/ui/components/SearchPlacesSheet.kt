@@ -72,17 +72,37 @@ import com.muhammadridha.fjalar.ui.theme.LiquidGlassTheme
 import com.muhammadridha.fjalar.ui.theme.glassSurface
 import kotlin.math.roundToInt
 
+internal fun matchesCategoryFilter(
+    placeCategory: PlaceCategory,
+    selectedFilter: PlaceCategory?,
+): Boolean = when (selectedFilter) {
+    null -> true
+    PlaceCategory.TRAIN_STATION, PlaceCategory.METRO_STATION ->
+        placeCategory == PlaceCategory.TRAIN_STATION || placeCategory == PlaceCategory.METRO_STATION
+    else -> placeCategory == selectedFilter
+}
+
 internal fun filterRecentDestinations(
     recentDestinations: List<RecentDestination>,
     selectedCategory: PlaceCategory?,
-): List<RecentDestination> = if (selectedCategory == null) {
-    recentDestinations
-} else {
-    recentDestinations.filter { it.category == selectedCategory }
+    query: String = "",
+): List<RecentDestination> {
+    val normalizedQuery = query.trim()
+    return recentDestinations.filter { recent ->
+        matchesCategoryFilter(recent.category, selectedCategory) &&
+            (normalizedQuery.isEmpty() || recent.name.contains(normalizedQuery, ignoreCase = true))
+    }
 }
 
-internal fun shouldShowQuickPicks(query: String, recentDestinations: List<RecentDestination>): Boolean =
-    query.isBlank() && recentDestinations.isNotEmpty()
+internal fun shouldShowQuickPicks(
+    query: String,
+    recentDestinations: List<RecentDestination>,
+    results: List<SearchResultPlace> = emptyList(),
+    isSearchSettled: Boolean = false,
+): Boolean {
+    if (recentDestinations.isEmpty()) return false
+    return query.trim().length < 3 || (results.isEmpty() && !isSearchSettled)
+}
 
 internal fun shouldShowEmptyFilteredRecents(
     query: String,
@@ -99,7 +119,8 @@ internal fun shouldShowEmptySearchResults(
     results: List<SearchResultPlace>,
     query: String,
     isLoading: Boolean,
-): Boolean = results.isEmpty() && query.trim().length >= 3 && !isLoading
+    isSearchSettled: Boolean = false,
+): Boolean = results.isEmpty() && query.trim().length >= 3 && !isLoading && isSearchSettled
 
 internal fun quickPickContentDescription(destination: RecentDestination, locale: AppLocale): String =
     FjalarStrings.get(FjalarStringKey.SEARCH_QUICK_PICK_CONTENT_DESC, locale, destination.name)
@@ -127,6 +148,7 @@ fun SearchPlacesOverlay(
     recentDestinations: List<RecentDestination> = emptyList(),
     onRecentSelect: (RecentDestination) -> Unit = {},
     isLoading: Boolean = false,
+    isSearchSettled: Boolean = false,
     userLocation: GeoCoordinates? = null,
     distanceCalculator: DistanceCalculator = HaversineCalculator,
     locale: AppLocale = LiquidGlassTheme.locale,
@@ -148,6 +170,7 @@ fun SearchPlacesOverlay(
             recentDestinations = recentDestinations,
             onRecentSelect = onRecentSelect,
             isLoading = isLoading,
+            isSearchSettled = isSearchSettled,
             userLocation = userLocation,
             distanceCalculator = distanceCalculator,
             locale = locale,
@@ -169,6 +192,7 @@ fun SearchPlacesSheet(
     recentDestinations: List<RecentDestination> = emptyList(),
     onRecentSelect: (RecentDestination) -> Unit = {},
     isLoading: Boolean = false,
+    isSearchSettled: Boolean = false,
     userLocation: GeoCoordinates? = null,
     distanceCalculator: DistanceCalculator = HaversineCalculator,
     locale: AppLocale = LiquidGlassTheme.locale,
@@ -177,8 +201,8 @@ fun SearchPlacesSheet(
     val focusRequester = remember { FocusRequester() }
     val backDescription = FjalarStrings.get(FjalarStringKey.NAV_BACK, locale)
     val clearDescription = fjalarString(FjalarStringKey.SEARCH_CLEAR)
-    val visibleRecentDestinations = remember(recentDestinations, selectedCategory) {
-        filterRecentDestinations(recentDestinations, selectedCategory)
+    val visibleRecentDestinations = remember(recentDestinations, selectedCategory, query) {
+        filterRecentDestinations(recentDestinations, selectedCategory, query)
     }
 
     LaunchedEffect(Unit) {
@@ -333,23 +357,14 @@ fun SearchPlacesSheet(
                 colors = colors,
             )
 
+            val isRailSelected = selectedCategory == PlaceCategory.TRAIN_STATION ||
+                selectedCategory == PlaceCategory.METRO_STATION
             CategoryChip(
                 label = fjalarString(FjalarStringKey.SEARCH_CATEGORY_TRAIN),
-                selected = selectedCategory == PlaceCategory.TRAIN_STATION,
+                selected = isRailSelected,
                 onClick = {
                     onCategorySelect(
-                        if (selectedCategory == PlaceCategory.TRAIN_STATION) null else PlaceCategory.TRAIN_STATION
-                    )
-                },
-                colors = colors,
-            )
-
-            CategoryChip(
-                label = fjalarString(FjalarStringKey.SEARCH_CATEGORY_METRO),
-                selected = selectedCategory == PlaceCategory.METRO_STATION,
-                onClick = {
-                    onCategorySelect(
-                        if (selectedCategory == PlaceCategory.METRO_STATION) null else PlaceCategory.METRO_STATION
+                        if (isRailSelected) null else PlaceCategory.TRAIN_STATION
                     )
                 },
                 colors = colors,
@@ -405,7 +420,7 @@ fun SearchPlacesSheet(
             contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            if (shouldShowQuickPicks(query, visibleRecentDestinations)) {
+            if (shouldShowQuickPicks(query, visibleRecentDestinations, results, isSearchSettled)) {
                 item(key = "quick_picks_header") {
                     Text(
                         text = fjalarString(FjalarStringKey.SEARCH_QUICK_PICKS_TITLE),
@@ -474,7 +489,7 @@ fun SearchPlacesSheet(
                         )
                     }
                 }
-            } else if (shouldShowEmptySearchResults(results, query, isLoading)) {
+            } else if (shouldShowEmptySearchResults(results, query, isLoading, isSearchSettled)) {
                 item {
                     Column(
                         modifier = Modifier

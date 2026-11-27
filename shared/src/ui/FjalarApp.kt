@@ -289,6 +289,7 @@ fun FjalarApp(
                                 )
                             },
                             isLoading = uiState.isSearching,
+                            isSearchSettled = uiState.isSearchSettled,
                             userLocation = uiState.userLocation ?: uiState.mapViewportCenter,
                             locale = uiState.appLocale,
                         )
@@ -486,6 +487,7 @@ fun FjalarApp(
                         searchResults = uiState.searchResults,
                         selectedCategory = uiState.selectedCategoryFilter,
                         isSearching = uiState.isSearching,
+                        isSearchSettled = uiState.isSearchSettled,
                         onOpenSearch = { viewModel.onOpenSearch(PlaceSearchContext.PICKER) },
                         onSearchQueryChange = viewModel::onSearchQueryChanged,
                         onSelectCategory = viewModel::onSelectCategoryFilter,

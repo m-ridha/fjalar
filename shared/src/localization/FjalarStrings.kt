@@ -115,7 +115,6 @@ enum class FjalarStringKey {
     SEARCH_PLACEHOLDER,
     SEARCH_CATEGORY_ALL,
     SEARCH_CATEGORY_TRAIN,
-    SEARCH_CATEGORY_METRO,
     SEARCH_CATEGORY_BUS,
     SEARCH_CATEGORY_TRANSIT,
     SEARCH_EMPTY_TITLE,
@@ -298,8 +297,7 @@ object FjalarStrings {
 
         FjalarStringKey.SEARCH_PLACEHOLDER to "Search stations or places…",
         FjalarStringKey.SEARCH_CATEGORY_ALL to "All",
-        FjalarStringKey.SEARCH_CATEGORY_TRAIN to "Train",
-        FjalarStringKey.SEARCH_CATEGORY_METRO to "Metro / MRT",
+        FjalarStringKey.SEARCH_CATEGORY_TRAIN to "Rail / MRT",
         FjalarStringKey.SEARCH_CATEGORY_BUS to "Bus Stop",
         FjalarStringKey.SEARCH_CATEGORY_TRANSIT to "Transit",
         FjalarStringKey.SEARCH_EMPTY_TITLE to "No places found",
@@ -463,8 +461,7 @@ object FjalarStrings {
 
         FjalarStringKey.SEARCH_PLACEHOLDER to "Cari stasiun atau tempat…",
         FjalarStringKey.SEARCH_CATEGORY_ALL to "Semua",
-        FjalarStringKey.SEARCH_CATEGORY_TRAIN to "Kereta",
-        FjalarStringKey.SEARCH_CATEGORY_METRO to "Metro / MRT",
+        FjalarStringKey.SEARCH_CATEGORY_TRAIN to "Kereta / MRT",
         FjalarStringKey.SEARCH_CATEGORY_BUS to "Halte Bus",
         FjalarStringKey.SEARCH_CATEGORY_TRANSIT to "Transit",
         FjalarStringKey.SEARCH_EMPTY_TITLE to "Tempat tidak ditemukan",

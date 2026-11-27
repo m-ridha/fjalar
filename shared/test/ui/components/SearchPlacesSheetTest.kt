@@ -30,24 +30,64 @@ class SearchPlacesSheetTest {
     )
 
     @Test
-    fun shouldShowQuickPicks_onlyTrueWhenQueryIsBlankAndRecentsNonEmpty() {
-        val recents = listOf(sampleRecent())
+    fun matchesCategoryFilter_unifiesRailAndMetroStationsOnly() {
+        assertTrue(matchesCategoryFilter(PlaceCategory.TRAIN_STATION, null))
+        assertTrue(matchesCategoryFilter(PlaceCategory.METRO_STATION, null))
+        assertTrue(matchesCategoryFilter(PlaceCategory.BUS_STOP, null))
 
-        assertTrue(shouldShowQuickPicks("", recents))
-        assertTrue(shouldShowQuickPicks("   ", recents))
-        assertFalse(shouldShowQuickPicks("Gambir", recents))
-        assertFalse(shouldShowQuickPicks("", emptyList()))
-        assertFalse(shouldShowQuickPicks("Gambir", emptyList()))
+        assertTrue(matchesCategoryFilter(PlaceCategory.TRAIN_STATION, PlaceCategory.TRAIN_STATION))
+        assertTrue(matchesCategoryFilter(PlaceCategory.METRO_STATION, PlaceCategory.TRAIN_STATION))
+        assertTrue(matchesCategoryFilter(PlaceCategory.TRAIN_STATION, PlaceCategory.METRO_STATION))
+        assertTrue(matchesCategoryFilter(PlaceCategory.METRO_STATION, PlaceCategory.METRO_STATION))
+        assertFalse(matchesCategoryFilter(PlaceCategory.BUS_STOP, PlaceCategory.TRAIN_STATION))
+        assertFalse(matchesCategoryFilter(PlaceCategory.TRANSIT_STOP, PlaceCategory.TRAIN_STATION))
+        assertFalse(matchesCategoryFilter(PlaceCategory.LANDMARK, PlaceCategory.TRAIN_STATION))
+        assertFalse(matchesCategoryFilter(PlaceCategory.GENERAL, PlaceCategory.TRAIN_STATION))
+
+        assertTrue(matchesCategoryFilter(PlaceCategory.BUS_STOP, PlaceCategory.BUS_STOP))
+        assertFalse(matchesCategoryFilter(PlaceCategory.TRAIN_STATION, PlaceCategory.BUS_STOP))
+        assertTrue(matchesCategoryFilter(PlaceCategory.TRANSIT_STOP, PlaceCategory.TRANSIT_STOP))
+        assertFalse(matchesCategoryFilter(PlaceCategory.BUS_STOP, PlaceCategory.TRANSIT_STOP))
     }
 
     @Test
-    fun shouldShowEmptySearchResults_requiresAtLeastThreeNonWhitespaceChars() {
-        assertFalse(shouldShowEmptySearchResults(emptyList(), "", isLoading = false))
-        assertFalse(shouldShowEmptySearchResults(emptyList(), "M", isLoading = false))
-        assertFalse(shouldShowEmptySearchResults(emptyList(), "Ma", isLoading = false))
-        assertFalse(shouldShowEmptySearchResults(emptyList(), " Ma ", isLoading = false))
-        assertFalse(shouldShowEmptySearchResults(emptyList(), "Man", isLoading = true))
-        assertTrue(shouldShowEmptySearchResults(emptyList(), "Man", isLoading = false))
+    fun shouldShowQuickPicks_supportsShortQueriesAndBridgesUntilResultsSettle() {
+        val recents = listOf(sampleRecent())
+        val searchResult = SearchResultPlace(
+            id = "krl_gmb",
+            name = "Stasiun Gambir",
+            coordinates = GeoCoordinates(-6.1767, 106.8306),
+            category = PlaceCategory.TRAIN_STATION,
+        )
+
+        assertTrue(shouldShowQuickPicks("", recents))
+        assertTrue(shouldShowQuickPicks("   ", recents))
+        assertTrue(shouldShowQuickPicks("Ga", recents))
+        assertTrue(shouldShowQuickPicks("Gam", recents, results = emptyList(), isSearchSettled = false))
+        assertFalse(shouldShowQuickPicks("Gam", recents, results = emptyList(), isSearchSettled = true))
+        assertFalse(shouldShowQuickPicks("Gam", recents, results = listOf(searchResult), isSearchSettled = false))
+        assertFalse(shouldShowQuickPicks("Gam", recents, results = listOf(searchResult), isSearchSettled = true))
+        assertFalse(shouldShowQuickPicks("", emptyList()))
+        assertFalse(shouldShowQuickPicks("Ga", emptyList()))
+    }
+
+    @Test
+    fun shouldShowEmptySearchResults_requiresAtLeastThreeNonWhitespaceCharsAndSettledSearch() {
+        val searchResult = SearchResultPlace(
+            id = "krl_mri",
+            name = "Stasiun Manggarai",
+            coordinates = GeoCoordinates(-6.20988, 106.85016),
+            category = PlaceCategory.TRAIN_STATION,
+        )
+
+        assertFalse(shouldShowEmptySearchResults(emptyList(), "", isLoading = false, isSearchSettled = true))
+        assertFalse(shouldShowEmptySearchResults(emptyList(), "M", isLoading = false, isSearchSettled = true))
+        assertFalse(shouldShowEmptySearchResults(emptyList(), "Ma", isLoading = false, isSearchSettled = true))
+        assertFalse(shouldShowEmptySearchResults(emptyList(), " Ma ", isLoading = false, isSearchSettled = true))
+        assertFalse(shouldShowEmptySearchResults(emptyList(), "Man", isLoading = true, isSearchSettled = false))
+        assertFalse(shouldShowEmptySearchResults(emptyList(), "Man", isLoading = false, isSearchSettled = false))
+        assertFalse(shouldShowEmptySearchResults(listOf(searchResult), "Man", isLoading = false, isSearchSettled = true))
+        assertTrue(shouldShowEmptySearchResults(emptyList(), "Man", isLoading = false, isSearchSettled = true))
     }
 
     @Test
@@ -75,22 +115,30 @@ class SearchPlacesSheetTest {
     }
 
     @Test
-    fun filterRecentDestinations_appliesSelectedCategoryFilter() {
+    fun filterRecentDestinations_appliesUnifiedRailFilterAndLiveQuery() {
         val trainRecent = sampleRecent(id = "train-1", name = "Gambir", category = PlaceCategory.TRAIN_STATION)
+        val metroRecent = sampleRecent(id = "metro-1", name = "Bundaran HI", category = PlaceCategory.METRO_STATION)
         val busRecent = sampleRecent(id = "bus-1", name = "Halte Harmoni", category = PlaceCategory.BUS_STOP)
-        val recents = listOf(trainRecent, busRecent)
+        val recents = listOf(trainRecent, metroRecent, busRecent)
 
         assertEquals(recents, filterRecentDestinations(recents, null))
-        assertEquals(listOf(trainRecent), filterRecentDestinations(recents, PlaceCategory.TRAIN_STATION))
+        assertEquals(listOf(trainRecent, metroRecent), filterRecentDestinations(recents, PlaceCategory.TRAIN_STATION))
+        assertEquals(listOf(trainRecent, metroRecent), filterRecentDestinations(recents, PlaceCategory.METRO_STATION))
         assertEquals(listOf(busRecent), filterRecentDestinations(recents, PlaceCategory.BUS_STOP))
 
-        val nonMatching = filterRecentDestinations(recents, PlaceCategory.METRO_STATION)
+        // Live < 3 char filtering over recent destinations
+        assertEquals(listOf(trainRecent), filterRecentDestinations(recents, null, "ga"))
+        assertEquals(listOf(metroRecent), filterRecentDestinations(recents, PlaceCategory.TRAIN_STATION, "hi"))
+        assertEquals(listOf(busRecent), filterRecentDestinations(recents, PlaceCategory.BUS_STOP, "ha"))
+        assertTrue(filterRecentDestinations(recents, PlaceCategory.TRAIN_STATION, "ha").isEmpty())
+
+        val nonMatching = filterRecentDestinations(recents, PlaceCategory.TRANSIT_STOP)
         assertTrue(nonMatching.isEmpty())
         assertFalse(shouldShowQuickPicks("", nonMatching))
-        assertTrue(shouldShowEmptyFilteredRecents("", recents, nonMatching, PlaceCategory.METRO_STATION))
+        assertTrue(shouldShowEmptyFilteredRecents("", recents, nonMatching, PlaceCategory.TRANSIT_STOP))
         assertFalse(shouldShowEmptyFilteredRecents("", recents, recents, null))
-        assertFalse(shouldShowEmptyFilteredRecents("", emptyList(), emptyList(), PlaceCategory.METRO_STATION))
-        assertFalse(shouldShowEmptyFilteredRecents("MRT", recents, nonMatching, PlaceCategory.METRO_STATION))
+        assertFalse(shouldShowEmptyFilteredRecents("", emptyList(), emptyList(), PlaceCategory.TRANSIT_STOP))
+        assertFalse(shouldShowEmptyFilteredRecents("MRT", recents, nonMatching, PlaceCategory.TRANSIT_STOP))
     }
 
     @Test

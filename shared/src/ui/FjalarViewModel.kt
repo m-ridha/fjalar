@@ -33,6 +33,7 @@ import com.muhammadridha.fjalar.domain.ports.outbound.RecentDestinationsPort
 import com.muhammadridha.fjalar.domain.ports.outbound.SearchPlacesPort
 import com.muhammadridha.fjalar.domain.usecase.SynchronizeAlarmsUseCase
 import com.muhammadridha.fjalar.domain.service.HaversineCalculator
+import com.muhammadridha.fjalar.ui.components.matchesCategoryFilter
 import com.muhammadridha.fjalar.ui.screens.ConfigureAlarmDraft
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -63,6 +64,7 @@ data class FjalarUiState(
     val searchContext: PlaceSearchContext? = null,
     val searchResults: List<SearchResultPlace> = emptyList(),
     val isSearching: Boolean = false,
+    val isSearchSettled: Boolean = false,
     val selectedCategoryFilter: PlaceCategory? = null,
     val locationFix: LocationFix? = null,
     val locationAvailability: LocationAvailability = LocationAvailability.PROVIDER_UNAVAILABLE,
@@ -367,6 +369,8 @@ class FjalarViewModel(
                 isSearchSheetVisible = true,
                 searchQuery = "",
                 searchResults = emptyList(),
+                isSearching = false,
+                isSearchSettled = false,
                 selectedCategoryFilter = null,
             )
         }
@@ -388,6 +392,7 @@ class FjalarViewModel(
                 searchContext = null,
                 searchResults = emptyList(),
                 isSearching = false,
+                isSearchSettled = false,
             )
         }
     }
@@ -406,13 +411,23 @@ class FjalarViewModel(
                     searchQuery = query,
                     searchResults = emptyList(),
                     isSearching = false,
+                    isSearchSettled = false,
                 )
             }
             return
         }
-        _uiState.update { it.copy(searchQuery = query, isSearching = true) }
+        _uiState.update {
+            it.copy(
+                searchQuery = query,
+                isSearching = false,
+                isSearchSettled = it.isSearchSettled &&
+                    it.searchQuery.trim().length >= PlaceSearchAdapter.MIN_QUERY_LENGTH,
+            )
+        }
         searchJob = scope.launch {
             delay(SEARCH_DEBOUNCE_MILLIS)
+            if (requestToken != searchSessionToken) return@launch
+            _uiState.update { it.copy(isSearching = true) }
             val locale = _uiState.value.appLocale
             val proximity = _uiState.value.mapViewportCenter
                 ?: _uiState.value.userLocation
@@ -421,7 +436,13 @@ class FjalarViewModel(
             if (requestToken != searchSessionToken) return@launch
             unfilteredSearchResults = places
             val filtered = applyCategoryFilter(places, _uiState.value.selectedCategoryFilter)
-            _uiState.update { it.copy(searchResults = filtered, isSearching = false) }
+            _uiState.update {
+                it.copy(
+                    searchResults = filtered,
+                    isSearching = false,
+                    isSearchSettled = true,
+                )
+            }
         }
     }
 
@@ -472,11 +493,7 @@ class FjalarViewModel(
         places: List<SearchResultPlace>,
         category: PlaceCategory?,
     ): List<SearchResultPlace> {
-        return if (category == null) {
-            places
-        } else {
-            places.filter { it.category == category }
-        }
+        return places.filter { matchesCategoryFilter(it.category, category) }
     }
 
     fun onToggleTheme(currentlyDark: Boolean = false) {
