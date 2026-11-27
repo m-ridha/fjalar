@@ -24,9 +24,9 @@ The same toolchain is selected in PR checks. Xcode 16 lacks required frameworks.
 After the signed Android build and multiplatform verification both pass, the
 workflow attaches these files to the existing release:
 
-- `fjalar-vX.Y.Z[-suffix]-android.apk`: aligned, release-signed `arm64-v8a` Android APK (with `DebugProbesKt.bin` excluded and R8 shrinking guided by `androidApp/res/raw/keep.xml`).
+- `fjalar-vX.Y.Z[-suffix]-android.apk`: aligned, release-signed `arm64-v8a` Android APK (with `DebugProbesKt.bin` and redundant `META-INF` metadata excluded, and R8 shrinking guided by `androidApp/res/raw/keep.xml`).
 - `SHA256SUMS.txt`: SHA-256 checksum of the APK.
-- `fjalar-vX.Y.Z[-suffix]-ios-unsigned.ipa`: unsigned physical-device iOS IPA (`iosArm64` / `Release-iphoneos`, symbol-stripped Mach-O binary and `ViewController.kt` excluded from bundle resources).
+- `fjalar-vX.Y.Z[-suffix]-ios-unsigned.ipa`: unsigned physical-device iOS IPA (`iosArm64` / `Release-iphoneos`, `-Xbinary=smallBinary=true`, Xcode `-Os`/`-Osize`, symbol-stripped Mach-O binary, empty `compose-resources` pruned, and `ViewController.kt` excluded from bundle resources).
 - `SHA256SUMS-ios.txt`: SHA-256 checksum of the unsigned iOS IPA.
 
 The exact commit associated with the release event is checked out for validation,
@@ -115,7 +115,7 @@ GitHub locks assets after an immutable release is published.
 An automated packaging pipeline is provided via `scripts/build_release_ios.sh`:
 
 ```sh
-RELEASE_TAG="v0.5.0" BUILD_NUMBER=1 bash scripts/build_release_ios.sh
+RELEASE_TAG="v0.5.1" BUILD_NUMBER=1 bash scripts/build_release_ios.sh
 ```
 
 This builds the physical device release app (`iosArm64` / `Release-iphoneos` by
