@@ -18,6 +18,12 @@ settings:
     resourcePackaging:
       excludes:
         - DebugProbesKt.bin
+        - META-INF/*.version
+        - META-INF/androidx/**/LICENSE.txt
+        - META-INF/org/**/LICENSE.txt
+        - META-INF/com/android/build/gradle/app-metadata.properties
+        - META-INF/version-control-info.textproto
+        - META-INF/*.kotlin_module
 
 test-dependencies:
   - $libs.kotlinx.coroutines.test

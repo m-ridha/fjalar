@@ -5,6 +5,7 @@ import hashlib
 import os
 from pathlib import Path
 import plistlib
+import re
 import shutil
 import subprocess
 import tempfile
@@ -122,6 +123,64 @@ class BuildReleaseIosTest(unittest.TestCase):
             checksum_content = checksum_path.read_text().strip()
             self.assertEqual(f"{expected_sha}  fjalar-v0.5.0-ios-unsigned.ipa", checksum_content)
 
+    def test_empty_compose_resources_pruned_while_non_empty_preserved(self):
+        """Empty compose-resources stubs are removed from .xcarchive and .ipa; non-empty files are kept."""
+        for has_file in (False, True):
+            with self.subTest(has_file=has_file), tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                scripts_dir = temp_path / "scripts"
+                scripts_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(METADATA_SCRIPT, scripts_dir / "release_metadata.py")
+
+                kotlin_stub = temp_path / "kotlin"
+                kotlin_stub.write_text(
+                    "#!/usr/bin/env python3\n"
+                    "import plistlib, sys\n"
+                    "from pathlib import Path\n"
+                    "app_dir = Path('build/tasks/_iosApp_buildIosAppIosArm64Release/bin/Release-iphoneos/Fjalar.app')\n"
+                    "nested = app_dir / 'compose-resources/composeResources/example'\n"
+                    "nested.mkdir(parents=True, exist_ok=True)\n"
+                    f"if {has_file!r}:\n"
+                    "    (nested / 'font.ttf').write_bytes(b'fontdata')\n"
+                    "(app_dir / 'Fjalar').write_bytes(b'\\xca\\xfe\\xba\\xbe')\n"
+                    "with open(app_dir / 'Info.plist', 'wb') as f:\n"
+                    "    plistlib.dump({\n"
+                    "        'CFBundleIdentifier': 'com.muhammadridha.fjalar',\n"
+                    "        'CFBundleExecutable': 'Fjalar',\n"
+                    "        'CFBundleName': 'Fjalar',\n"
+                    "        'CFBundlePackageType': 'APPL',\n"
+                    "        'CFBundleShortVersionString': '1.0',\n"
+                    "        'CFBundleVersion': '1',\n"
+                    "    }, f, fmt=plistlib.FMT_BINARY)\n"
+                )
+                kotlin_stub.chmod(0o755)
+
+                env = os.environ.copy()
+                env["RELEASE_TAG"] = "v0.5.0"
+                env["BUILD_NUMBER"] = "42"
+                env.pop("IOS_TARGET_PLATFORM", None)
+
+                subprocess.run(
+                    ["bash", str(BUILD_SCRIPT)],
+                    cwd=temp_path,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+
+                archive_res = temp_path / "dist/fjalar-v0.5.0.xcarchive/Products/Applications/Fjalar.app/compose-resources"
+                ipa_path = temp_path / "dist/fjalar-v0.5.0-ios-unsigned.ipa"
+                with zipfile.ZipFile(ipa_path, "r") as zf:
+                    names = zf.namelist()
+
+                if has_file:
+                    self.assertTrue((archive_res / "composeResources/example/font.ttf").is_file())
+                    self.assertIn("Payload/Fjalar.app/compose-resources/composeResources/example/font.ttf", names)
+                else:
+                    self.assertFalse(archive_res.exists())
+                    self.assertFalse(any("compose-resources" in n for n in names), names)
+
     def test_macho_64_binary_invokes_xcrun_strip(self):
         """Ensure 64-bit Mach-O binaries invoke xcrun strip -rSTx during IPA staging."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -181,13 +240,23 @@ class BuildReleaseIosTest(unittest.TestCase):
             self.assertTrue(logged.endswith("Payload/Fjalar.app/Fjalar"), logged)
 
     def test_project_pbxproj_excludes_viewcontroller_kt_and_strips_release(self):
-        """Verify Release build settings strip symbols, disable previews, and exclude ViewController.kt."""
+        """Verify Release build settings strip symbols, optimize for size, disable previews, and exclude ViewController.kt."""
         pbxproj = (ROOT / "iosApp/module.xcodeproj/project.pbxproj").read_text()
         self.assertIn("ViewController.kt,", pbxproj)
-        self.assertIn("DEPLOYMENT_POSTPROCESSING = YES;", pbxproj)
-        self.assertIn("STRIP_INSTALLED_PRODUCT = YES;", pbxproj)
-        self.assertIn('STRIP_STYLE = "non-global";', pbxproj)
-        self.assertIn("ENABLE_PREVIEWS = NO;", pbxproj)
+
+        release_blocks = re.findall(
+            r'/\* Release \*/ = \{\s*isa = XCBuildConfiguration;\s*buildSettings = \{(.*?)\};\s*name = Release;\s*\};',
+            pbxproj,
+            re.DOTALL,
+        )
+        self.assertGreaterEqual(len(release_blocks), 2)
+        combined_release = "\n".join(release_blocks)
+        self.assertIn("DEPLOYMENT_POSTPROCESSING = YES;", combined_release)
+        self.assertIn("STRIP_INSTALLED_PRODUCT = YES;", combined_release)
+        self.assertIn('STRIP_STYLE = "non-global";', combined_release)
+        self.assertIn("GCC_OPTIMIZATION_LEVEL = s;", combined_release)
+        self.assertIn('SWIFT_OPTIMIZATION_LEVEL = "-Osize";', combined_release)
+        self.assertIn("ENABLE_PREVIEWS = NO;", combined_release)
 
 
 if __name__ == "__main__":
