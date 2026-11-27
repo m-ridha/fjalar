@@ -856,6 +856,7 @@ class FjalarViewModelTest {
             val state = viewModel.uiState.value
             assertEquals("Sudirman", state.searchQuery)
             assertFalse(state.isSearching)
+            assertTrue(state.isSearchSettled)
             assertEquals(1, state.searchResults.size)
             assertEquals("krl_sud", state.searchResults.first().id)
             assertEquals("Sudirman", fakeSearchPort.lastQuery)
@@ -903,18 +904,27 @@ class FjalarViewModelTest {
 
             viewModel.onSelectCategoryFilter(PlaceCategory.TRAIN_STATION)
             assertEquals(PlaceCategory.TRAIN_STATION, viewModel.uiState.value.selectedCategoryFilter)
-            assertEquals(1, viewModel.uiState.value.searchResults.size)
-            assertEquals("krl_mri", viewModel.uiState.value.searchResults.first().id)
+            assertEquals(
+                listOf("krl_mri", "mrt_bundaran_hi"),
+                viewModel.uiState.value.searchResults.map { it.id },
+            )
 
             viewModel.onSelectCategoryFilter(PlaceCategory.METRO_STATION)
             assertEquals(PlaceCategory.METRO_STATION, viewModel.uiState.value.selectedCategoryFilter)
-            assertEquals(1, viewModel.uiState.value.searchResults.size)
-            assertEquals("mrt_bundaran_hi", viewModel.uiState.value.searchResults.first().id)
+            assertEquals(
+                listOf("krl_mri", "mrt_bundaran_hi"),
+                viewModel.uiState.value.searchResults.map { it.id },
+            )
 
             viewModel.onSelectCategoryFilter(PlaceCategory.BUS_STOP)
             assertEquals(PlaceCategory.BUS_STOP, viewModel.uiState.value.selectedCategoryFilter)
             assertEquals(1, viewModel.uiState.value.searchResults.size)
             assertEquals("tj_harmoni", viewModel.uiState.value.searchResults.first().id)
+
+            viewModel.onSelectCategoryFilter(PlaceCategory.TRANSIT_STOP)
+            assertEquals(PlaceCategory.TRANSIT_STOP, viewModel.uiState.value.selectedCategoryFilter)
+            assertEquals(1, viewModel.uiState.value.searchResults.size)
+            assertEquals("ferry_muara_angke", viewModel.uiState.value.searchResults.first().id)
 
             viewModel.onSelectCategoryFilter(null)
             assertNull(viewModel.uiState.value.selectedCategoryFilter)
@@ -946,11 +956,88 @@ class FjalarViewModelTest {
             for (shortQuery in listOf("", "  ", "S", "Su", " Su ")) {
                 viewModel.onSearchQueryChanged(shortQuery)
                 assertFalse(viewModel.uiState.value.isSearching)
+                assertFalse(viewModel.uiState.value.isSearchSettled)
                 assertTrue(viewModel.uiState.value.searchResults.isEmpty())
                 testScheduler.advanceUntilIdle()
                 assertEquals(1, fakeSearchPort.searchCallCount)
             }
         } finally {
+            vmScope.cancel()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun searchWaitsForDebounceBeforeSettingIsSearchingAndRetainsResultsWhileTyping() = runTest {
+        val sudirman = SearchResultPlace(
+            id = "krl_sud",
+            name = "Stasiun Sudirman",
+            coordinates = GeoCoordinates(-6.20235, 106.82365),
+            category = PlaceCategory.TRAIN_STATION,
+        )
+        val firstResponse = kotlinx.coroutines.CompletableDeferred<List<SearchResultPlace>>()
+        val secondResponse = kotlinx.coroutines.CompletableDeferred<List<SearchResultPlace>>()
+        val port = object : SearchPlacesPort {
+            var calls = 0
+            override suspend fun searchPlaces(
+                query: String,
+                locale: AppLocale,
+                proximity: GeoCoordinates?,
+            ): List<SearchResultPlace> {
+                calls++
+                return if (calls == 1) firstResponse.await() else secondResponse.await()
+            }
+        }
+        val (viewModel, _, vmScope) = createTestViewModel(searchPlacesPort = port)
+        try {
+            viewModel.onOpenSearch(PlaceSearchContext.BROWSE)
+            viewModel.onSearchQueryChanged("Sud")
+
+            assertFalse(viewModel.uiState.value.isSearching)
+            assertFalse(viewModel.uiState.value.isSearchSettled)
+            assertEquals(0, port.calls)
+
+            testScheduler.advanceTimeBy(FjalarViewModel.SEARCH_DEBOUNCE_MILLIS - 1L)
+            testScheduler.runCurrent()
+            assertFalse(viewModel.uiState.value.isSearching)
+            assertFalse(viewModel.uiState.value.isSearchSettled)
+            assertEquals(0, port.calls)
+
+            testScheduler.advanceTimeBy(1L)
+            testScheduler.runCurrent()
+            assertTrue(viewModel.uiState.value.isSearching)
+            assertFalse(viewModel.uiState.value.isSearchSettled)
+            assertEquals(1, port.calls)
+
+            firstResponse.complete(listOf(sudirman))
+            testScheduler.runCurrent()
+            assertFalse(viewModel.uiState.value.isSearching)
+            assertTrue(viewModel.uiState.value.isSearchSettled)
+            assertEquals(listOf(sudirman), viewModel.uiState.value.searchResults)
+
+            // Typing a longer query retains prior results until the next debounced fetch settles.
+            viewModel.onSearchQueryChanged("Sudi")
+            assertFalse(viewModel.uiState.value.isSearching)
+            assertFalse(viewModel.uiState.value.isSearchSettled)
+            assertEquals(listOf(sudirman), viewModel.uiState.value.searchResults)
+
+            testScheduler.advanceTimeBy(FjalarViewModel.SEARCH_DEBOUNCE_MILLIS)
+            testScheduler.runCurrent()
+            assertTrue(viewModel.uiState.value.isSearching)
+            assertEquals(2, port.calls)
+
+            secondResponse.complete(emptyList())
+            testScheduler.runCurrent()
+            assertFalse(viewModel.uiState.value.isSearching)
+            assertTrue(viewModel.uiState.value.isSearchSettled)
+            assertTrue(viewModel.uiState.value.searchResults.isEmpty())
+
+            viewModel.onDismissSearch()
+            assertFalse(viewModel.uiState.value.isSearching)
+            assertFalse(viewModel.uiState.value.isSearchSettled)
+        } finally {
+            firstResponse.complete(emptyList())
+            secondResponse.complete(emptyList())
             vmScope.cancel()
         }
     }

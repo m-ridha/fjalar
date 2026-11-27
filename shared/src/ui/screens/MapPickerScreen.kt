@@ -90,6 +90,7 @@ fun MapPickerScreen(
     searchResults: List<SearchResultPlace>,
     selectedCategory: PlaceCategory?,
     isSearching: Boolean,
+    isSearchSettled: Boolean = false,
     onOpenSearch: () -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onSelectCategory: (PlaceCategory?) -> Unit,
@@ -373,6 +374,7 @@ fun MapPickerScreen(
             },
             onDismiss = onDismissSearch,
             isLoading = isSearching,
+            isSearchSettled = isSearchSettled,
             userLocation = userPosition?.coordinates ?: cameraTarget,
             locale = locale,
         )
