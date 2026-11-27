@@ -73,4 +73,56 @@ class SlideToStopGestureStateTest {
         nextPresentation.updateDrag(90f, 100f)
         assertTrue(nextPresentation.checkThresholdAndResolve {})
     }
+
+    @Test
+    fun thumbHitTargetTracksCurrentThumbBoundsAndRejectsMidTrackTouches() {
+        assertTrue(isWithinThumbHitTarget(touchX = 0f, dragFraction = 0f, maxDragPx = 280f, thumbSizePx = 52f))
+        assertTrue(isWithinThumbHitTarget(touchX = 26f, dragFraction = 0f, maxDragPx = 280f, thumbSizePx = 52f))
+        assertTrue(
+            isWithinThumbHitTarget(
+                touchX = 58f,
+                dragFraction = 0f,
+                maxDragPx = 280f,
+                thumbSizePx = 52f,
+                hitPaddingPx = 8f,
+            ),
+        )
+        assertFalse(
+            isWithinThumbHitTarget(
+                touchX = 140f,
+                dragFraction = 0f,
+                maxDragPx = 280f,
+                thumbSizePx = 52f,
+                hitPaddingPx = 8f,
+            ),
+        )
+        assertTrue(
+            isWithinThumbHitTarget(
+                touchX = 166f,
+                dragFraction = 0.5f,
+                maxDragPx = 280f,
+                thumbSizePx = 52f,
+            ),
+        )
+        assertFalse(isWithinThumbHitTarget(touchX = 10f, dragFraction = 0f, maxDragPx = 280f, thumbSizePx = 0f))
+    }
+
+    @Test
+    fun stationaryCoordinateTranslationReachesFullTravelAndCompletes() {
+        val state = SlideToStopState()
+        val maxDragPx = 281f
+        val downX = 25f
+        var stops = 0
+
+        // Simulate stationary pointer positions moving across the full track width.
+        val midX = downX + (maxDragPx * 0.65f)
+        state.updateDrag(0f + (midX - downX), maxDragPx)
+        assertEquals(0.65f, state.dragFraction, absoluteTolerance = 0.001f)
+
+        val endX = downX + maxDragPx
+        state.updateDrag(0f + (endX - downX), maxDragPx)
+        assertEquals(1.0f, state.dragFraction, absoluteTolerance = 0.001f)
+        assertTrue(state.checkThresholdAndResolve { stops++ })
+        assertEquals(1, stops)
+    }
 }

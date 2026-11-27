@@ -1,7 +1,10 @@
 package com.muhammadridha.fjalar.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -51,6 +54,19 @@ fun isSlideToStopSatisfied(
     dragFraction: Float,
     threshold: Float = SLIDE_TO_STOP_THRESHOLD,
 ): Boolean = dragFraction >= threshold
+
+internal fun isWithinThumbHitTarget(
+    touchX: Float,
+    dragFraction: Float,
+    maxDragPx: Float,
+    thumbSizePx: Float,
+    hitPaddingPx: Float = 0f,
+): Boolean {
+    if (thumbSizePx <= 0f) return false
+    val thumbStart = dragFraction * maxDragPx.coerceAtLeast(0f)
+    val thumbEnd = thumbStart + thumbSizePx
+    return touchX in (thumbStart - hitPaddingPx)..(thumbEnd + hitPaddingPx)
+}
 
 class SlideToStopState(
     val threshold: Float = SLIDE_TO_STOP_THRESHOLD,
@@ -147,69 +163,108 @@ fun SlideToStopTrack(
         val trackWidthPx = with(density) { maxWidth.toPx() }
         val thumbSizePx = with(density) { thumbSize.toPx() }
         val maxDragPx = (trackWidthPx - thumbSizePx).coerceAtLeast(0f)
+        val thumbHitPaddingPx = with(density) { 8.dp.toPx() }
 
-        val currentDragFraction = state.dragFraction
-        // Center Instruction Label with fade-out during drag
-        val textAlpha = (1f - currentDragFraction * 1.4f).coerceIn(0f, 1f)
-        Box(
-            modifier = Modifier.fillMaxWidth().heightIn(min = thumbSize),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = colors.textPrimary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .padding(start = thumbSize + 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp)
-                    .alpha(textAlpha),
-            )
-        }
-
-        // Draggable Thumb
+        // Measure pointer gestures in stationary track coordinates so shifting the thumb
+        // via .offset never translates the pointer origin mid-swipe on iOS.
         Box(
             modifier = Modifier
-                .offset { IntOffset(x = (state.dragFraction * maxDragPx).roundToInt(), y = 0) }
-                .size(thumbSize)
-                .clip(CircleShape)
-                .background(colors.danger)
-                .pointerInput(maxDragPx) {
-                    detectHorizontalDragGestures(
-                        onDragStart = { confirmation.reset() },
-                        onDragEnd = {
-                            // Resolve synchronously: release must see every delta, even before a frame.
-                            if (currentEnabled) state.checkThresholdAndResolve { currentOnStop() }
-                            state.cancelDrag()
-                        },
-                        onDragCancel = { state.cancelDrag() },
-                        onHorizontalDrag = { change, dragAmount ->
-                            change.consume()
-                            if (currentEnabled) {
-                                state.dragBy(dragAmount, maxDragPx)
-                            }
-                        },
-                    )
-                }
-                .semantics {
-                    contentDescription = if (confirmation.awaitingConfirmation) accessibleConfirm else accessiblePrompt
-                    role = Role.Button
-                    onClick(label = if (confirmation.awaitingConfirmation) accessibleConfirm else accessiblePrompt) {
-                        if (!currentEnabled) return@onClick false
-                        confirmation.activate {
-                            state.updateDrag(1f, 1f)
-                            state.checkThresholdAndResolve { currentOnStop() }
+                .fillMaxWidth()
+                .heightIn(min = thumbSize)
+                .pointerInput(state, maxDragPx, thumbSizePx, thumbHitPaddingPx) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        if (!isWithinThumbHitTarget(
+                                touchX = down.position.x,
+                                dragFraction = state.dragFraction,
+                                maxDragPx = maxDragPx,
+                                thumbSizePx = thumbSizePx,
+                                hitPaddingPx = thumbHitPaddingPx,
+                            )
+                        ) {
+                            return@awaitEachGesture
                         }
-                        true
+
+                        val initialThumbPx = state.dragFraction * maxDragPx
+                        try {
+                            val drag = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ ->
+                                confirmation.reset()
+                                change.consume()
+                                if (currentEnabled) {
+                                    state.updateDrag(
+                                        initialThumbPx + (change.position.x - down.position.x),
+                                        maxDragPx,
+                                    )
+                                }
+                            }
+                            if (drag != null) {
+                                confirmation.reset()
+                                val completed = horizontalDrag(drag.id) { change ->
+                                    change.consume()
+                                    if (currentEnabled) {
+                                        state.updateDrag(
+                                            initialThumbPx + (change.position.x - down.position.x),
+                                            maxDragPx,
+                                        )
+                                    }
+                                }
+                                if (completed && currentEnabled) {
+                                    state.checkThresholdAndResolve { currentOnStop() }
+                                }
+                            }
+                        } finally {
+                            state.cancelDrag()
+                        }
                     }
                 },
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.CenterStart,
         ) {
-            Text(
-                text = "➔",
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            val currentDragFraction = state.dragFraction
+            // Center Instruction Label with fade-out during drag
+            val textAlpha = (1f - currentDragFraction * 1.4f).coerceIn(0f, 1f)
+            Box(
+                modifier = Modifier.fillMaxWidth().heightIn(min = thumbSize),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .padding(start = thumbSize + 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp)
+                        .alpha(textAlpha),
+                )
+            }
+
+            // Draggable Thumb
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(x = (state.dragFraction * maxDragPx).roundToInt(), y = 0) }
+                    .size(thumbSize)
+                    .clip(CircleShape)
+                    .background(colors.danger)
+                    .semantics {
+                        contentDescription = if (confirmation.awaitingConfirmation) accessibleConfirm else accessiblePrompt
+                        role = Role.Button
+                        onClick(label = if (confirmation.awaitingConfirmation) accessibleConfirm else accessiblePrompt) {
+                            if (!currentEnabled) return@onClick false
+                            confirmation.activate {
+                                state.updateDrag(1f, 1f)
+                                state.checkThresholdAndResolve { currentOnStop() }
+                            }
+                            true
+                        }
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "➔",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
     }
 }
