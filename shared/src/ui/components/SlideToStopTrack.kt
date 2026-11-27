@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -38,6 +39,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.muhammadridha.fjalar.ui.theme.FjalarStringKey
@@ -61,11 +63,58 @@ internal fun isWithinThumbHitTarget(
     maxDragPx: Float,
     thumbSizePx: Float,
     hitPaddingPx: Float = 0f,
+    isRtl: Boolean = false,
 ): Boolean {
     if (thumbSizePx <= 0f) return false
-    val thumbStart = dragFraction * maxDragPx.coerceAtLeast(0f)
+    val safeMaxDragPx = maxDragPx.coerceAtLeast(0f)
+    val thumbStart = if (isRtl) {
+        safeMaxDragPx * (1f - dragFraction)
+    } else {
+        safeMaxDragPx * dragFraction
+    }
     val thumbEnd = thumbStart + thumbSizePx
     return touchX in (thumbStart - hitPaddingPx)..(thumbEnd + hitPaddingPx)
+}
+
+internal class StationarySlideDragTracker(
+    private val activePointerId: Long,
+    initialPointerX: Float,
+    initialDragFraction: Float,
+    private val maxDragPx: Float,
+    private val isRtl: Boolean = false,
+) {
+    var anchorX: Float = initialPointerX
+        private set
+    var anchorThumbPx: Float = initialDragFraction * maxDragPx.coerceAtLeast(0f)
+        private set
+    var isCancelledByPointerSwap: Boolean = false
+        private set
+
+    /**
+     * Tracks travel relative to a stationary track origin, cancelling on active-pointer swaps
+     * and rebasing the anchor whenever the track is disabled so disabled travel is never credited.
+     */
+    fun update(
+        pointerId: Long,
+        pointerX: Float,
+        enabled: Boolean,
+        state: SlideToStopState,
+    ): Boolean {
+        if (isCancelledByPointerSwap) return false
+        if (pointerId != activePointerId) {
+            isCancelledByPointerSwap = true
+            state.cancelDrag()
+            return false
+        }
+        if (!enabled) {
+            anchorX = pointerX
+            anchorThumbPx = state.dragFraction * maxDragPx.coerceAtLeast(0f)
+            return false
+        }
+        val deltaX = if (isRtl) anchorX - pointerX else pointerX - anchorX
+        state.updateDrag(anchorThumbPx + deltaX, maxDragPx)
+        return true
+    }
 }
 
 class SlideToStopState(
@@ -134,6 +183,7 @@ fun SlideToStopTrack(
 ) {
     val colors = LiquidGlassTheme.colors
     val density = LocalDensity.current
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val currentOnStop by rememberUpdatedState(onStopAlarm)
     val currentEnabled by rememberUpdatedState(enabled)
 
@@ -172,7 +222,7 @@ fun SlideToStopTrack(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = thumbSize)
-                .pointerInput(state, maxDragPx, thumbSizePx, thumbHitPaddingPx) {
+                .pointerInput(state, maxDragPx, thumbSizePx, thumbHitPaddingPx, isRtl) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         if (!currentEnabled ||
@@ -182,36 +232,38 @@ fun SlideToStopTrack(
                                 maxDragPx = maxDragPx,
                                 thumbSizePx = thumbSizePx,
                                 hitPaddingPx = thumbHitPaddingPx,
+                                isRtl = isRtl,
                             )
                         ) {
                             return@awaitEachGesture
                         }
 
-                        val initialThumbPx = state.dragFraction * maxDragPx
+                        val tracker = StationarySlideDragTracker(
+                            activePointerId = down.id.value,
+                            initialPointerX = down.position.x,
+                            initialDragFraction = state.dragFraction,
+                            maxDragPx = maxDragPx,
+                            isRtl = isRtl,
+                        )
                         try {
                             val drag = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ ->
-                                confirmation.reset()
                                 change.consume()
-                                if (currentEnabled) {
-                                    state.updateDrag(
-                                        initialThumbPx + (change.position.x - down.position.x),
-                                        maxDragPx,
-                                    )
+                                if (tracker.update(change.id.value, change.position.x, currentEnabled, state)) {
+                                    confirmation.reset()
                                 }
                             }
-                            if (drag != null) {
-                                confirmation.reset()
-                                val completed = horizontalDrag(drag.id) { change ->
-                                    change.consume()
-                                    if (currentEnabled) {
-                                        state.updateDrag(
-                                            initialThumbPx + (change.position.x - down.position.x),
-                                            maxDragPx,
-                                        )
+                            if (drag != null && !tracker.isCancelledByPointerSwap) {
+                                if (drag.id != down.id) {
+                                    state.cancelDrag()
+                                } else {
+                                    if (currentEnabled) confirmation.reset()
+                                    val completed = horizontalDrag(drag.id) { change ->
+                                        change.consume()
+                                        tracker.update(change.id.value, change.position.x, currentEnabled, state)
                                     }
-                                }
-                                if (completed && currentEnabled) {
-                                    state.checkThresholdAndResolve { currentOnStop() }
+                                    if (completed && !tracker.isCancelledByPointerSwap && currentEnabled) {
+                                        state.checkThresholdAndResolve { currentOnStop() }
+                                    }
                                 }
                             }
                         } finally {
