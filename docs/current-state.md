@@ -1,21 +1,23 @@
 # Current project state
 
-Source audit: 2026-11-27, based on main through PRs #73–#77, commit
-`e8845a0`). This records implemented behavior across Phases 1 through 10 and post-v0.3.0
+Source audit: 2026-11-27, based on main through PR #79, commit
+`bb6249e`. This records implemented behavior across Phases 1 through 10 and post-v0.3.0
 wiring, security, editor UX, app icon updates, Android map cartography, native splash
-gating, worldwide online place search (`Bus Stop` / `Halte Bus` + category-filtered
+gating, worldwide online place search (unified `Rail / MRT` / `Kereta / MRT` and
+`Bus Stop` / `Halte Bus` filtering, smooth debounced search transitions, and live-filtered
 `Recent destinations`), Liquid Glass v2 tokens, multi-device E2E polish, stationary-space
 Slide-to-Stop drag tracking, sibling ringing backdrop scrim, and release binary size
 optimization. Notion requirements and historical Stitch mockups may include planned future
 enhancements.
 
-## Release readiness (v0.5.1)
+## Release readiness (v0.5.2)
 
-Fjalar v0.5.1 ships core domain logic, Liquid Glass v2 UI (`#F2F3F8` Light canvas and
+Fjalar v0.5.2 ships core domain logic, Liquid Glass v2 UI (`#F2F3F8` Light canvas and
 `1 dp` pill rims), native startup splash with last-known-location viewport gating and
 unconditional API 31+ per-app night-mode sync, worldwide online place search
 (`PlaceSearchAdapter` with OSM Photon and Apple MapKit `MKLocalSearch`, including
-`Bus Stop` / `Halte Bus` filtering across live results and `Recent destinations`), vertical
+unified `Rail / MRT` / `Kereta / MRT` and `Bus Stop` / `Halte Bus` filtering across live
+results and live-filtered `Recent destinations` with smooth `300 ms` debounce bridging), vertical
 recent destinations in `SearchPlacesOverlay` (wrapping `SearchPlacesSheet`) with
 browse/picker selection recording in `FjalarViewModel`, pan-safe search-aware picker
 controls, symmetric-margin iOS map attribution clearance, iOS `CLLocationManager`
@@ -353,23 +355,30 @@ Place search is worldwide and online-only through `PlaceSearchAdapter`:
 `AndroidNominatimEngine` queries the public OSM Photon endpoint, and
 `IosAppleLocalSearchEngine` uses Apple MapKit `MKLocalSearch`. No transit dataset is
 bundled and no search-result cache is kept. Queries shorter than 3 characters (including
-a blank query) return immediately without a network request. A blank query shows recent
+a blank query) return immediately without a network request while live-filtering
+`Recent destinations` by both category and query substring; a blank query shows recent
 destination quick-picks only, so the sheet has no empty-results panel until the user
-types. A query returns at most 8 candidates after deduplication within 50 meters.
+completes a settled search. Across the `300 ms` debounce (`FjalarViewModel.onSearchQueryChanged`),
+`isSearching` is deferred until the debounce delay elapses and `isSearchSettled` preserves
+settled state across `>= 3`-character edits while letting matching `Recent destinations`
+bridge the `< 3` to `>= 3` transition until initial results arrive or settle. A query returns
+at most 8 candidates after deduplication within 50 meters.
 
 Every provider request sends the typed query plus the map center rounded to 2 decimal
 places (roughly 1 km), never the precise position. Ranking uses the exact unrounded
 coordinates on-device with `HaversineCalculator` (falling back to the current map
 viewport center when a live 30 s location fix expires so search distance badges stay
-visible). Provider results, the query, and the
-coarse coordinates are never persisted. Category chips (`All`, `Train`, `Metro / MRT`,
-`Bus Stop` / `Halte Bus`, `Transit`, with `Role.RadioButton` `selectable` semantics)
-filter both live search results and blank-query `Recent destinations` via
-`filterRecentDestinations(...)` and `shouldShowEmptyFilteredRecents(...)`; `AndroidNominatimEngine`
-maps OSM `highway=bus_stop` / `amenity=bus_station` tags directly to `PlaceCategory.BUS_STOP`,
-while `PlaceCategoryHeuristics` checks `BUS_KEYWORDS` before `METRO_KEYWORDS` and
-`RAIL_KEYWORDS`. Offline, a non-blank query returns no results while recents and map
-taps keep working.
+visible). Provider results, the query, and the coarse coordinates are never persisted.
+4 category chips (`All`, `Rail / MRT` / `Kereta / MRT`, `Bus Stop` / `Halte Bus`,
+`Transit`, with `Role.RadioButton` `selectable` semantics; `SEARCH_CATEGORY_METRO` was
+removed from `FjalarStrings`) filter both live search results and `Recent destinations`
+via the shared `matchesCategoryFilter(...)` predicate (matching both
+`PlaceCategory.TRAIN_STATION` and `PlaceCategory.METRO_STATION` under the unified
+`Rail / MRT` chip), `filterRecentDestinations(...)`, and `shouldShowEmptyFilteredRecents(...)`;
+`AndroidNominatimEngine` maps OSM `highway=bus_stop` / `amenity=bus_station` tags
+directly to `PlaceCategory.BUS_STOP`, while `PlaceCategoryHeuristics` checks
+`BUS_KEYWORDS` before `METRO_KEYWORDS` and `RAIL_KEYWORDS`. Offline, a non-blank query
+returns no results while recents and map taps keep working.
 
 The map picker and place search also support recent destination quick-picks
 via `RecentDestinationsPort` backed by `PersistentRecentDestinationsAdapter` in
